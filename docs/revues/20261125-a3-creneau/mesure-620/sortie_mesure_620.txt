@@ -1,0 +1,1523 @@
+MESURE DE #620 -- A3, etape 3 -- specification actuary-1-specification-620.md, par. 3
+B = 999 ; graine = 20260831 ; graine secondaire = 20261125 ; triangles = T0,T1,T2,T3,K1,KA,R2,R2T
+I3 au depart : md5 de R/engine.R = 723277ddfa5736d7411838d15d8dad00 : OK ; git status --porcelain -- R/ tests/ app.R vide : OK
+Variantes : V0 (moteur tel quel) ; Va (mw_famille_alpha et entree Alpha de MW_CATALOGUE_MC substituees) ; Vb (.mw_simulation_sigma_direct substituee).
+
+===============================================================================
+TRIANGLE T0
+===============================================================================
+Triangle (format 17 chiffres), I = 7, J = 5 :
+   j0                  j1                  j2                  j3                  j4                  j5                 
+i0  300.00000000000000  962.71000000000004 1564.43000000000006 2073.25358574518305 2350.30292589734290 2572.84556457531517
+i1  311.42857142857099  981.49000000000001 1588.40000000000009 2105.01971682826843 2431.25703491856211 2661.46495828596517
+i2  322.85714285714300 1013.33000000000004 1662.65000000000009 2203.41918420078173 2561.59842277052758 2804.14795370770844
+i3  334.28571428571399 1063.74000000000001 1778.23000000000002 2356.59104196394674 2708.65562895097810                  NA
+i4  345.71428571428601 1120.81999999999994 1885.95000000000005 2499.34647126181926                  NA                  NA
+i5  357.14285714285700 1165.47000000000003 1938.88000000000011                  NA                  NA                  NA
+i6  368.57142857142901 1189.15000000000009                  NA                  NA                  NA                  NA
+i7  380.00000000000000                  NA                  NA                  NA                  NA                  NA
+sigma2_j (j = 0..J-1) : 0.72404040319674878 ; 0.71209194038563495 ; 7.8314166365815951e-29 ; 0.3183801874494156 ; 7.8314166365815951e-29
+sigma2_(J-1), regle de minimum : 7.8314166365815951e-29
+sigma2_(J-1), estimateur direct : 1.2108771700832641e-28
+figes$degeneres : {2, 4} ; figes$non_identifiables : {} ; figes$origine_non_identifiables : {}
+n_j (j = 0..J-1) : 7 ; 6 ; 5 ; 4 ; 3 ; cas = degenere
+
+Preconditions (I6) et ensembles figes (I7)
+------------------------------------------
+I6 : I, J = 7, 5 (attendu 7, 5) : OK
+I6 : degeneres = {2, 4} (attendu {2, 4}) : OK
+I6 : cas = degenere (attendu degenere) : OK
+I6 : regle = 7.83142e-29 (attendu 7.8e-29) : OK
+I6 : direct = 1.21088e-28 (attendu 1.2e-28) : OK
+I6 : colonnes d'Alpha = {0, 1, 2, 3, 4} (attendu non fixe) : SANS OBJET
+I6 : T0 identique a la construction de mesure_617.R : OK
+I7 : .mw_colonnes_degenerees(aj) identical a figes$degeneres : OK
+
+Executions
+----------
+V0   : ok = TRUE ; liaisons restaurees : OK ; 13.9 s
+V0j  : ok = TRUE ; liaisons restaurees : OK ; 11.7 s
+Va   : ok = TRUE ; liaisons restaurees : OK ; 10.4 s
+Vb   : ok = TRUE ; liaisons restaurees : OK ; 10.5 s
+V0f  : ok = TRUE ; liaisons restaurees : OK ; 10.8 s
+I1 : V0 au debut identical a V0 a la fin : OK ; V0 avec journal identical a V0 sans journal : OK
+I8 : metadata$seed et metadata$B egaux a la graine et a B passes : OK
+
+M-a : p_mc, err_mc, B_effectif, stats_obs ; colonnes de stats_boot identical a V0
+---------------------------------------------------------------------------------
+cle         queue | p V0       p Va       p Vb       | err V0    err Va    err Vb    | BeV0 BeVa BeVb | colVa  colVb 
+Calendrier  bas   | 0.012      0.012      0.012      | 0.003445  0.003445  0.003445  | 999  999  999  | OK     OK    
+CorrDev     deux  | 0.372      0.372      0.372      | 0.02462   0.02462   0.02462   | 999  999  999  | OK     OK    
+BP          haut  | 0.252      0.252      0.252      | 0.01374   0.01374   0.01374   | 999  999  999  | OK     OK    
+MinP4       bas   | 0.831      0.831      0.831      | 0.01186   0.01186   0.01186   | 999  999  999  | OK     OK    
+DW          deux  | 0.026      0.026      0.026      | 0.007168  0.007168  0.007168  | 999  999  999  | OK     OK    
+Runs        deux  | 0.244      0.244      0.244      | 0.02071   0.02071   0.02071   | 999  999  999  | OK     OK    
+PenteIntra  deux  | 0.014      0.014      0.014      | 0.005276  0.005276  0.005276  | 999  999  999  | OK     OK    
+Origine     haut  | 0.061      0.061      0.061      | 0.007572  0.007572  0.007572  | 999  999  999  | OK     OK    
+HomogF      haut  | 0.096      0.096      0.096      | 0.00932   0.00932   0.00932   | 999  999  999  | OK     OK    
+Courbure    haut  | 0.242      0.242      0.242      | 0.01355   0.01355   0.01355   | 999  999  999  | OK     OK    
+Alpha       haut  | 0.016      0.016      0.016      | 0.00397   0.00397   0.00397   | 999  999  999  | ECHEC  ECHEC 
+ExpVar      haut  | 0.576      0.576      0.576      | 0.01564   0.01564   0.01564   | 999  999  999  | OK     OK    
+KruskalAcc  haut  | 0.295      0.295      0.295      | 0.01443   0.01443   0.01443   | 999  999  999  | OK     OK    
+stats_obs (17 chiffres) :
+  Calendrier  V0 -2.6832815729997477 ; Va -2.6832815729997477 ; Vb -2.6832815729997477
+  CorrDev     V0 0.48571428571428565 ; Va 0.48571428571428565 ; Vb 0.48571428571428565
+  BP          V0 1.7399124592396065 ; Va 1.7399124592396065 ; Vb 1.7399124592396065
+  MinP4       V0 0.10971225499364649 ; Va 0.10971225499364649 ; Vb 0.10971225499364649
+  DW          V0 1.2857529040888855 ; Va 1.2857529040888855 ; Vb 1.2857529040888855
+  Runs        V0 -1.0350983390135313 ; Va -1.0350983390135313 ; Vb -1.0350983390135313
+  PenteIntra  V0 2.9267112278646836 ; Va 2.9267112278646836 ; Vb 2.9267112278646836
+  Origine     V0 11.889969444525285 ; Va 11.889969444525285 ; Vb 11.889969444525285
+  HomogF      V0 9.0738984345594442 ; Va 9.0738984345594442 ; Vb 9.0738984345594442
+  Courbure    V0 8.3414846901944451 ; Va 8.3414846901944451 ; Vb 8.3414846901944451
+  Alpha       V0 0.00078018879548024181 ; Va 0.0011473364639414964 ; Vb 0.00078018879548024181
+  ExpVar      V0 4.0193012695967756 ; Va 4.0193012695967756 ; Vb 4.0193012695967756
+  KruskalAcc  V0 8.235294117647058 ; Va 8.235294117647058 ; Vb 8.235294117647058
+motif_mc[["Alpha"]] : V0 aucun ; Va aucun ; Vb aucun
+
+M-b : ligne Alpha
+-----------------
+V0 : stat = 0.00078018879548024181 ; p_retenue = 0.016 ; nature_p = Monte-Carlo (bootstrap de residus) ; type = test ; verdict (0.1) = ECHEC ; inoperant = FALSE
+     detail : Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+Va : stat = 0.0011473364639414964 ; p_retenue = 0.016 ; nature_p = Monte-Carlo (bootstrap de residus) ; type = test ; verdict (0.1) = ECHEC ; inoperant = FALSE
+     detail : Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+Vb : stat = 0.00078018879548024181 ; p_retenue = 0.016 ; nature_p = Monte-Carlo (bootstrap de residus) ; type = test ; verdict (0.1) = ECHEC ; inoperant = FALSE
+     detail : Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+
+M-c : p de famille et p globale (decomposition minP)
+----------------------------------------------------
+V0 M1  : p = 0.056 ; m_obs = 0.014 ; B_eff = 999 ; N = 1000 ; num_p = 56 ; num_m_obs = 14 ; minimum atteint par PenteIntra ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha
+       num_obs : PenteIntra = 14 ; Origine = 61 ; HomogF = 96 ; Courbure = 242 ; Alpha = 16
+V0 M2  : p = 0.402 ; m_obs = 0.252 ; B_eff = 999 ; N = 1000 ; num_p = 402 ; num_m_obs = 252 ; minimum atteint par BP ; p de la ligne identical : OK
+       membres : BP, ExpVar
+       num_obs : BP = 252 ; ExpVar = 576
+V0 M3  : p = 0.038 ; m_obs = 0.012 ; B_eff = 999 ; N = 1000 ; num_p = 38 ; num_m_obs = 12 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : Calendrier, KruskalAcc, CorrDev, DW
+       num_obs : Calendrier = 12 ; KruskalAcc = 295 ; CorrDev = 372 ; DW = 26
+V0 LC  : p = 0.111 ; m_obs = 0.012 ; B_eff = 999 ; N = 1000 ; num_p = 111 ; num_m_obs = 12 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha, BP, ExpVar, Calendrier, KruskalAcc, CorrDev, DW, MinP4
+       num_obs : PenteIntra = 14 ; Origine = 61 ; HomogF = 96 ; Courbure = 242 ; Alpha = 16 ; BP = 252 ; ExpVar = 576 ; Calendrier = 12 ; KruskalAcc = 295 ; CorrDev = 372 ; DW = 26 ; MinP4 = 831
+Va M1  : p = 0.056 ; m_obs = 0.014 ; B_eff = 999 ; N = 1000 ; num_p = 56 ; num_m_obs = 14 ; minimum atteint par PenteIntra ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha
+       num_obs : PenteIntra = 14 ; Origine = 61 ; HomogF = 96 ; Courbure = 242 ; Alpha = 16
+Va M2  : p = 0.402 ; m_obs = 0.252 ; B_eff = 999 ; N = 1000 ; num_p = 402 ; num_m_obs = 252 ; minimum atteint par BP ; p de la ligne identical : OK
+       membres : BP, ExpVar
+       num_obs : BP = 252 ; ExpVar = 576
+Va M3  : p = 0.038 ; m_obs = 0.012 ; B_eff = 999 ; N = 1000 ; num_p = 38 ; num_m_obs = 12 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : Calendrier, KruskalAcc, CorrDev, DW
+       num_obs : Calendrier = 12 ; KruskalAcc = 295 ; CorrDev = 372 ; DW = 26
+Va LC  : p = 0.111 ; m_obs = 0.012 ; B_eff = 999 ; N = 1000 ; num_p = 111 ; num_m_obs = 12 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha, BP, ExpVar, Calendrier, KruskalAcc, CorrDev, DW, MinP4
+       num_obs : PenteIntra = 14 ; Origine = 61 ; HomogF = 96 ; Courbure = 242 ; Alpha = 16 ; BP = 252 ; ExpVar = 576 ; Calendrier = 12 ; KruskalAcc = 295 ; CorrDev = 372 ; DW = 26 ; MinP4 = 831
+Vb M1  : p = 0.056 ; m_obs = 0.014 ; B_eff = 999 ; N = 1000 ; num_p = 56 ; num_m_obs = 14 ; minimum atteint par PenteIntra ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha
+       num_obs : PenteIntra = 14 ; Origine = 61 ; HomogF = 96 ; Courbure = 242 ; Alpha = 16
+Vb M2  : p = 0.402 ; m_obs = 0.252 ; B_eff = 999 ; N = 1000 ; num_p = 402 ; num_m_obs = 252 ; minimum atteint par BP ; p de la ligne identical : OK
+       membres : BP, ExpVar
+       num_obs : BP = 252 ; ExpVar = 576
+Vb M3  : p = 0.038 ; m_obs = 0.012 ; B_eff = 999 ; N = 1000 ; num_p = 38 ; num_m_obs = 12 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : Calendrier, KruskalAcc, CorrDev, DW
+       num_obs : Calendrier = 12 ; KruskalAcc = 295 ; CorrDev = 372 ; DW = 26
+Vb LC  : p = 0.111 ; m_obs = 0.012 ; B_eff = 999 ; N = 1000 ; num_p = 111 ; num_m_obs = 12 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha, BP, ExpVar, Calendrier, KruskalAcc, CorrDev, DW, MinP4
+       num_obs : PenteIntra = 14 ; Origine = 61 ; HomogF = 96 ; Courbure = 242 ; Alpha = 16 ; BP = 252 ; ExpVar = 576 ; Calendrier = 12 ; KruskalAcc = 295 ; CorrDev = 372 ; DW = 26 ; MinP4 = 831
+Familles sans Alpha (M2, M3) identical entre V0 et Va : OK
+Familles sans Alpha (M2, M3) identical entre V0 et Vb : OK
+
+M-d : verdicts d'Alpha a alpha saisi
+------------------------------------
+p d'Alpha : V0 0.016 ; Va 0.016 ; Vb 0.016 ; repere de l'application : alpha <= 4/(B+1) = 0.004 inadmissible a B = 999
+Va contre V0, alpha dans ]0 ; 0.3[ : aucun (p egales) ; dont admissible a B (alpha > 4/(B+1)) : aucun (p egales)
+    verdicts (0.1) de toutes les autres lignes identiques entre V0 et Va : OK
+Vb contre V0, alpha dans ]0 ; 0.3[ : aucun (p egales) ; dont admissible a B (alpha > 4/(B+1)) : aucun (p egales)
+    verdicts (0.1) de toutes les autres lignes identiques entre V0 et Vb : OK
+
+M-e : sigma_USP, sigma_boot, ic_bootstrap
+-----------------------------------------
+V0 : sigma_USP = 0.044918486897690166 ; sigma_boot : longueur = 999 ; moyenne = 0.0134061 ; q05 = 0.010054 ; q50 = 0.0135209 ; q95 = 0.0163075
+     ic_bootstrap : 2.5% = 0.0422854 ; 5% = 0.0428319 ; 50% = 0.0448773 ; 95% = 0.0465214 ; 97.5% = 0.0468576 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+Va : sigma_USP = 0.044918486897690166 ; sigma_boot : longueur = 999 ; moyenne = 0.0134061 ; q05 = 0.010054 ; q50 = 0.0135209 ; q95 = 0.0163075
+     ic_bootstrap : 2.5% = 0.0422854 ; 5% = 0.0428319 ; 50% = 0.0448773 ; 95% = 0.0465214 ; 97.5% = 0.0468576 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+Vb : sigma_USP = 0.044918486897690166 ; sigma_boot : longueur = 999 ; moyenne = 0.0134061 ; q05 = 0.010054 ; q50 = 0.0135209 ; q95 = 0.0163075
+     ic_bootstrap : 2.5% = 0.0422854 ; 5% = 0.0428319 ; 50% = 0.0448773 ; 95% = 0.0465214 ; 97.5% = 0.0468576 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+ecarts relatifs Va/V0 - 1 : sigma_boot : moyenne 0 ; q05 0 ; q50 0 ; q95 0 ; ic : 2.5% 0 ; 5% 0 ; 50% 0 ; 95% 0 ; 97.5% 0
+    sigma_USP identical a V0 : OK ; sigma_boot identical : OK ; ic_bootstrap identical : OK
+ecarts relatifs Vb/V0 - 1 : sigma_boot : moyenne 0 ; q05 0 ; q50 0 ; q95 0 ; ic : 2.5% 0 ; 5% 0 ; 50% 0 ; 95% 0 ; 97.5% 0
+    sigma_USP identical a V0 : OK ; sigma_boot identical : ECHEC ; ic_bootstrap identical : OK
+
+M-f : valeur de A
+-----------------
+A_obs V0 = 0.00078018879548024181 ; A_obs Va = 0.0011473364639414964 ; Sum n = 25 ; Sum' n = 17
+A_obs(Va) / A_obs(V0) = 1.470588235294072 ; Sum n / Sum' n = 1.4705882352941178 ; ecart relatif = -3.10862e-14 (<= 1e-12 : OK)
+detail de mw_famille_alpha(aj), V0 :
+    j = 0 ; n = 7 ; f0 = 3.2018715668037259 ; f1 = 3.2037222222222224 ; f2 = 3.2056065949247436 ; amplitude = 0.0011658401889871166
+    j = 1 ; n = 6 ; f0 = 1.6503490428108556 ; f1 = 1.651754402653324 ; f2 = 1.6531408506883494 ; amplitude = 0.0016902076198550529
+    j = 2 ; n = 5 ; f0 = 1.3252453518183511 ; f1 = 1.3252453518183511 ; f2 = 1.3252453518183511 ; amplitude = 0
+    j = 3 ; n = 4 ; f0 = 1.1501406707269866 ; f1 = 1.1503190505869185 ; f2 = 1.1504865120919023 ; amplitude = 0.00030064821124132617
+    j = 4 ; n = 3 ; f0 = 1.0946867896158559 ; f1 = 1.0946867896158556 ; f2 = 1.0946867896158556 ; amplitude = 2.0283848040492986e-16
+detail de la variante Va sur aj (ensemble fige figes$degeneres) :
+    j = 0 ; n = 7 ; f0 = 3.2018715668037259 ; f1 = 3.2037222222222224 ; f2 = 3.2056065949247436 ; amplitude = 0.0011658401889871166
+    j = 1 ; n = 6 ; f0 = 1.6503490428108556 ; f1 = 1.651754402653324 ; f2 = 1.6531408506883494 ; amplitude = 0.0016902076198550529
+    j = 3 ; n = 4 ; f0 = 1.1501406707269866 ; f1 = 1.1503190505869185 ; f2 = 1.1504865120919023 ; amplitude = 0.00030064821124132617
+
+M-g : replications ou l'indicateur A* >= A_obs differe entre Vb et Va
+---------------------------------------------------------------------
+discordances : 0
+
+Journal de V0 : p_sans, I4, Gb1, Ga1, I9 (Va)
+---------------------------------------------
+journal : |R| = 999 ; lignes non NA de stats_boot = 999 ; 13 statistiques identiques au stats_boot de V0 : OK
+A^sans_obs = 0.0011473364639414964 ; p_sans = 0.016 (err_mc 0.00396986, B_eff 999) ; p_moteur (V0) = 0.016
+N_moteur = 15 ; N_sans = 15
+I4 (attendu N_moteur = 15, N_sans = 15, p = 0.016 contre 0.016) : OK
+Gb1 : p_Alpha(Vb) = 0.016 ; p_sans = 0.016 ; identical : OK ; replications discordantes : 0 ; toutes quasi-egales : OK
+Ga1 : p_Alpha(Va) = 0.016 identical a p_sans : OK
+I9 (Va) : variante sur les 50 premieres replications du journal = colonne Alpha de Va : OK ; (info) lignes ou la colonne Alpha differe entre V0 et Va : 999
+
+Crochets de Vb : I9 (Vb), Gb4
+-----------------------------
+I9 (Vb) : aj$sigma2[J] recu par .mw_tirer_triangle_valide() = estimateur direct (1.2108771700832641e-28) a chaque appel : OK (999 appels)
+colonne J-1 degeneree (.mw_colonne_degeneree) dans les replications de Vb : 999 / 999
+
+Comparaisons de variantes (Gb2, Gb3, Ga2, Ga3, Ga4)
+---------------------------------------------------
+Vb : 12 autres cles : p_mc OK ; verdicts OK ; colonnes de stats_boot OK
+Vb : sigma_USP identical : OK
+Vb : res identical a V0 : ECHEC
+Va : 12 autres cles : p_mc OK ; colonnes OK ; sigma_boot OK ; ic_bootstrap OK ; sigma_USP OK ; (info) verdicts des 12 : OK
+Va : res identical a V0 : ECHEC
+Vb : lignes dont le detail change (artefact connu des textes M6 et usage_sigma, exclu des comparaisons) : M6. robustesse de l'estimation / Extrapolation de sigma pour la derniere annee de developpement
+Vb : ligne Alpha dont le detail change (effet attendu de Vb sur la p d'Alpha) : aucune
+Vb : plots_data$usage_sigma identical : ECHEC
+
+===============================================================================
+TRIANGLE T1
+===============================================================================
+Triangle (format 17 chiffres), I = 7, J = 5 :
+   j0                  j1                  j2                  j3                  j4                  j5                 
+i0  300.00000000000000  962.71000000000004 1564.43000000000006 2025.44000000000005 2296.09999999999991 2513.51033763696660
+i1  311.42857142857099  981.49000000000001 1588.40000000000009 2084.96999999999980 2408.09999999999991 2636.11525807394219
+i2  322.85714285714300 1013.33000000000004 1662.65000000000009 2223.53999999999996 2584.98999999999978 2829.75440428909087
+i3  334.28571428571399 1063.74000000000001 1778.23000000000002 2393.71000000000004 2751.32000000000016                  NA
+i4  345.71428571428601 1120.81999999999994 1885.95000000000005 2509.96999999999980                  NA                  NA
+i5  357.14285714285700 1165.47000000000003 1938.88000000000011                  NA                  NA                  NA
+i6  368.57142857142901 1189.15000000000009                  NA                  NA                  NA                  NA
+i7  380.00000000000000                  NA                  NA                  NA                  NA                  NA
+sigma2_j (j = 0..J-1) : 0.72404040319674878 ; 0.71209194038563495 ; 0.69814138644820289 ; 0.3147787989762531 ; 0.14192783039124957
+sigma2_(J-1), regle de minimum : 0.14192783039124957
+sigma2_(J-1), estimateur direct : 0
+figes$degeneres : {4} ; figes$non_identifiables : {} ; figes$origine_non_identifiables : {}
+n_j (j = 0..J-1) : 7 ; 6 ; 5 ; 4 ; 3 ; cas = degenere
+
+Preconditions (I6) et ensembles figes (I7)
+------------------------------------------
+I6 : I, J = 7, 5 (attendu 7, 5) : OK
+I6 : degeneres = {4} (attendu {4}) : OK
+I6 : cas = degenere (attendu degenere) : OK
+I6 : regle = 0.141928 (attendu 0.141928) : OK
+I6 : direct = 0 (attendu 0) : OK
+I6 : colonnes d'Alpha = {0, 1, 2, 3, 4} (attendu {0, 1, 2, 3, 4}) : OK
+I7 : .mw_colonnes_degenerees(aj) identical a figes$degeneres : OK
+
+Executions
+----------
+V0   : ok = TRUE ; liaisons restaurees : OK ; 14.3 s
+V0j  : ok = TRUE ; liaisons restaurees : OK ; 12.8 s
+Va   : ok = TRUE ; liaisons restaurees : OK ; 12.2 s
+Vb   : ok = TRUE ; liaisons restaurees : OK ; 11.9 s
+V0f  : ok = TRUE ; liaisons restaurees : OK ; 12.4 s
+I1 : V0 au debut identical a V0 a la fin : OK ; V0 avec journal identical a V0 sans journal : OK
+I8 : metadata$seed et metadata$B egaux a la graine et a B passes : OK
+
+M-a : p_mc, err_mc, B_effectif, stats_obs ; colonnes de stats_boot identical a V0
+---------------------------------------------------------------------------------
+cle         queue | p V0       p Va       p Vb       | err V0    err Va    err Vb    | BeV0 BeVa BeVb | colVa  colVb 
+Calendrier  bas   | 0.003      0.003      0.003      | 0.00173   0.00173   0.00173   | 999  999  999  | OK     OK    
+CorrDev     deux  | 0.086      0.086      0.086      | 0.01284   0.01284   0.01284   | 999  999  999  | OK     OK    
+BP          haut  | 0.102      0.102      0.102      | 0.009575  0.009575  0.009575  | 999  999  999  | OK     OK    
+MinP4       bas   | 0.919      0.919      0.919      | 0.008632  0.008632  0.008632  | 999  999  999  | OK     OK    
+DW          deux  | 0.016      0.016      0.016      | 0.005637  0.005637  0.005637  | 999  999  999  | OK     OK    
+Runs        deux  | 0.11       0.11       0.11       | 0.01443   0.01443   0.01443   | 999  999  999  | OK     OK    
+PenteIntra  deux  | 0.004      0.004      0.004      | 0.002827  0.002827  0.002827  | 999  999  999  | OK     OK    
+Origine     haut  | 0.038      0.038      0.038      | 0.006049  0.006049  0.006049  | 999  999  999  | OK     OK    
+HomogF      haut  | 0.064      0.064      0.064      | 0.007744  0.007744  0.007744  | 999  999  999  | OK     OK    
+Courbure    haut  | 0.027      0.027      0.027      | 0.005128  0.005128  0.005128  | 999  999  999  | OK     OK    
+Alpha       haut  | 0.008      0.007      0.007      | 0.002819  0.002638  0.002638  | 999  999  999  | ECHEC  ECHEC 
+ExpVar      haut  | 0.43       0.43       0.43       | 0.01566   0.01566   0.01566   | 999  999  999  | OK     OK    
+KruskalAcc  haut  | 0.111      0.111      0.111      | 0.009939  0.009939  0.009939  | 999  999  999  | OK     OK    
+stats_obs (17 chiffres) :
+  Calendrier  V0 -3.4125007385087232 ; Va -3.4125007385087232 ; Vb -3.4125007385087232
+  CorrDev     V0 0.50238095238095237 ; Va 0.50238095238095237 ; Vb 0.50238095238095237
+  BP          V0 3.2374881042254486 ; Va 3.2374881042254486 ; Vb 3.2374881042254486
+  MinP4       V0 0.1032898723540695 ; Va 0.1032898723540695 ; Vb 0.1032898723540695
+  DW          V0 1.333927841943418 ; Va 1.333927841943418 ; Vb 1.333927841943418
+  Runs        V0 -1.3107943462579543 ; Va -1.3107943462579543 ; Vb -1.3107943462579543
+  PenteIntra  V0 3.3850418239491078 ; Va 3.3850418239491078 ; Vb 3.3850418239491078
+  Origine     V0 15.665121466782715 ; Va 15.665121466782715 ; Vb 15.665121466782715
+  HomogF      V0 11.984472899773127 ; Va 11.984472899773127 ; Vb 11.984472899773127
+  Courbure    V0 18.061494043951082 ; Va 18.061494043951082 ; Vb 18.061494043951082
+  Alpha       V0 0.0010801674129796576 ; Va 0.0012274629692950656 ; Vb 0.0010801674129796576
+  ExpVar      V0 6.9298757348104605 ; Va 6.9298757348104605 ; Vb 6.9298757348104605
+  KruskalAcc  V0 10.345849802371546 ; Va 10.345849802371546 ; Vb 10.345849802371546
+motif_mc[["Alpha"]] : V0 aucun ; Va aucun ; Vb aucun
+
+M-b : ligne Alpha
+-----------------
+V0 : stat = 0.0010801674129796576 ; p_retenue = 0.008 ; nature_p = Monte-Carlo (bootstrap de residus) ; type = test ; verdict (0.1) = ECHEC ; inoperant = FALSE
+     detail : Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+Va : stat = 0.0012274629692950656 ; p_retenue = 0.007 ; nature_p = Monte-Carlo (bootstrap de residus) ; type = test ; verdict (0.1) = ECHEC ; inoperant = FALSE
+     detail : Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+Vb : stat = 0.0010801674129796576 ; p_retenue = 0.007 ; nature_p = Monte-Carlo (bootstrap de residus) ; type = test ; verdict (0.1) = ECHEC ; inoperant = FALSE
+     detail : Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+
+M-c : p de famille et p globale (decomposition minP)
+----------------------------------------------------
+V0 M1  : p = 0.015 ; m_obs = 0.004 ; B_eff = 999 ; N = 1000 ; num_p = 15 ; num_m_obs = 4 ; minimum atteint par PenteIntra ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha
+       num_obs : PenteIntra = 4 ; Origine = 38 ; HomogF = 64 ; Courbure = 27 ; Alpha = 8
+V0 M2  : p = 0.183 ; m_obs = 0.102 ; B_eff = 999 ; N = 1000 ; num_p = 183 ; num_m_obs = 102 ; minimum atteint par BP ; p de la ligne identical : OK
+       membres : BP, ExpVar
+       num_obs : BP = 102 ; ExpVar = 430
+V0 M3  : p = 0.009 ; m_obs = 0.003 ; B_eff = 999 ; N = 1000 ; num_p = 9 ; num_m_obs = 3 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : Calendrier, KruskalAcc, CorrDev, DW
+       num_obs : Calendrier = 3 ; KruskalAcc = 111 ; CorrDev = 86 ; DW = 16
+V0 LC  : p = 0.027 ; m_obs = 0.003 ; B_eff = 999 ; N = 1000 ; num_p = 27 ; num_m_obs = 3 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha, BP, ExpVar, Calendrier, KruskalAcc, CorrDev, DW, MinP4
+       num_obs : PenteIntra = 4 ; Origine = 38 ; HomogF = 64 ; Courbure = 27 ; Alpha = 8 ; BP = 102 ; ExpVar = 430 ; Calendrier = 3 ; KruskalAcc = 111 ; CorrDev = 86 ; DW = 16 ; MinP4 = 919
+Va M1  : p = 0.015 ; m_obs = 0.004 ; B_eff = 999 ; N = 1000 ; num_p = 15 ; num_m_obs = 4 ; minimum atteint par PenteIntra ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha
+       num_obs : PenteIntra = 4 ; Origine = 38 ; HomogF = 64 ; Courbure = 27 ; Alpha = 7
+Va M2  : p = 0.183 ; m_obs = 0.102 ; B_eff = 999 ; N = 1000 ; num_p = 183 ; num_m_obs = 102 ; minimum atteint par BP ; p de la ligne identical : OK
+       membres : BP, ExpVar
+       num_obs : BP = 102 ; ExpVar = 430
+Va M3  : p = 0.009 ; m_obs = 0.003 ; B_eff = 999 ; N = 1000 ; num_p = 9 ; num_m_obs = 3 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : Calendrier, KruskalAcc, CorrDev, DW
+       num_obs : Calendrier = 3 ; KruskalAcc = 111 ; CorrDev = 86 ; DW = 16
+Va LC  : p = 0.027 ; m_obs = 0.003 ; B_eff = 999 ; N = 1000 ; num_p = 27 ; num_m_obs = 3 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha, BP, ExpVar, Calendrier, KruskalAcc, CorrDev, DW, MinP4
+       num_obs : PenteIntra = 4 ; Origine = 38 ; HomogF = 64 ; Courbure = 27 ; Alpha = 7 ; BP = 102 ; ExpVar = 430 ; Calendrier = 3 ; KruskalAcc = 111 ; CorrDev = 86 ; DW = 16 ; MinP4 = 919
+Vb M1  : p = 0.015 ; m_obs = 0.004 ; B_eff = 999 ; N = 1000 ; num_p = 15 ; num_m_obs = 4 ; minimum atteint par PenteIntra ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha
+       num_obs : PenteIntra = 4 ; Origine = 38 ; HomogF = 64 ; Courbure = 27 ; Alpha = 7
+Vb M2  : p = 0.183 ; m_obs = 0.102 ; B_eff = 999 ; N = 1000 ; num_p = 183 ; num_m_obs = 102 ; minimum atteint par BP ; p de la ligne identical : OK
+       membres : BP, ExpVar
+       num_obs : BP = 102 ; ExpVar = 430
+Vb M3  : p = 0.009 ; m_obs = 0.003 ; B_eff = 999 ; N = 1000 ; num_p = 9 ; num_m_obs = 3 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : Calendrier, KruskalAcc, CorrDev, DW
+       num_obs : Calendrier = 3 ; KruskalAcc = 111 ; CorrDev = 86 ; DW = 16
+Vb LC  : p = 0.027 ; m_obs = 0.003 ; B_eff = 999 ; N = 1000 ; num_p = 27 ; num_m_obs = 3 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha, BP, ExpVar, Calendrier, KruskalAcc, CorrDev, DW, MinP4
+       num_obs : PenteIntra = 4 ; Origine = 38 ; HomogF = 64 ; Courbure = 27 ; Alpha = 7 ; BP = 102 ; ExpVar = 430 ; Calendrier = 3 ; KruskalAcc = 111 ; CorrDev = 86 ; DW = 16 ; MinP4 = 919
+Familles sans Alpha (M2, M3) identical entre V0 et Va : OK
+Familles sans Alpha (M2, M3) identical entre V0 et Vb : OK
+
+M-d : verdicts d'Alpha a alpha saisi
+------------------------------------
+p d'Alpha : V0 0.008 ; Va 0.007 ; Vb 0.007 ; repere de l'application : alpha <= 4/(B+1) = 0.004 inadmissible a B = 999
+Va contre V0, alpha dans ]0 ; 0.3[ : ]0.007 ; 0.008] U ]0.014 ; 0.016] ; dont admissible a B (alpha > 4/(B+1)) : ]0.007 ; 0.008] U ]0.014 ; 0.016]
+    verdicts (0.1) de toutes les autres lignes identiques entre V0 et Va : OK
+Vb contre V0, alpha dans ]0 ; 0.3[ : ]0.007 ; 0.008] U ]0.014 ; 0.016] ; dont admissible a B (alpha > 4/(B+1)) : ]0.007 ; 0.008] U ]0.014 ; 0.016]
+    verdicts (0.1) de toutes les autres lignes identiques entre V0 et Vb : OK
+
+M-e : sigma_USP, sigma_boot, ic_bootstrap
+-----------------------------------------
+V0 : sigma_USP = 0.047579706708939767 ; sigma_boot : longueur = 999 ; moyenne = 0.0178843 ; q05 = 0.0133401 ; q50 = 0.0178698 ; q95 = 0.0222821
+     ic_bootstrap : 2.5% = 0.0443931 ; 5% = 0.0447706 ; 50% = 0.0474432 ; 95% = 0.0500465 ; 97.5% = 0.0505636 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+Va : sigma_USP = 0.047579706708939767 ; sigma_boot : longueur = 999 ; moyenne = 0.0178843 ; q05 = 0.0133401 ; q50 = 0.0178698 ; q95 = 0.0222821
+     ic_bootstrap : 2.5% = 0.0443931 ; 5% = 0.0447706 ; 50% = 0.0474432 ; 95% = 0.0500465 ; 97.5% = 0.0505636 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+Vb : sigma_USP = 0.047579706708939767 ; sigma_boot : longueur = 999 ; moyenne = 0.0178808 ; q05 = 0.0133379 ; q50 = 0.0178413 ; q95 = 0.0223113
+     ic_bootstrap : 2.5% = 0.0444099 ; 5% = 0.0447694 ; 50% = 0.0474264 ; 95% = 0.0500637 ; 97.5% = 0.0505205 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+ecarts relatifs Va/V0 - 1 : sigma_boot : moyenne 0 ; q05 0 ; q50 0 ; q95 0 ; ic : 2.5% 0 ; 5% 0 ; 50% 0 ; 95% 0 ; 97.5% 0
+    sigma_USP identical a V0 : OK ; sigma_boot identical : OK ; ic_bootstrap identical : OK
+ecarts relatifs Vb/V0 - 1 : sigma_boot : moyenne -0.000194002 ; q05 -0.000160179 ; q50 -0.00159129 ; q95 0.00130817 ; ic : 2.5% 0.000378458 ; 5% -2.81593e-05 ; 50% -0.000353628 ; 95% 0.000343636 ; 97.5% -0.000853039
+    sigma_USP identical a V0 : OK ; sigma_boot identical : ECHEC ; ic_bootstrap identical : ECHEC
+
+M-f : valeur de A
+-----------------
+A_obs V0 = 0.0010801674129796576 ; A_obs Va = 0.0012274629692950656 ; Sum n = 25 ; Sum' n = 22
+A_obs(Va) / A_obs(V0) = 1.1363636363636365 ; Sum n / Sum' n = 1.1363636363636365 ; ecart relatif = 0 (<= 1e-12 : OK)
+Sum n / Sum' n egal a 25/22 (par. 3.5, M-f) : OK
+detail de mw_famille_alpha(aj), V0 :
+    j = 0 ; n = 7 ; f0 = 3.2018715668037259 ; f1 = 3.2037222222222224 ; f2 = 3.2056065949247436 ; amplitude = 0.0011658401889871166
+    j = 1 ; n = 6 ; f0 = 1.6503490428108556 ; f1 = 1.651754402653324 ; f2 = 1.6531408506883494 ; amplitude = 0.0016902076198550529
+    j = 2 ; n = 5 ; f0 = 1.3243299945323961 ; f1 = 1.3252453518183511 ; f2 = 1.3261342122939574 ; amplitude = 0.0013614216862453611
+    j = 3 ; n = 4 ; f0 = 1.1501406707269866 ; f1 = 1.1504240540992661 ; f2 = 1.1506856696995267 ; amplitude = 0.00047373746280612514
+    j = 4 ; n = 3 ; f0 = 1.0946867896158559 ; f1 = 1.0946867896158559 ; f2 = 1.0946867896158559 ; amplitude = 0
+detail de la variante Va sur aj (ensemble fige figes$degeneres) :
+    j = 0 ; n = 7 ; f0 = 3.2018715668037259 ; f1 = 3.2037222222222224 ; f2 = 3.2056065949247436 ; amplitude = 0.0011658401889871166
+    j = 1 ; n = 6 ; f0 = 1.6503490428108556 ; f1 = 1.651754402653324 ; f2 = 1.6531408506883494 ; amplitude = 0.0016902076198550529
+    j = 2 ; n = 5 ; f0 = 1.3243299945323961 ; f1 = 1.3252453518183511 ; f2 = 1.3261342122939574 ; amplitude = 0.0013614216862453611
+    j = 3 ; n = 4 ; f0 = 1.1501406707269866 ; f1 = 1.1504240540992661 ; f2 = 1.1506856696995267 ; amplitude = 0.00047373746280612514
+
+M-g : replications ou l'indicateur A* >= A_obs differe entre Vb et Va
+---------------------------------------------------------------------
+discordances : 0
+
+Journal de V0 : p_sans, I4, Gb1, Ga1, I9 (Va)
+---------------------------------------------
+journal : |R| = 999 ; lignes non NA de stats_boot = 999 ; 13 statistiques identiques au stats_boot de V0 : OK
+A^sans_obs = 0.0012274629692950656 ; p_sans = 0.007 (err_mc 0.00263779, B_eff 999) ; p_moteur (V0) = 0.008
+N_moteur = 7 ; N_sans = 6
+I4 (attendu N_moteur = 7, N_sans = 6, p = 0.008 contre 0.007) : OK
+Gb1 : p_Alpha(Vb) = 0.007 ; p_sans = 0.007 ; identical : OK ; replications discordantes : 0 ; toutes quasi-egales : OK
+Ga1 : p_Alpha(Va) = 0.007 identical a p_sans : OK
+I9 (Va) : variante sur les 50 premieres replications du journal = colonne Alpha de Va : OK ; (info) lignes ou la colonne Alpha differe entre V0 et Va : 999
+
+Crochets de Vb : I9 (Vb), Gb4
+-----------------------------
+I9 (Vb) : aj$sigma2[J] recu par .mw_tirer_triangle_valide() = estimateur direct (0) a chaque appel : OK (999 appels)
+colonne J-1 degeneree (.mw_colonne_degeneree) dans les replications de Vb : 999 / 999
+Gb4 : 100 % : OK
+
+Comparaisons de variantes (Gb2, Gb3, Ga2, Ga3, Ga4)
+---------------------------------------------------
+Vb : 12 autres cles : p_mc OK ; verdicts OK ; colonnes de stats_boot OK
+Vb : sigma_USP identical : OK
+Vb : res identical a V0 : ECHEC
+Va : 12 autres cles : p_mc OK ; colonnes OK ; sigma_boot OK ; ic_bootstrap OK ; sigma_USP OK ; (info) verdicts des 12 : OK
+Va : res identical a V0 : ECHEC
+Vb : lignes dont le detail change (artefact connu des textes M6 et usage_sigma, exclu des comparaisons) : M6. robustesse de l'estimation / Extrapolation de sigma pour la derniere annee de developpement
+Vb : ligne Alpha dont le detail change (effet attendu de Vb sur la p d'Alpha) : aucune
+Vb : plots_data$usage_sigma identical : ECHEC
+
+===============================================================================
+TRIANGLE T2
+===============================================================================
+Triangle (format 17 chiffres), I = 7, J = 4 :
+   j0                  j1                  j2                  j3                  j4                 
+i0  300.00000000000000  962.71000000000004 1564.43000000000006 2025.44000000000005 2330.11489613481763
+i1  311.42857142857099  981.49000000000001 1588.40000000000009 2084.96999999999980 2398.59964007534654
+i2  322.85714285714300 1013.33000000000004 1662.65000000000009 2223.53999999999996 2558.01390125188209
+i3  334.28571428571399 1063.74000000000001 1778.23000000000002 2393.71000000000004 2753.78156253795441
+i4  345.71428571428601 1120.81999999999994 1885.95000000000005 2509.96999999999980                  NA
+i5  357.14285714285700 1165.47000000000003 1938.88000000000011                  NA                  NA
+i6  368.57142857142901 1189.15000000000009                  NA                  NA                  NA
+i7  380.00000000000000                  NA                  NA                  NA                  NA
+sigma2_j (j = 0..J-1) : 0.72404040319674878 ; 0.71209194038563495 ; 0.69814138644820289 ; 0.68446413704368803
+sigma2_(J-1), regle de minimum : 0.68446413704368803
+sigma2_(J-1), estimateur direct : 0
+figes$degeneres : {3} ; figes$non_identifiables : {} ; figes$origine_non_identifiables : {}
+n_j (j = 0..J-1) : 7 ; 6 ; 5 ; 4 ; cas = degenere
+
+Preconditions (I6) et ensembles figes (I7)
+------------------------------------------
+I6 : I, J = 7, 4 (attendu 7, 4) : OK
+I6 : degeneres = {3} (attendu {3}) : OK
+I6 : cas = degenere (attendu degenere) : OK
+I6 : regle = 0.684464 (attendu 0.684464) : OK
+I6 : direct = 0 (attendu 0) : OK
+I6 : colonnes d'Alpha = {0, 1, 2, 3} (attendu {0, 1, 2, 3}) : OK
+I7 : .mw_colonnes_degenerees(aj) identical a figes$degeneres : OK
+
+Executions
+----------
+V0   : ok = TRUE ; liaisons restaurees : OK ; 12.3 s
+V0j  : ok = TRUE ; liaisons restaurees : OK ; 11.1 s
+Va   : ok = TRUE ; liaisons restaurees : OK ; 10.3 s
+Vb   : ok = TRUE ; liaisons restaurees : OK ; 10.3 s
+V0f  : ok = TRUE ; liaisons restaurees : OK ; 10.4 s
+I1 : V0 au debut identical a V0 a la fin : OK ; V0 avec journal identical a V0 sans journal : OK
+I8 : metadata$seed et metadata$B egaux a la graine et a B passes : OK
+
+M-a : p_mc, err_mc, B_effectif, stats_obs ; colonnes de stats_boot identical a V0
+---------------------------------------------------------------------------------
+cle         queue | p V0       p Va       p Vb       | err V0    err Va    err Vb    | BeV0 BeVa BeVb | colVa  colVb 
+Calendrier  bas   | 0.002      0.002      0.002      | 0.001414  0.001414  0.001414  | 999  999  999  | OK     OK    
+CorrDev     deux  | 0.118      0.118      0.118      | 0.01491   0.01491   0.01491   | 999  999  999  | OK     OK    
+BP          haut  | 0.28       0.28       0.28       | 0.01421   0.01421   0.01421   | 999  999  999  | OK     OK    
+MinP4       bas   | 0.839      0.839      0.839      | 0.01163   0.01163   0.01163   | 999  999  999  | OK     OK    
+DW          deux  | 0.01       0.01       0.01       | 0.004463  0.004463  0.004463  | 999  999  999  | OK     OK    
+Runs        deux  | 0.042      0.042      0.042      | 0.009073  0.009073  0.009073  | 999  999  999  | OK     OK    
+PenteIntra  deux  | 0.004      0.004      0.004      | 0.002827  0.002827  0.002827  | 999  999  999  | OK     OK    
+Origine     haut  | 0.032      0.032      0.032      | 0.005568  0.005568  0.005568  | 999  999  999  | OK     OK    
+HomogF      haut  | 0.043      0.043      0.043      | 0.006418  0.006418  0.006418  | 999  999  999  | OK     OK    
+Courbure    haut  | 0.029      0.029      0.029      | 0.005309  0.005309  0.005309  | 999  999  999  | OK     OK    
+Alpha       haut  | 0.023      0.01       0.01       | 0.004743  0.003148  0.003148  | 999  999  999  | ECHEC  ECHEC 
+ExpVar      haut  | 0.504      0.504      0.504      | 0.01582   0.01582   0.01582   | 999  999  999  | OK     OK    
+KruskalAcc  haut  | 0.118      0.118      0.118      | 0.01021   0.01021   0.01021   | 999  999  999  | OK     OK    
+stats_obs (17 chiffres) :
+  Calendrier  V0 -3.5777087639996634 ; Va -3.5777087639996634 ; Vb -3.5777087639996634
+  CorrDev     V0 0.53650793650793638 ; Va 0.53650793650793638 ; Vb 0.53650793650793638
+  BP          V0 1.4915482511457172 ; Va 1.4915482511457172 ; Vb 1.4915482511457172
+  MinP4       V0 0.1032898723540695 ; Va 0.1032898723540695 ; Vb 0.1032898723540695
+  DW          V0 1.1144160012070867 ; Va 1.1144160012070867 ; Vb 1.1144160012070867
+  Runs        V0 -1.9436506316150999 ; Va -1.9436506316150999 ; Vb -1.9436506316150999
+  PenteIntra  V0 3.8356378215859346 ; Va 3.8356378215859346 ; Vb 3.8356378215859346
+  Origine     V0 14.563520601280974 ; Va 14.563520601280974 ; Vb 14.563520601280974
+  HomogF      V0 11.409108754869566 ; Va 11.409108754869566 ; Vb 11.409108754869566
+  Courbure    V0 14.620440305576954 ; Va 14.620440305576954 ; Vb 14.620440305576954
+  Alpha       V0 0.0011413288851484973 ; Va 0.0013949575262926079 ; Vb 0.0011413288851484973
+  ExpVar      V0 4.7326511574742405 ; Va 4.7326511574742405 ; Vb 4.7326511574742405
+  KruskalAcc  V0 10.245614035087726 ; Va 10.245614035087726 ; Vb 10.245614035087726
+motif_mc[["Alpha"]] : V0 aucun ; Va aucun ; Vb aucun
+
+M-b : ligne Alpha
+-----------------
+V0 : stat = 0.0011413288851484973 ; p_retenue = 0.023 ; nature_p = Monte-Carlo (bootstrap de residus) ; type = test ; verdict (0.1) = ECHEC ; inoperant = FALSE
+     detail : Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+Va : stat = 0.0013949575262926079 ; p_retenue = 0.01 ; nature_p = Monte-Carlo (bootstrap de residus) ; type = test ; verdict (0.1) = ECHEC ; inoperant = FALSE
+     detail : Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+Vb : stat = 0.0011413288851484973 ; p_retenue = 0.01 ; nature_p = Monte-Carlo (bootstrap de residus) ; type = test ; verdict (0.1) = ECHEC ; inoperant = FALSE
+     detail : Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+
+M-c : p de famille et p globale (decomposition minP)
+----------------------------------------------------
+V0 M1  : p = 0.019 ; m_obs = 0.004 ; B_eff = 999 ; N = 1000 ; num_p = 19 ; num_m_obs = 4 ; minimum atteint par PenteIntra ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha
+       num_obs : PenteIntra = 4 ; Origine = 32 ; HomogF = 43 ; Courbure = 29 ; Alpha = 23
+V0 M2  : p = 0.439 ; m_obs = 0.28 ; B_eff = 999 ; N = 1000 ; num_p = 439 ; num_m_obs = 280 ; minimum atteint par BP ; p de la ligne identical : OK
+       membres : BP, ExpVar
+       num_obs : BP = 280 ; ExpVar = 504
+V0 M3  : p = 0.007 ; m_obs = 0.002 ; B_eff = 999 ; N = 1000 ; num_p = 7 ; num_m_obs = 2 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : Calendrier, KruskalAcc, CorrDev, DW
+       num_obs : Calendrier = 2 ; KruskalAcc = 118 ; CorrDev = 118 ; DW = 10
+V0 LC  : p = 0.022 ; m_obs = 0.002 ; B_eff = 999 ; N = 1000 ; num_p = 22 ; num_m_obs = 2 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha, BP, ExpVar, Calendrier, KruskalAcc, CorrDev, DW, MinP4
+       num_obs : PenteIntra = 4 ; Origine = 32 ; HomogF = 43 ; Courbure = 29 ; Alpha = 23 ; BP = 280 ; ExpVar = 504 ; Calendrier = 2 ; KruskalAcc = 118 ; CorrDev = 118 ; DW = 10 ; MinP4 = 839
+Va M1  : p = 0.019 ; m_obs = 0.004 ; B_eff = 999 ; N = 1000 ; num_p = 19 ; num_m_obs = 4 ; minimum atteint par PenteIntra ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha
+       num_obs : PenteIntra = 4 ; Origine = 32 ; HomogF = 43 ; Courbure = 29 ; Alpha = 10
+Va M2  : p = 0.439 ; m_obs = 0.28 ; B_eff = 999 ; N = 1000 ; num_p = 439 ; num_m_obs = 280 ; minimum atteint par BP ; p de la ligne identical : OK
+       membres : BP, ExpVar
+       num_obs : BP = 280 ; ExpVar = 504
+Va M3  : p = 0.007 ; m_obs = 0.002 ; B_eff = 999 ; N = 1000 ; num_p = 7 ; num_m_obs = 2 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : Calendrier, KruskalAcc, CorrDev, DW
+       num_obs : Calendrier = 2 ; KruskalAcc = 118 ; CorrDev = 118 ; DW = 10
+Va LC  : p = 0.023 ; m_obs = 0.002 ; B_eff = 999 ; N = 1000 ; num_p = 23 ; num_m_obs = 2 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha, BP, ExpVar, Calendrier, KruskalAcc, CorrDev, DW, MinP4
+       num_obs : PenteIntra = 4 ; Origine = 32 ; HomogF = 43 ; Courbure = 29 ; Alpha = 10 ; BP = 280 ; ExpVar = 504 ; Calendrier = 2 ; KruskalAcc = 118 ; CorrDev = 118 ; DW = 10 ; MinP4 = 839
+Vb M1  : p = 0.019 ; m_obs = 0.004 ; B_eff = 999 ; N = 1000 ; num_p = 19 ; num_m_obs = 4 ; minimum atteint par PenteIntra ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha
+       num_obs : PenteIntra = 4 ; Origine = 32 ; HomogF = 43 ; Courbure = 29 ; Alpha = 10
+Vb M2  : p = 0.439 ; m_obs = 0.28 ; B_eff = 999 ; N = 1000 ; num_p = 439 ; num_m_obs = 280 ; minimum atteint par BP ; p de la ligne identical : OK
+       membres : BP, ExpVar
+       num_obs : BP = 280 ; ExpVar = 504
+Vb M3  : p = 0.007 ; m_obs = 0.002 ; B_eff = 999 ; N = 1000 ; num_p = 7 ; num_m_obs = 2 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : Calendrier, KruskalAcc, CorrDev, DW
+       num_obs : Calendrier = 2 ; KruskalAcc = 118 ; CorrDev = 118 ; DW = 10
+Vb LC  : p = 0.023 ; m_obs = 0.002 ; B_eff = 999 ; N = 1000 ; num_p = 23 ; num_m_obs = 2 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha, BP, ExpVar, Calendrier, KruskalAcc, CorrDev, DW, MinP4
+       num_obs : PenteIntra = 4 ; Origine = 32 ; HomogF = 43 ; Courbure = 29 ; Alpha = 10 ; BP = 280 ; ExpVar = 504 ; Calendrier = 2 ; KruskalAcc = 118 ; CorrDev = 118 ; DW = 10 ; MinP4 = 839
+Familles sans Alpha (M2, M3) identical entre V0 et Va : OK
+Familles sans Alpha (M2, M3) identical entre V0 et Vb : OK
+
+M-d : verdicts d'Alpha a alpha saisi
+------------------------------------
+p d'Alpha : V0 0.023 ; Va 0.01 ; Vb 0.01 ; repere de l'application : alpha <= 4/(B+1) = 0.004 inadmissible a B = 999
+Va contre V0, alpha dans ]0 ; 0.3[ : ]0.01 ; 0.046] ; dont admissible a B (alpha > 4/(B+1)) : ]0.01 ; 0.046]
+    verdicts (0.1) de toutes les autres lignes identiques entre V0 et Va : OK
+Vb contre V0, alpha dans ]0 ; 0.3[ : ]0.01 ; 0.046] ; dont admissible a B (alpha > 4/(B+1)) : ]0.01 ; 0.046]
+    verdicts (0.1) de toutes les autres lignes identiques entre V0 et Vb : OK
+
+M-e : sigma_USP, sigma_boot, ic_bootstrap
+-----------------------------------------
+V0 : sigma_USP = 0.04948541798115022 ; sigma_boot : longueur = 999 ; moyenne = 0.0192005 ; q05 = 0.0132778 ; q50 = 0.0193767 ; q95 = 0.0245937
+     ic_bootstrap : 2.5% = 0.0441099 ; 5% = 0.0447339 ; 50% = 0.0483323 ; 95% = 0.0514103 ; 97.5% = 0.052059 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+Va : sigma_USP = 0.04948541798115022 ; sigma_boot : longueur = 999 ; moyenne = 0.0192005 ; q05 = 0.0132778 ; q50 = 0.0193767 ; q95 = 0.0245937
+     ic_bootstrap : 2.5% = 0.0441099 ; 5% = 0.0447339 ; 50% = 0.0483323 ; 95% = 0.0514103 ; 97.5% = 0.052059 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+Vb : sigma_USP = 0.04948541798115022 ; sigma_boot : longueur = 999 ; moyenne = 0.0191996 ; q05 = 0.0132815 ; q50 = 0.0193727 ; q95 = 0.0246055
+     ic_bootstrap : 2.5% = 0.0440793 ; 5% = 0.0447361 ; 50% = 0.0483299 ; 95% = 0.0514172 ; 97.5% = 0.0519318 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+ecarts relatifs Va/V0 - 1 : sigma_boot : moyenne 0 ; q05 0 ; q50 0 ; q95 0 ; ic : 2.5% 0 ; 5% 0 ; 50% 0 ; 95% 0 ; 97.5% 0
+    sigma_USP identical a V0 : OK ; sigma_boot identical : OK ; ic_bootstrap identical : OK
+ecarts relatifs Vb/V0 - 1 : sigma_boot : moyenne -4.98616e-05 ; q05 0.000282572 ; q50 -0.00020891 ; q95 0.000479969 ; ic : 2.5% -0.000693952 ; 5% 4.94845e-05 ; 50% -4.94145e-05 ; 95% 0.000135469 ; 97.5% -0.00244278
+    sigma_USP identical a V0 : OK ; sigma_boot identical : ECHEC ; ic_bootstrap identical : ECHEC
+
+M-f : valeur de A
+-----------------
+A_obs V0 = 0.0011413288851484973 ; A_obs Va = 0.0013949575262926079 ; Sum n = 22 ; Sum' n = 18
+A_obs(Va) / A_obs(V0) = 1.2222222222222223 ; Sum n / Sum' n = 1.2222222222222223 ; ecart relatif = 0 (<= 1e-12 : OK)
+Sum n / Sum' n egal a 22/18 (par. 3.5, M-f) : OK
+detail de mw_famille_alpha(aj), V0 :
+    j = 0 ; n = 7 ; f0 = 3.2018715668037259 ; f1 = 3.2037222222222224 ; f2 = 3.2056065949247436 ; amplitude = 0.0011658401889871166
+    j = 1 ; n = 6 ; f0 = 1.6503490428108556 ; f1 = 1.651754402653324 ; f2 = 1.6531408506883494 ; amplitude = 0.0016902076198550529
+    j = 2 ; n = 5 ; f0 = 1.3243299945323961 ; f1 = 1.3252453518183511 ; f2 = 1.3261342122939574 ; amplitude = 0.0013614216862453611
+    j = 3 ; n = 4 ; f0 = 1.1504240540992661 ; f1 = 1.1504240540992661 ; f2 = 1.1504240540992661 ; amplitude = 0
+detail de la variante Va sur aj (ensemble fige figes$degeneres) :
+    j = 0 ; n = 7 ; f0 = 3.2018715668037259 ; f1 = 3.2037222222222224 ; f2 = 3.2056065949247436 ; amplitude = 0.0011658401889871166
+    j = 1 ; n = 6 ; f0 = 1.6503490428108556 ; f1 = 1.651754402653324 ; f2 = 1.6531408506883494 ; amplitude = 0.0016902076198550529
+    j = 2 ; n = 5 ; f0 = 1.3243299945323961 ; f1 = 1.3252453518183511 ; f2 = 1.3261342122939574 ; amplitude = 0.0013614216862453611
+
+M-g : replications ou l'indicateur A* >= A_obs differe entre Vb et Va
+---------------------------------------------------------------------
+discordances : 0
+
+Journal de V0 : p_sans, I4, Gb1, Ga1, I9 (Va)
+---------------------------------------------
+journal : |R| = 999 ; lignes non NA de stats_boot = 999 ; 13 statistiques identiques au stats_boot de V0 : OK
+A^sans_obs = 0.0013949575262926079 ; p_sans = 0.01 (err_mc 0.003148, B_eff 999) ; p_moteur (V0) = 0.023
+N_moteur = 22 ; N_sans = 9
+I4 (attendu N_moteur = 22, N_sans = 9, p = 0.023 contre 0.01) : OK
+Gb1 : p_Alpha(Vb) = 0.01 ; p_sans = 0.01 ; identical : OK ; replications discordantes : 0 ; toutes quasi-egales : OK
+Ga1 : p_Alpha(Va) = 0.01 identical a p_sans : OK
+I9 (Va) : variante sur les 50 premieres replications du journal = colonne Alpha de Va : OK ; (info) lignes ou la colonne Alpha differe entre V0 et Va : 999
+
+Crochets de Vb : I9 (Vb), Gb4
+-----------------------------
+I9 (Vb) : aj$sigma2[J] recu par .mw_tirer_triangle_valide() = estimateur direct (0) a chaque appel : OK (999 appels)
+colonne J-1 degeneree (.mw_colonne_degeneree) dans les replications de Vb : 999 / 999
+Gb4 : 100 % : OK
+
+Comparaisons de variantes (Gb2, Gb3, Ga2, Ga3, Ga4)
+---------------------------------------------------
+Vb : 12 autres cles : p_mc OK ; verdicts OK ; colonnes de stats_boot OK
+Vb : sigma_USP identical : OK
+Vb : res identical a V0 : ECHEC
+Va : 12 autres cles : p_mc OK ; colonnes OK ; sigma_boot OK ; ic_bootstrap OK ; sigma_USP OK ; (info) verdicts des 12 : OK
+Va : res identical a V0 : ECHEC
+Vb : lignes dont le detail change (artefact connu des textes M6 et usage_sigma, exclu des comparaisons) : M6. robustesse de l'estimation / Extrapolation de sigma pour la derniere annee de developpement
+Vb : ligne Alpha dont le detail change (effet attendu de Vb sur la p d'Alpha) : aucune
+Vb : plots_data$usage_sigma identical : ECHEC
+
+===============================================================================
+TRIANGLE T3
+===============================================================================
+Triangle (format 17 chiffres), I = 7, J = 6 :
+   j0                  j1                  j2                  j3                  j4                  j5                  j6                 
+i0  300.00000000000000  962.71000000000004 1564.43000000000006 2025.44000000000005 2296.09999999999991 2512.36999999999989 2674.54657788242230
+i1  311.42857142857099  981.49000000000001 1588.40000000000009 2084.96999999999980 2408.09999999999991 2652.21000000000004 2823.41342211757774
+i2  322.85714285714300 1013.33000000000004 1662.65000000000009 2223.53999999999996 2584.98999999999978 2814.80000000000018                  NA
+i3  334.28571428571399 1063.74000000000001 1778.23000000000002 2393.71000000000004 2751.32000000000016                  NA                  NA
+i4  345.71428571428601 1120.81999999999994 1885.95000000000005 2509.96999999999980                  NA                  NA                  NA
+i5  357.14285714285700 1165.47000000000003 1938.88000000000011                  NA                  NA                  NA                  NA
+i6  368.57142857142901 1189.15000000000009                  NA                  NA                  NA                  NA                  NA
+i7  380.00000000000000                  NA                  NA                  NA                  NA                  NA                  NA
+sigma2_j (j = 0..J-1) : 0.72404040319674878 ; 0.71209194038563495 ; 0.69814138644820289 ; 0.3147787989762531 ; 0.097324760436861696 ; 0.030091318172946888
+sigma2_(J-1), regle de minimum : 0.030091318172946888
+sigma2_(J-1), estimateur direct : 0
+figes$degeneres : {5} ; figes$non_identifiables : {} ; figes$origine_non_identifiables : {}
+n_j (j = 0..J-1) : 7 ; 6 ; 5 ; 4 ; 3 ; 2 ; cas = degenere
+
+Preconditions (I6) et ensembles figes (I7)
+------------------------------------------
+I6 : I, J = 7, 6 (attendu 7, 6) : OK
+I6 : degeneres = {5} (attendu {5}) : OK
+I6 : cas = degenere (attendu degenere) : OK
+I6 : regle = 0.0300913 (attendu 0.0300913) : OK
+I6 : direct = 0 (attendu 0) : OK
+I6 : colonnes d'Alpha = {0, 1, 2, 3, 4} (attendu {0, 1, 2, 3, 4}) : OK
+I7 : .mw_colonnes_degenerees(aj) identical a figes$degeneres : OK
+
+Executions
+----------
+V0   : ok = TRUE ; liaisons restaurees : OK ; 15.2 s
+Va   : ok = TRUE ; liaisons restaurees : OK ; 13.1 s
+Vb   : ok = TRUE ; liaisons restaurees : OK ; 12.5 s
+V0f  : ok = TRUE ; liaisons restaurees : OK ; 12.5 s
+I1 : V0 au debut identical a V0 a la fin : OK
+I8 : metadata$seed et metadata$B egaux a la graine et a B passes : OK
+
+M-a : p_mc, err_mc, B_effectif, stats_obs ; colonnes de stats_boot identical a V0
+---------------------------------------------------------------------------------
+cle         queue | p V0       p Va       p Vb       | err V0    err Va    err Vb    | BeV0 BeVa BeVb | colVa  colVb 
+Calendrier  bas   | 0.006      0.006      0.006      | 0.002443  0.002443  0.002443  | 999  999  999  | OK     OK    
+CorrDev     deux  | 0.192      0.192      0.192      | 0.01864   0.01864   0.01864   | 999  999  999  | OK     OK    
+BP          haut  | 0.287      0.287      0.287      | 0.01431   0.01431   0.01431   | 999  999  999  | OK     OK    
+MinP4       bas   | 0.903      0.903      0.903      | 0.009364  0.009364  0.009364  | 999  999  999  | OK     OK    
+DW          deux  | 0.012      0.012      0.012      | 0.004887  0.004887  0.004887  | 999  999  999  | OK     OK    
+Runs        deux  | 0.216      0.216      0.216      | 0.01964   0.01964   0.01964   | 999  999  999  | OK     OK    
+PenteIntra  deux  | 0.036      0.036      0.036      | 0.008413  0.008413  0.008413  | 999  999  999  | OK     OK    
+Origine     haut  | 0.096      0.096      0.096      | 0.00932   0.00932   0.00932   | 999  999  999  | OK     OK    
+HomogF      haut  | 0.056      0.056      0.056      | 0.007274  0.007274  0.007274  | 999  999  999  | OK     OK    
+Courbure    haut  | 0.021      0.021      0.021      | 0.004536  0.004536  0.004536  | 999  999  999  | OK     OK    
+Alpha       haut  | 0.004      0.004      0.004      | 0.001997  0.001997  0.001997  | 999  999  999  | OK     OK    
+ExpVar      haut  | 0.409      0.409      0.409      | 0.01556   0.01556   0.01556   | 999  999  999  | OK     OK    
+KruskalAcc  haut  | 0.231      0.231      0.231      | 0.01333   0.01333   0.01333   | 999  999  999  | OK     OK    
+stats_obs (17 chiffres) :
+  Calendrier  V0 -3.1327298505869838 ; Va -3.1327298505869838 ; Vb -3.1327298505869838
+  CorrDev     V0 0.35918367346938773 ; Va 0.35918367346938773 ; Vb 0.35918367346938773
+  BP          V0 1.4372791844265 ; Va 1.4372791844265 ; Vb 1.4372791844265
+  MinP4       V0 0.1032898723540695 ; Va 0.1032898723540695 ; Vb 0.1032898723540695
+  DW          V0 1.4628418915521983 ; Va 1.4628418915521983 ; Vb 1.4628418915521983
+  Runs        V0 -0.83484710993672195 ; Va -0.83484710993672195 ; Vb -0.83484710993672195
+  PenteIntra  V0 1.9839495715122015 ; Va 1.9839495715122015 ; Vb 1.9839495715122015
+  Origine     V0 16.549015115382527 ; Va 16.549015115382527 ; Vb 16.549015115382527
+  HomogF      V0 11.984472899773127 ; Va 11.984472899773127 ; Vb 11.984472899773127
+  Courbure    V0 18.061494043951082 ; Va 18.061494043951082 ; Vb 18.061494043951082
+  Alpha       V0 0.001110396341342908 ; Va 0.001110396341342908 ; Vb 0.001110396341342908
+  ExpVar      V0 6.9298757348104605 ; Va 6.9298757348104605 ; Vb 6.9298757348104605
+  KruskalAcc  V0 9.0061538461538504 ; Va 9.0061538461538504 ; Vb 9.0061538461538504
+motif_mc[["Alpha"]] : V0 aucun ; Va aucun ; Vb aucun
+
+M-b : ligne Alpha
+-----------------
+V0 : stat = 0.001110396341342908 ; p_retenue = 0.004 ; nature_p = Monte-Carlo (bootstrap de residus) ; type = test ; verdict (0.1) = ECHEC ; inoperant = FALSE
+     detail : Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+Va : stat = 0.001110396341342908 ; p_retenue = 0.004 ; nature_p = Monte-Carlo (bootstrap de residus) ; type = test ; verdict (0.1) = ECHEC ; inoperant = FALSE
+     detail : Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+Vb : stat = 0.001110396341342908 ; p_retenue = 0.004 ; nature_p = Monte-Carlo (bootstrap de residus) ; type = test ; verdict (0.1) = ECHEC ; inoperant = FALSE
+     detail : Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+
+M-c : p de famille et p globale (decomposition minP)
+----------------------------------------------------
+V0 M1  : p = 0.017 ; m_obs = 0.004 ; B_eff = 999 ; N = 1000 ; num_p = 17 ; num_m_obs = 4 ; minimum atteint par Alpha ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha
+       num_obs : PenteIntra = 36 ; Origine = 96 ; HomogF = 56 ; Courbure = 21 ; Alpha = 4
+V0 M2  : p = 0.472 ; m_obs = 0.287 ; B_eff = 999 ; N = 1000 ; num_p = 472 ; num_m_obs = 287 ; minimum atteint par BP ; p de la ligne identical : OK
+       membres : BP, ExpVar
+       num_obs : BP = 287 ; ExpVar = 409
+V0 M3  : p = 0.021 ; m_obs = 0.006 ; B_eff = 999 ; N = 1000 ; num_p = 21 ; num_m_obs = 6 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : Calendrier, KruskalAcc, CorrDev, DW
+       num_obs : Calendrier = 6 ; KruskalAcc = 231 ; CorrDev = 192 ; DW = 12
+V0 LC  : p = 0.042 ; m_obs = 0.004 ; B_eff = 999 ; N = 1000 ; num_p = 42 ; num_m_obs = 4 ; minimum atteint par Alpha ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha, BP, ExpVar, Calendrier, KruskalAcc, CorrDev, DW, MinP4
+       num_obs : PenteIntra = 36 ; Origine = 96 ; HomogF = 56 ; Courbure = 21 ; Alpha = 4 ; BP = 287 ; ExpVar = 409 ; Calendrier = 6 ; KruskalAcc = 231 ; CorrDev = 192 ; DW = 12 ; MinP4 = 903
+Va M1  : p = 0.017 ; m_obs = 0.004 ; B_eff = 999 ; N = 1000 ; num_p = 17 ; num_m_obs = 4 ; minimum atteint par Alpha ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha
+       num_obs : PenteIntra = 36 ; Origine = 96 ; HomogF = 56 ; Courbure = 21 ; Alpha = 4
+Va M2  : p = 0.472 ; m_obs = 0.287 ; B_eff = 999 ; N = 1000 ; num_p = 472 ; num_m_obs = 287 ; minimum atteint par BP ; p de la ligne identical : OK
+       membres : BP, ExpVar
+       num_obs : BP = 287 ; ExpVar = 409
+Va M3  : p = 0.021 ; m_obs = 0.006 ; B_eff = 999 ; N = 1000 ; num_p = 21 ; num_m_obs = 6 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : Calendrier, KruskalAcc, CorrDev, DW
+       num_obs : Calendrier = 6 ; KruskalAcc = 231 ; CorrDev = 192 ; DW = 12
+Va LC  : p = 0.042 ; m_obs = 0.004 ; B_eff = 999 ; N = 1000 ; num_p = 42 ; num_m_obs = 4 ; minimum atteint par Alpha ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha, BP, ExpVar, Calendrier, KruskalAcc, CorrDev, DW, MinP4
+       num_obs : PenteIntra = 36 ; Origine = 96 ; HomogF = 56 ; Courbure = 21 ; Alpha = 4 ; BP = 287 ; ExpVar = 409 ; Calendrier = 6 ; KruskalAcc = 231 ; CorrDev = 192 ; DW = 12 ; MinP4 = 903
+Vb M1  : p = 0.017 ; m_obs = 0.004 ; B_eff = 999 ; N = 1000 ; num_p = 17 ; num_m_obs = 4 ; minimum atteint par Alpha ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha
+       num_obs : PenteIntra = 36 ; Origine = 96 ; HomogF = 56 ; Courbure = 21 ; Alpha = 4
+Vb M2  : p = 0.472 ; m_obs = 0.287 ; B_eff = 999 ; N = 1000 ; num_p = 472 ; num_m_obs = 287 ; minimum atteint par BP ; p de la ligne identical : OK
+       membres : BP, ExpVar
+       num_obs : BP = 287 ; ExpVar = 409
+Vb M3  : p = 0.021 ; m_obs = 0.006 ; B_eff = 999 ; N = 1000 ; num_p = 21 ; num_m_obs = 6 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : Calendrier, KruskalAcc, CorrDev, DW
+       num_obs : Calendrier = 6 ; KruskalAcc = 231 ; CorrDev = 192 ; DW = 12
+Vb LC  : p = 0.042 ; m_obs = 0.004 ; B_eff = 999 ; N = 1000 ; num_p = 42 ; num_m_obs = 4 ; minimum atteint par Alpha ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha, BP, ExpVar, Calendrier, KruskalAcc, CorrDev, DW, MinP4
+       num_obs : PenteIntra = 36 ; Origine = 96 ; HomogF = 56 ; Courbure = 21 ; Alpha = 4 ; BP = 287 ; ExpVar = 409 ; Calendrier = 6 ; KruskalAcc = 231 ; CorrDev = 192 ; DW = 12 ; MinP4 = 903
+Familles sans Alpha (M2, M3) identical entre V0 et Va : OK
+Familles sans Alpha (M2, M3) identical entre V0 et Vb : OK
+
+M-d : verdicts d'Alpha a alpha saisi
+------------------------------------
+p d'Alpha : V0 0.004 ; Va 0.004 ; Vb 0.004 ; repere de l'application : alpha <= 4/(B+1) = 0.004 inadmissible a B = 999
+Va contre V0, alpha dans ]0 ; 0.3[ : aucun (p egales) ; dont admissible a B (alpha > 4/(B+1)) : aucun (p egales)
+    verdicts (0.1) de toutes les autres lignes identiques entre V0 et Va : OK
+Vb contre V0, alpha dans ]0 ; 0.3[ : aucun (p egales) ; dont admissible a B (alpha > 4/(B+1)) : aucun (p egales)
+    verdicts (0.1) de toutes les autres lignes identiques entre V0 et Vb : OK
+
+M-e : sigma_USP, sigma_boot, ic_bootstrap
+-----------------------------------------
+V0 : sigma_USP = 0.046706115948659782 ; sigma_boot : longueur = 999 ; moyenne = 0.0165398 ; q05 = 0.0127605 ; q50 = 0.0166048 ; q95 = 0.0200002
+     ic_bootstrap : 2.5% = 0.0440319 ; 5% = 0.0444287 ; 50% = 0.0466968 ; 95% = 0.0487001 ; 97.5% = 0.0489718 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+Va : sigma_USP = 0.046706115948659782 ; sigma_boot : longueur = 999 ; moyenne = 0.0165398 ; q05 = 0.0127605 ; q50 = 0.0166048 ; q95 = 0.0200002
+     ic_bootstrap : 2.5% = 0.0440319 ; 5% = 0.0444287 ; 50% = 0.0466968 ; 95% = 0.0487001 ; 97.5% = 0.0489718 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+Vb : sigma_USP = 0.046706115948659782 ; sigma_boot : longueur = 999 ; moyenne = 0.0165398 ; q05 = 0.0127755 ; q50 = 0.0165982 ; q95 = 0.0199846
+     ic_bootstrap : 2.5% = 0.0440276 ; 5% = 0.0444375 ; 50% = 0.046693 ; 95% = 0.0486909 ; 97.5% = 0.0489815 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+ecarts relatifs Va/V0 - 1 : sigma_boot : moyenne 0 ; q05 0 ; q50 0 ; q95 0 ; ic : 2.5% 0 ; 5% 0 ; 50% 0 ; 95% 0 ; 97.5% 0
+    sigma_USP identical a V0 : OK ; sigma_boot identical : OK ; ic_bootstrap identical : OK
+ecarts relatifs Vb/V0 - 1 : sigma_boot : moyenne -2.85842e-06 ; q05 0.00117102 ; q50 -0.000394921 ; q95 -0.000781927 ; ic : 2.5% -9.74442e-05 ; 5% 0.000198436 ; 50% -8.28529e-05 ; 95% -0.000189462 ; 97.5% 0.000198522
+    sigma_USP identical a V0 : OK ; sigma_boot identical : ECHEC ; ic_bootstrap identical : ECHEC
+
+M-f : valeur de A
+-----------------
+A_obs V0 = 0.001110396341342908 ; A_obs Va = 0.001110396341342908 ; Sum n = 25 ; Sum' n = 25
+A_obs(Va) / A_obs(V0) = 1 ; Sum n / Sum' n = 1 ; ecart relatif = 0 (<= 1e-12 : OK)
+detail de mw_famille_alpha(aj), V0 :
+    j = 0 ; n = 7 ; f0 = 3.2018715668037259 ; f1 = 3.2037222222222224 ; f2 = 3.2056065949247436 ; amplitude = 0.0011658401889871166
+    j = 1 ; n = 6 ; f0 = 1.6503490428108556 ; f1 = 1.651754402653324 ; f2 = 1.6531408506883494 ; amplitude = 0.0016902076198550529
+    j = 2 ; n = 5 ; f0 = 1.3243299945323961 ; f1 = 1.3252453518183511 ; f2 = 1.3261342122939574 ; amplitude = 0.0013614216862453611
+    j = 3 ; n = 4 ; f0 = 1.1501406707269866 ; f1 = 1.1504240540992661 ; f2 = 1.1506856696995267 ; amplitude = 0.00047373746280612514
+    j = 4 ; n = 3 ; f0 = 1.0948207404586772 ; f1 = 1.0946867896158559 ; f2 = 1.0945449803874814 ; amplitude = 0.00025190773636041974
+detail de la variante Va sur aj (ensemble fige figes$degeneres) :
+    j = 0 ; n = 7 ; f0 = 3.2018715668037259 ; f1 = 3.2037222222222224 ; f2 = 3.2056065949247436 ; amplitude = 0.0011658401889871166
+    j = 1 ; n = 6 ; f0 = 1.6503490428108556 ; f1 = 1.651754402653324 ; f2 = 1.6531408506883494 ; amplitude = 0.0016902076198550529
+    j = 2 ; n = 5 ; f0 = 1.3243299945323961 ; f1 = 1.3252453518183511 ; f2 = 1.3261342122939574 ; amplitude = 0.0013614216862453611
+    j = 3 ; n = 4 ; f0 = 1.1501406707269866 ; f1 = 1.1504240540992661 ; f2 = 1.1506856696995267 ; amplitude = 0.00047373746280612514
+    j = 4 ; n = 3 ; f0 = 1.0948207404586772 ; f1 = 1.0946867896158559 ; f2 = 1.0945449803874814 ; amplitude = 0.00025190773636041974
+
+M-g : replications ou l'indicateur A* >= A_obs differe entre Vb et Va
+---------------------------------------------------------------------
+discordances : 0
+
+Crochets de Vb : I9 (Vb), Gb4
+-----------------------------
+I9 (Vb) : aj$sigma2[J] recu par .mw_tirer_triangle_valide() = estimateur direct (0) a chaque appel : OK (999 appels)
+colonne J-1 degeneree (.mw_colonne_degeneree) dans les replications de Vb : 999 / 999
+Gb4 : 100 % : OK
+
+Comparaisons de variantes (Gb2, Gb3, Ga2, Ga3, Ga4)
+---------------------------------------------------
+Vb : 12 autres cles : p_mc OK ; verdicts OK ; colonnes de stats_boot OK
+Vb : sigma_USP identical : OK
+Vb : res identical a V0 : ECHEC
+Va : 12 autres cles : p_mc OK ; colonnes OK ; sigma_boot OK ; ic_bootstrap OK ; sigma_USP OK ; (info) verdicts des 12 : OK
+Va : res identical a V0 : OK
+Vb : lignes dont le detail change (artefact connu des textes M6 et usage_sigma, exclu des comparaisons) : M6. robustesse de l'estimation / Extrapolation de sigma pour la derniere annee de developpement
+Vb : ligne Alpha dont le detail change (effet attendu de Vb sur la p d'Alpha) : aucune
+Vb : plots_data$usage_sigma identical : ECHEC
+
+===============================================================================
+TRIANGLE K1
+===============================================================================
+Triangle (format 17 chiffres), I = 7, J = 7 :
+   j0                  j1                  j2                  j3                  j4                  j5                  j6                  j7                 
+i0  300.00000000000000  962.71000000000004 1564.43000000000006 2073.25358574518305 2350.30292589734290 2571.67830753743647 2753.69601856181089 2831.92002866462644
+i1  311.42857142857099  981.49000000000001 1588.40000000000009 2105.01971682826843 2431.25703491856211 2677.71447223178438 2834.77038533835412                  NA
+i2  322.85714285714300 1013.33000000000004 1662.65000000000009 2203.41918420078173 2561.59842277052758 2789.32887183876210                  NA                  NA
+i3  334.28571428571399 1063.74000000000001 1778.23000000000002 2356.59104196394674 2708.65562895097810                  NA                  NA                  NA
+i4  345.71428571428601 1120.81999999999994 1885.95000000000005 2499.34647126181926                  NA                  NA                  NA                  NA
+i5  357.14285714285700 1165.47000000000003 1938.88000000000011                  NA                  NA                  NA                  NA                  NA
+i6  368.57142857142901 1189.15000000000009                  NA                  NA                  NA                  NA                  NA                  NA
+i7  380.00000000000000                  NA                  NA                  NA                  NA                  NA                  NA                  NA
+sigma2_j (j = 0..J-1) : 0.72404040319674878 ; 0.71209194038563495 ; 7.8314166365815951e-29 ; 0.3183801874494156 ; 0.097452518744048325 ; 0.19285121105636768 ; 0.097452518744048325
+sigma2_(J-1), regle de minimum : 0.097452518744048325
+sigma2_(J-1), estimateur direct : absent
+figes$degeneres : {2, 6} ; figes$non_identifiables : {} ; figes$origine_non_identifiables : {}
+n_j (j = 0..J-1) : 7 ; 6 ; 5 ; 4 ; 3 ; 2 ; 1 ; cas = carre
+
+Preconditions (I6) et ensembles figes (I7)
+------------------------------------------
+I6 : I, J = 7, 7 (attendu 7, 7) : OK
+I6 : degeneres = {2, 6} (attendu {2, 6}) : OK
+I6 : cas = carre (attendu carre) : OK
+I6 : regle = 0.0974525 (attendu 0.0974525) : OK
+I6 : direct = absent (attendu absent) : OK
+I6 : colonnes d'Alpha = {0, 1, 2, 3, 4} (attendu {0, 1, 2, 3, 4}) : OK
+I7 : .mw_colonnes_degenerees(aj) identical a figes$degeneres : OK
+
+Executions
+----------
+V0   : ok = TRUE ; liaisons restaurees : OK ; 11.6 s
+V0j  : ok = TRUE ; liaisons restaurees : OK ; 12.3 s
+Va   : ok = TRUE ; liaisons restaurees : OK ; 11.8 s
+Vb   : ok = TRUE ; liaisons restaurees : OK ; 12.2 s
+V0f  : ok = TRUE ; liaisons restaurees : OK ; 11.3 s
+I1 : V0 au debut identical a V0 a la fin : OK ; V0 avec journal identical a V0 sans journal : OK
+I8 : metadata$seed et metadata$B egaux a la graine et a B passes : OK
+
+M-a : p_mc, err_mc, B_effectif, stats_obs ; colonnes de stats_boot identical a V0
+---------------------------------------------------------------------------------
+cle         queue | p V0       p Va       p Vb       | err V0    err Va    err Vb    | BeV0 BeVa BeVb | colVa  colVb 
+Calendrier  bas   | 0.005      0.005      0.005      | 0.002232  0.002232  0.002232  | 999  999  999  | OK     OK    
+CorrDev     deux  | 0.632      0.632      0.632      | 0.02942   0.02942   0.02942   | 999  999  999  | OK     OK    
+BP          haut  | 0.536      0.536      0.536      | 0.01578   0.01578   0.01578   | 999  999  999  | OK     OK    
+MinP4       bas   | 0.829      0.829      0.829      | 0.01191   0.01191   0.01191   | 999  999  999  | OK     OK    
+DW          deux  | 0.066      0.066      0.066      | 0.0113    0.0113    0.0113    | 999  999  999  | OK     OK    
+Runs        deux  | 0.652      0.652      0.652      | 0.02966   0.02966   0.02966   | 999  999  999  | OK     OK    
+PenteIntra  deux  | 0.096      0.096      0.096      | 0.01353   0.01353   0.01353   | 999  999  999  | OK     OK    
+Origine     haut  | 0.143      0.143      0.143      | 0.01108   0.01108   0.01108   | 999  999  999  | OK     OK    
+HomogF      haut  | 0.13       0.13       0.13       | 0.01064   0.01064   0.01064   | 999  999  999  | OK     OK    
+Courbure    haut  | 0.207      0.207      0.207      | 0.01282   0.01282   0.01282   | 999  999  999  | OK     OK    
+Alpha       haut  | 0.024      0.024      0.024      | 0.004842  0.004842  0.004842  | 999  999  999  | ECHEC  OK    
+ExpVar      haut  | 0.535      0.535      0.535      | 0.01578   0.01578   0.01578   | 999  999  999  | OK     OK    
+KruskalAcc  haut  | 0.389      0.389      0.389      | 0.01542   0.01542   0.01542   | 999  999  999  | OK     OK    
+stats_obs (17 chiffres) :
+  Calendrier  V0 -2.8505444856613447 ; Va -2.8505444856613447 ; Vb -2.8505444856613447
+  CorrDev     V0 0.2040816326530612 ; Va 0.2040816326530612 ; Vb 0.2040816326530612
+  BP          V0 0.48703570996401541 ; Va 0.48703570996401541 ; Vb 0.48703570996401541
+  MinP4       V0 0.10971225499364649 ; Va 0.10971225499364649 ; Vb 0.10971225499364649
+  DW          V0 1.6473732127118164 ; Va 1.6473732127118164 ; Vb 1.6473732127118164
+  Runs        V0 0 ; Va 0 ; Vb 0
+  PenteIntra  V0 1.5546642948375875 ; Va 1.5546642948375875 ; Vb 1.5546642948375875
+  Origine     V0 12.786897396068944 ; Va 12.786897396068944 ; Vb 12.786897396068944
+  HomogF      V0 9.0738984345594442 ; Va 9.0738984345594442 ; Vb 9.0738984345594442
+  Courbure    V0 8.3414846901944451 ; Va 8.3414846901944451 ; Vb 8.3414846901944451
+  Alpha       V0 0.00080216411889232596 ; Va 0.0010027051486154073 ; Vb 0.00080216411889232596
+  ExpVar      V0 4.0193012695967756 ; Va 4.0193012695967756 ; Vb 4.0193012695967756
+  KruskalAcc  V0 7.329249011857712 ; Va 7.329249011857712 ; Vb 7.329249011857712
+motif_mc[["Alpha"]] : V0 aucun ; Va aucun ; Vb aucun
+
+M-b : ligne Alpha
+-----------------
+V0 : stat = 0.00080216411889232596 ; p_retenue = 0.024 ; nature_p = Monte-Carlo (bootstrap de residus) ; type = test ; verdict (0.1) = ECHEC ; inoperant = FALSE
+     detail : Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+Va : stat = 0.0010027051486154073 ; p_retenue = 0.024 ; nature_p = Monte-Carlo (bootstrap de residus) ; type = test ; verdict (0.1) = ECHEC ; inoperant = FALSE
+     detail : Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+Vb : stat = 0.00080216411889232596 ; p_retenue = 0.024 ; nature_p = Monte-Carlo (bootstrap de residus) ; type = test ; verdict (0.1) = ECHEC ; inoperant = FALSE
+     detail : Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+
+M-c : p de famille et p globale (decomposition minP)
+----------------------------------------------------
+V0 M1  : p = 0.098 ; m_obs = 0.024 ; B_eff = 999 ; N = 1000 ; num_p = 98 ; num_m_obs = 24 ; minimum atteint par Alpha ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha
+       num_obs : PenteIntra = 96 ; Origine = 143 ; HomogF = 130 ; Courbure = 207 ; Alpha = 24
+V0 M2  : p = 0.745 ; m_obs = 0.535 ; B_eff = 999 ; N = 1000 ; num_p = 745 ; num_m_obs = 535 ; minimum atteint par ExpVar ; p de la ligne identical : OK
+       membres : BP, ExpVar
+       num_obs : BP = 536 ; ExpVar = 535
+V0 M3  : p = 0.016 ; m_obs = 0.005 ; B_eff = 999 ; N = 1000 ; num_p = 16 ; num_m_obs = 5 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : Calendrier, KruskalAcc, CorrDev, DW
+       num_obs : Calendrier = 5 ; KruskalAcc = 389 ; CorrDev = 632 ; DW = 66
+V0 LC  : p = 0.051 ; m_obs = 0.005 ; B_eff = 999 ; N = 1000 ; num_p = 51 ; num_m_obs = 5 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha, BP, ExpVar, Calendrier, KruskalAcc, CorrDev, DW, MinP4
+       num_obs : PenteIntra = 96 ; Origine = 143 ; HomogF = 130 ; Courbure = 207 ; Alpha = 24 ; BP = 536 ; ExpVar = 535 ; Calendrier = 5 ; KruskalAcc = 389 ; CorrDev = 632 ; DW = 66 ; MinP4 = 829
+Va M1  : p = 0.098 ; m_obs = 0.024 ; B_eff = 999 ; N = 1000 ; num_p = 98 ; num_m_obs = 24 ; minimum atteint par Alpha ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha
+       num_obs : PenteIntra = 96 ; Origine = 143 ; HomogF = 130 ; Courbure = 207 ; Alpha = 24
+Va M2  : p = 0.745 ; m_obs = 0.535 ; B_eff = 999 ; N = 1000 ; num_p = 745 ; num_m_obs = 535 ; minimum atteint par ExpVar ; p de la ligne identical : OK
+       membres : BP, ExpVar
+       num_obs : BP = 536 ; ExpVar = 535
+Va M3  : p = 0.016 ; m_obs = 0.005 ; B_eff = 999 ; N = 1000 ; num_p = 16 ; num_m_obs = 5 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : Calendrier, KruskalAcc, CorrDev, DW
+       num_obs : Calendrier = 5 ; KruskalAcc = 389 ; CorrDev = 632 ; DW = 66
+Va LC  : p = 0.051 ; m_obs = 0.005 ; B_eff = 999 ; N = 1000 ; num_p = 51 ; num_m_obs = 5 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha, BP, ExpVar, Calendrier, KruskalAcc, CorrDev, DW, MinP4
+       num_obs : PenteIntra = 96 ; Origine = 143 ; HomogF = 130 ; Courbure = 207 ; Alpha = 24 ; BP = 536 ; ExpVar = 535 ; Calendrier = 5 ; KruskalAcc = 389 ; CorrDev = 632 ; DW = 66 ; MinP4 = 829
+Vb M1  : p = 0.098 ; m_obs = 0.024 ; B_eff = 999 ; N = 1000 ; num_p = 98 ; num_m_obs = 24 ; minimum atteint par Alpha ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha
+       num_obs : PenteIntra = 96 ; Origine = 143 ; HomogF = 130 ; Courbure = 207 ; Alpha = 24
+Vb M2  : p = 0.745 ; m_obs = 0.535 ; B_eff = 999 ; N = 1000 ; num_p = 745 ; num_m_obs = 535 ; minimum atteint par ExpVar ; p de la ligne identical : OK
+       membres : BP, ExpVar
+       num_obs : BP = 536 ; ExpVar = 535
+Vb M3  : p = 0.016 ; m_obs = 0.005 ; B_eff = 999 ; N = 1000 ; num_p = 16 ; num_m_obs = 5 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : Calendrier, KruskalAcc, CorrDev, DW
+       num_obs : Calendrier = 5 ; KruskalAcc = 389 ; CorrDev = 632 ; DW = 66
+Vb LC  : p = 0.051 ; m_obs = 0.005 ; B_eff = 999 ; N = 1000 ; num_p = 51 ; num_m_obs = 5 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha, BP, ExpVar, Calendrier, KruskalAcc, CorrDev, DW, MinP4
+       num_obs : PenteIntra = 96 ; Origine = 143 ; HomogF = 130 ; Courbure = 207 ; Alpha = 24 ; BP = 536 ; ExpVar = 535 ; Calendrier = 5 ; KruskalAcc = 389 ; CorrDev = 632 ; DW = 66 ; MinP4 = 829
+Familles sans Alpha (M2, M3) identical entre V0 et Va : OK
+Familles sans Alpha (M2, M3) identical entre V0 et Vb : OK
+
+M-d : verdicts d'Alpha a alpha saisi
+------------------------------------
+p d'Alpha : V0 0.024 ; Va 0.024 ; Vb 0.024 ; repere de l'application : alpha <= 4/(B+1) = 0.004 inadmissible a B = 999
+Va contre V0, alpha dans ]0 ; 0.3[ : aucun (p egales) ; dont admissible a B (alpha > 4/(B+1)) : aucun (p egales)
+    verdicts (0.1) de toutes les autres lignes identiques entre V0 et Va : OK
+Vb contre V0, alpha dans ]0 ; 0.3[ : aucun (p egales) ; dont admissible a B (alpha > 4/(B+1)) : aucun (p egales)
+    verdicts (0.1) de toutes les autres lignes identiques entre V0 et Vb : OK
+
+M-e : sigma_USP, sigma_boot, ic_bootstrap
+-----------------------------------------
+V0 : sigma_USP = 0.048691360205184997 ; sigma_boot : longueur = 999 ; moyenne = 0.0175275 ; q05 = 0.0111142 ; q50 = 0.0166599 ; q95 = 0.0265937
+     ic_bootstrap : 2.5% = 0.0430739 ; 5% = 0.0434574 ; 50% = 0.0467294 ; 95% = 0.0525903 ; 97.5% = 0.0530265 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+Va : sigma_USP = 0.048691360205184997 ; sigma_boot : longueur = 999 ; moyenne = 0.0175275 ; q05 = 0.0111142 ; q50 = 0.0166599 ; q95 = 0.0265937
+     ic_bootstrap : 2.5% = 0.0430739 ; 5% = 0.0434574 ; 50% = 0.0467294 ; 95% = 0.0525903 ; 97.5% = 0.0530265 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+Vb : sigma_USP = 0.048691360205184997 ; sigma_boot : longueur = 999 ; moyenne = 0.0175275 ; q05 = 0.0111142 ; q50 = 0.0166599 ; q95 = 0.0265937
+     ic_bootstrap : 2.5% = 0.0430739 ; 5% = 0.0434574 ; 50% = 0.0467294 ; 95% = 0.0525903 ; 97.5% = 0.0530265 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+ecarts relatifs Va/V0 - 1 : sigma_boot : moyenne 0 ; q05 0 ; q50 0 ; q95 0 ; ic : 2.5% 0 ; 5% 0 ; 50% 0 ; 95% 0 ; 97.5% 0
+    sigma_USP identical a V0 : OK ; sigma_boot identical : OK ; ic_bootstrap identical : OK
+ecarts relatifs Vb/V0 - 1 : sigma_boot : moyenne 0 ; q05 0 ; q50 0 ; q95 0 ; ic : 2.5% 0 ; 5% 0 ; 50% 0 ; 95% 0 ; 97.5% 0
+    sigma_USP identical a V0 : OK ; sigma_boot identical : OK ; ic_bootstrap identical : OK
+
+M-f : valeur de A
+-----------------
+A_obs V0 = 0.00080216411889232596 ; A_obs Va = 0.0010027051486154073 ; Sum n = 25 ; Sum' n = 20
+A_obs(Va) / A_obs(V0) = 1.2499999999999998 ; Sum n / Sum' n = 1.25 ; ecart relatif = -2.22045e-16 (<= 1e-12 : OK)
+Sum n / Sum' n egal a 25/20 (par. 3.5, M-f) : OK
+detail de mw_famille_alpha(aj), V0 :
+    j = 0 ; n = 7 ; f0 = 3.2018715668037259 ; f1 = 3.2037222222222224 ; f2 = 3.2056065949247436 ; amplitude = 0.0011658401889871166
+    j = 1 ; n = 6 ; f0 = 1.6503490428108556 ; f1 = 1.651754402653324 ; f2 = 1.6531408506883494 ; amplitude = 0.0016902076198550529
+    j = 2 ; n = 5 ; f0 = 1.3252453518183511 ; f1 = 1.3252453518183511 ; f2 = 1.3252453518183511 ; amplitude = 0
+    j = 3 ; n = 4 ; f0 = 1.1501406707269866 ; f1 = 1.1503190505869185 ; f2 = 1.1504865120919023 ; amplitude = 0.00030064821124132617
+    j = 4 ; n = 3 ; f0 = 1.0948207404586772 ; f1 = 1.0947226291041585 ; f2 = 1.0946202664268345 ; amplitude = 0.00018312769510090337
+detail de la variante Va sur aj (ensemble fige figes$degeneres) :
+    j = 0 ; n = 7 ; f0 = 3.2018715668037259 ; f1 = 3.2037222222222224 ; f2 = 3.2056065949247436 ; amplitude = 0.0011658401889871166
+    j = 1 ; n = 6 ; f0 = 1.6503490428108556 ; f1 = 1.651754402653324 ; f2 = 1.6531408506883494 ; amplitude = 0.0016902076198550529
+    j = 3 ; n = 4 ; f0 = 1.1501406707269866 ; f1 = 1.1503190505869185 ; f2 = 1.1504865120919023 ; amplitude = 0.00030064821124132617
+    j = 4 ; n = 3 ; f0 = 1.0948207404586772 ; f1 = 1.0947226291041585 ; f2 = 1.0946202664268345 ; amplitude = 0.00018312769510090337
+
+M-g : replications ou l'indicateur A* >= A_obs differe entre Vb et Va
+---------------------------------------------------------------------
+discordances : 0
+
+Journal de V0 : p_sans, I4, Gb1, Ga1, I9 (Va)
+---------------------------------------------
+journal : |R| = 999 ; lignes non NA de stats_boot = 999 ; 13 statistiques identiques au stats_boot de V0 : OK
+A^sans_obs = 0.0010027051486154073 ; p_sans = 0.024 (err_mc 0.00484226, B_eff 999) ; p_moteur (V0) = 0.024
+N_moteur = 23 ; N_sans = 23
+Ga1 (K1) : p_Alpha(Va) = 0.024 ; p_Alpha(V0) = 0.024 ; identical : OK ; replications discordantes : 0 ; toutes quasi-egales : OK
+I9 (Va) : variante sur les 50 premieres replications du journal = colonne Alpha de Va : OK ; (info) lignes ou la colonne Alpha differe entre V0 et Va : 999
+
+Crochets de Vb : I9 (Vb), Gb4
+-----------------------------
+I9 (Vb) : aj$sigma2[J] recu par .mw_tirer_triangle_valide() = regle (carre, pas d'estimateur direct) (0.097452518744048325) a chaque appel : OK (999 appels)
+colonne J-1 degeneree (.mw_colonne_degeneree) dans les replications de Vb : 999 / 999
+
+Comparaisons de variantes (Gb2, Gb3, Ga2, Ga3, Ga4)
+---------------------------------------------------
+Vb : 12 autres cles : p_mc OK ; verdicts OK ; colonnes de stats_boot OK
+Vb : sigma_USP identical : OK
+Vb : res identical a V0 : OK
+Va : 12 autres cles : p_mc OK ; colonnes OK ; sigma_boot OK ; ic_bootstrap OK ; sigma_USP OK ; (info) verdicts des 12 : OK
+Va : res identical a V0 : ECHEC
+
+===============================================================================
+TRIANGLE KA
+===============================================================================
+Triangle (format 17 chiffres), I = 7, J = 7 :
+   j0                  j1                  j2                  j3                  j4                  j5                  j6                  j7                 
+i0  300.00000000000000  961.11666666666667 1587.33874578569089 2103.35026648082112 2419.66857296112903 2648.94680907721840 2836.43341399214432 2917.00773829536456
+i1  311.42857142857099  997.73063492063341 1647.80879324419084 2183.47789568008693 2511.84642335964463 2749.85906847063234 2911.14647659114007                  NA
+i2  322.85714285714300 1034.34460317460366 1708.27884070269670 2263.60552487936047 2604.02427375816887 2850.77132786405582                  NA                  NA
+i3  334.28571428571399 1070.95857142857062 1768.74888816119710 2343.73315407862719 2696.20212415668493                  NA                  NA                  NA
+i4  345.71428571428601 1107.57253968254076 1829.21893561970273 2423.86078327790074                  NA                  NA                  NA                  NA
+i5  357.14285714285700 1144.18650793650750 1889.68898307820268                  NA                  NA                  NA                  NA                  NA
+i6  368.57142857142901 1180.80047619047764                  NA                  NA                  NA                  NA                  NA                  NA
+i7  380.00000000000000                  NA                  NA                  NA                  NA                  NA                  NA                  NA
+sigma2_j (j = 0..J-1) : 3.2587468346629876e-29 ; 9.8383836478778218e-30 ; 4.0621623008429931e-29 ; 3.4567724900269101e-29 ; 6.4194154556698655e-29 ; 0.19835195941406319 ; 6.4194154556698655e-29
+sigma2_(J-1), regle de minimum : 6.4194154556698655e-29
+sigma2_(J-1), estimateur direct : absent
+figes$degeneres : {0, 1, 2, 3, 4, 6} ; figes$non_identifiables : {} ; figes$origine_non_identifiables : {}
+n_j (j = 0..J-1) : 7 ; 6 ; 5 ; 4 ; 3 ; 2 ; 1 ; cas = carre
+
+Preconditions (I6) et ensembles figes (I7)
+------------------------------------------
+I6 : I, J = 7, 7 (attendu 7, 7) : OK
+I6 : degeneres = {0, 1, 2, 3, 4, 6} (attendu {0, 1, 2, 3, 4, 6}) : OK
+I6 : cas = carre (attendu carre) : OK
+I6 : regle = 6.41942e-29 (attendu non fixe) : SANS OBJET
+I6 : direct = absent (attendu absent) : OK
+I6 : colonnes d'Alpha = {0, 1, 2, 3, 4} (attendu {0, 1, 2, 3, 4}) : OK
+I6 : colonnes d'Alpha toutes figees : OK
+I7 : .mw_colonnes_degenerees(aj) identical a figes$degeneres : OK
+
+Executions
+----------
+V0   : ok = TRUE ; liaisons restaurees : OK ; 4.3 s
+Va   : ok = TRUE ; liaisons restaurees : OK ; 3.8 s
+Vb   : ok = TRUE ; liaisons restaurees : OK ; 3.9 s
+V0f  : ok = TRUE ; liaisons restaurees : OK ; 4.1 s
+I1 : V0 au debut identical a V0 a la fin : OK
+I8 : metadata$seed et metadata$B egaux a la graine et a B passes : OK
+
+M-a : p_mc, err_mc, B_effectif, stats_obs ; colonnes de stats_boot identical a V0
+---------------------------------------------------------------------------------
+cle         queue | p V0       p Va       p Vb       | err V0    err Va    err Vb    | BeV0 BeVa BeVb | colVa  colVb 
+Calendrier  bas   | NA         NA         NA         | NA        NA        NA        | 0    0    0    | OK     OK    
+CorrDev     deux  | NA         NA         NA         | NA        NA        NA        | 0    0    0    | OK     OK    
+BP          haut  | NA         NA         NA         | NA        NA        NA        | 0    0    0    | OK     OK    
+MinP4       bas   | NA         NA         NA         | NA        NA        NA        | 0    0    0    | OK     OK    
+DW          deux  | NA         NA         NA         | NA        NA        NA        | 999  999  999  | OK     OK    
+Runs        deux  | NA         NA         NA         | NA        NA        NA        | 0    0    0    | OK     OK    
+PenteIntra  deux  | NA         NA         NA         | NA        NA        NA        | 0    0    0    | OK     OK    
+Origine     haut  | NA         NA         NA         | NA        NA        NA        | 0    0    0    | OK     OK    
+HomogF      haut  | NA         NA         NA         | NA        NA        NA        | 0    0    0    | OK     OK    
+Courbure    haut  | NA         NA         NA         | NA        NA        NA        | 0    0    0    | OK     OK    
+Alpha       haut  | NA         NA         NA         | NA        NA        NA        | 999  0    999  | ECHEC  OK    
+ExpVar      haut  | NA         NA         NA         | NA        NA        NA        | 0    0    0    | OK     OK    
+KruskalAcc  haut  | NA         NA         NA         | NA        NA        NA        | 0    0    0    | OK     OK    
+stats_obs (17 chiffres) :
+  Calendrier  V0 NA ; Va NA ; Vb NA
+  CorrDev     V0 NA ; Va NA ; Vb NA
+  BP          V0 NA ; Va NA ; Vb NA
+  MinP4       V0 NA ; Va NA ; Vb NA
+  DW          V0 2 ; Va 2 ; Vb 2
+  Runs        V0 NA ; Va NA ; Vb NA
+  PenteIntra  V0 NA ; Va NA ; Vb NA
+  Origine     V0 NA ; Va NA ; Vb NA
+  HomogF      V0 NA ; Va NA ; Vb NA
+  Courbure    V0 NA ; Va NA ; Vb NA
+  Alpha       V0 5.5221824837312721e-17 ; Va NA ; Vb 5.5221824837312721e-17
+  ExpVar      V0 NA ; Va NA ; Vb NA
+  KruskalAcc  V0 NA ; Va NA ; Vb NA
+motif_mc[["Alpha"]] : V0 loi simulee de dispersion nulle ; Va statistique observee non finie ; Vb loi simulee de dispersion nulle
+
+M-b : ligne Alpha
+-----------------
+V0 : stat = 5.5221824837312721e-17 ; p_retenue = NA ; nature_p = NA ; type = diagnostic ; verdict (0.1) = INFO ; inoperant = FALSE
+     detail : loi simulee de dispersion nulle : aucune p-value retenue. Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.00 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+Va : stat = NA ; p_retenue = NA ; nature_p = NA ; type = non applicable ; verdict (0.1) = INFO ; inoperant = FALSE
+     detail : statistique observee non finie : test non applicable. Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance. A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+Vb : stat = 5.5221824837312721e-17 ; p_retenue = NA ; nature_p = NA ; type = diagnostic ; verdict (0.1) = INFO ; inoperant = FALSE
+     detail : loi simulee de dispersion nulle : aucune p-value retenue. Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.00 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+
+M-c : p de famille et p globale (decomposition minP)
+----------------------------------------------------
+Familles sans Alpha () identical entre V0 et Va : OK
+Familles sans Alpha () identical entre V0 et Vb : OK
+
+M-d : verdicts d'Alpha a alpha saisi
+------------------------------------
+p d'Alpha : V0 NA ; Va NA ; Vb NA ; repere de l'application : alpha <= 4/(B+1) = 0.004 inadmissible a B = 999
+Va contre V0, alpha dans ]0 ; 0.3[ : sans objet (p non finie) ; dont admissible a B (alpha > 4/(B+1)) : sans objet (p non finie)
+    verdicts (0.1) de toutes les autres lignes identiques entre V0 et Va : OK
+Vb contre V0, alpha dans ]0 ; 0.3[ : sans objet (p non finie) ; dont admissible a B (alpha > 4/(B+1)) : sans objet (p non finie)
+    verdicts (0.1) de toutes les autres lignes identiques entre V0 et Vb : OK
+
+M-e : sigma_USP, sigma_boot, ic_bootstrap
+-----------------------------------------
+V0 : sigma_USP = 0.042640357907222953 ; sigma_boot : longueur = 999 ; moyenne = 0.00696389 ; q05 = 0.000126292 ; q50 = 0.0137548 ; q95 = 0.0137615
+     ic_bootstrap : 2.5% = 0.0369745 ; 5% = 0.0369745 ; 50% = 0.0450153 ; 95% = 0.0450193 ; 97.5% = 0.0450193 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+Va : sigma_USP = 0.042640357907222953 ; sigma_boot : longueur = 999 ; moyenne = 0.00696389 ; q05 = 0.000126292 ; q50 = 0.0137548 ; q95 = 0.0137615
+     ic_bootstrap : 2.5% = 0.0369745 ; 5% = 0.0369745 ; 50% = 0.0450153 ; 95% = 0.0450193 ; 97.5% = 0.0450193 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+Vb : sigma_USP = 0.042640357907222953 ; sigma_boot : longueur = 999 ; moyenne = 0.00696389 ; q05 = 0.000126292 ; q50 = 0.0137548 ; q95 = 0.0137615
+     ic_bootstrap : 2.5% = 0.0369745 ; 5% = 0.0369745 ; 50% = 0.0450153 ; 95% = 0.0450193 ; 97.5% = 0.0450193 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+ecarts relatifs Va/V0 - 1 : sigma_boot : moyenne 0 ; q05 0 ; q50 0 ; q95 0 ; ic : 2.5% 0 ; 5% 0 ; 50% 0 ; 95% 0 ; 97.5% 0
+    sigma_USP identical a V0 : OK ; sigma_boot identical : OK ; ic_bootstrap identical : OK
+ecarts relatifs Vb/V0 - 1 : sigma_boot : moyenne 0 ; q05 0 ; q50 0 ; q95 0 ; ic : 2.5% 0 ; 5% 0 ; 50% 0 ; 95% 0 ; 97.5% 0
+    sigma_USP identical a V0 : OK ; sigma_boot identical : OK ; ic_bootstrap identical : OK
+
+M-f : valeur de A
+-----------------
+A_obs V0 = 5.5221824837312721e-17 ; A_obs Va = NA ; Sum n = 25 ; Sum' n = 0
+rapport sans objet (A_obs non fini)
+detail de mw_famille_alpha(aj), V0 :
+    j = 0 ; n = 7 ; f0 = 3.2037222222222224 ; f1 = 3.2037222222222224 ; f2 = 3.2037222222222224 ; amplitude = 0
+    j = 1 ; n = 6 ; f0 = 1.6515567785239644 ; f1 = 1.6515567785239644 ; f2 = 1.6515567785239644 ; amplitude = 0
+    j = 2 ; n = 5 ; f0 = 1.325079647973765 ; f1 = 1.325079647973765 ; f2 = 1.325079647973765 ; amplitude = 0
+    j = 3 ; n = 4 ; f0 = 1.1503878414932527 ; f1 = 1.1503878414932527 ; f2 = 1.1503878414932525 ; amplitude = 1.9301716944157537e-16
+    j = 4 ; n = 3 ; f0 = 1.0947560499310469 ; f1 = 1.0947560499310469 ; f2 = 1.0947560499310467 ; amplitude = 2.0282564772217223e-16
+detail de la variante Va sur aj (ensemble fige figes$degeneres) :
+    (table vide)
+
+M-g : replications ou l'indicateur A* >= A_obs differe entre Vb et Va
+---------------------------------------------------------------------
+sans objet (A_obs de Va non fini)
+
+Crochets de Vb : I9 (Vb), Gb4
+-----------------------------
+I9 (Vb) : aj$sigma2[J] recu par .mw_tirer_triangle_valide() = regle (carre, pas d'estimateur direct) (6.4194154556698655e-29) a chaque appel : OK (999 appels)
+colonne J-1 degeneree (.mw_colonne_degeneree) dans les replications de Vb : 999 / 999
+
+Comparaisons de variantes (Gb2, Gb3, Ga2, Ga3, Ga4)
+---------------------------------------------------
+Vb : 12 autres cles : p_mc OK ; verdicts OK ; colonnes de stats_boot OK
+Vb : sigma_USP identical : OK
+Vb : res identical a V0 : OK
+Va : 12 autres cles : p_mc OK ; colonnes OK ; sigma_boot OK ; ic_bootstrap OK ; sigma_USP OK ; (info) verdicts des 12 : OK
+Va : res identical a V0 : ECHEC
+Ga4 : Va sur KA : type = non applicable ; p_retenue = NA ; sans erreur : OK : OK
+     V0 sur KA : type = diagnostic ; p_retenue = NA ; inoperant = FALSE ; motif = loi simulee de dispersion nulle
+
+===============================================================================
+TRIANGLE R2
+===============================================================================
+Triangle (format 17 chiffres), I = 7, J = 7 :
+   j0                  j1                  j2                  j3                  j4                  j5                  j6                  j7                 
+i0  300.00000000000000  962.71000000000004 1564.43000000000006 2025.44000000000005 2296.09999999999991 2512.36999999999989 2690.19000000000005 2766.61000000000013
+i1  311.42857142857099  981.49000000000001 1588.40000000000009 2084.96999999999980 2408.09999999999991 2652.21000000000004 2807.76999999999998                  NA
+i2  322.85714285714300 1013.33000000000004 1662.65000000000009 2223.53999999999996 2584.98999999999978 2814.80000000000018                  NA                  NA
+i3  334.28571428571399 1063.74000000000001 1778.23000000000002 2393.71000000000004 2751.32000000000016                  NA                  NA                  NA
+i4  345.71428571428601 1120.81999999999994 1885.95000000000005 2509.96999999999980                  NA                  NA                  NA                  NA
+i5  357.14285714285700 1165.47000000000003 1938.88000000000011                  NA                  NA                  NA                  NA                  NA
+i6  368.57142857142901 1189.15000000000009                  NA                  NA                  NA                  NA                  NA                  NA
+i7  380.00000000000000                  NA                  NA                  NA                  NA                  NA                  NA                  NA
+sigma2_j (j = 0..J-1) : 0.72404040319674878 ; 0.71209194038563495 ; 0.69814138644820289 ; 0.3147787989762531 ; 0.097324760436861696 ; 0.1896736626696981 ; 0.097324760436861696
+sigma2_(J-1), regle de minimum : 0.097324760436861696
+sigma2_(J-1), estimateur direct : absent
+figes$degeneres : {6} ; figes$non_identifiables : {} ; figes$origine_non_identifiables : {}
+n_j (j = 0..J-1) : 7 ; 6 ; 5 ; 4 ; 3 ; 2 ; 1 ; cas = carre
+
+Preconditions (I6) et ensembles figes (I7)
+------------------------------------------
+I6 : I, J = 7, 7 (attendu 7, 7) : OK
+I6 : degeneres = {6} (attendu {6}) : OK
+I6 : cas = carre (attendu carre) : OK
+I6 : regle = 0.0973248 (attendu 0.0973248) : OK
+I6 : direct = absent (attendu absent) : OK
+I6 : colonnes d'Alpha = {0, 1, 2, 3, 4} (attendu {0, 1, 2, 3, 4}) : OK
+I7 : .mw_colonnes_degenerees(aj) identical a figes$degeneres : OK
+
+Executions
+----------
+V0   : ok = TRUE ; liaisons restaurees : OK ; 16.6 s
+Va   : ok = TRUE ; liaisons restaurees : OK ; 13.1 s
+Vb   : ok = TRUE ; liaisons restaurees : OK ; 13.3 s
+V0f  : ok = TRUE ; liaisons restaurees : OK ; 13.4 s
+I1 : V0 au debut identical a V0 a la fin : OK
+I8 : metadata$seed et metadata$B egaux a la graine et a B passes : OK
+
+M-a : p_mc, err_mc, B_effectif, stats_obs ; colonnes de stats_boot identical a V0
+---------------------------------------------------------------------------------
+cle         queue | p V0       p Va       p Vb       | err V0    err Va    err Vb    | BeV0 BeVa BeVb | colVa  colVb 
+Calendrier  bas   | 0.002      0.002      0.002      | 0.001414  0.001414  0.001414  | 999  999  999  | OK     OK    
+CorrDev     deux  | 0.17       0.17       0.17       | 0.01765   0.01765   0.01765   | 999  999  999  | OK     OK    
+BP          haut  | 0.285      0.285      0.285      | 0.01428   0.01428   0.01428   | 999  999  999  | OK     OK    
+MinP4       bas   | 0.898      0.898      0.898      | 0.009575  0.009575  0.009575  | 999  999  999  | OK     OK    
+DW          deux  | 0.032      0.032      0.032      | 0.00794   0.00794   0.00794   | 999  999  999  | OK     OK    
+Runs        deux  | 0.374      0.374      0.374      | 0.02467   0.02467   0.02467   | 999  999  999  | OK     OK    
+PenteIntra  deux  | 0.09       0.09       0.09       | 0.01312   0.01312   0.01312   | 999  999  999  | OK     OK    
+Origine     haut  | 0.085      0.085      0.085      | 0.008823  0.008823  0.008823  | 999  999  999  | OK     OK    
+HomogF      haut  | 0.08       0.08       0.08       | 0.008583  0.008583  0.008583  | 999  999  999  | OK     OK    
+Courbure    haut  | 0.03       0.03       0.03       | 0.005397  0.005397  0.005397  | 999  999  999  | OK     OK    
+Alpha       haut  | 0.005      0.005      0.005      | 0.002232  0.002232  0.002232  | 999  999  999  | OK     OK    
+ExpVar      haut  | 0.428      0.428      0.428      | 0.01565   0.01565   0.01565   | 999  999  999  | OK     OK    
+KruskalAcc  haut  | 0.3        0.3        0.3        | 0.0145    0.0145    0.0145    | 999  999  999  | OK     OK    
+stats_obs (17 chiffres) :
+  Calendrier  V0 -3.5405639692482587 ; Va -3.5405639692482587 ; Vb -3.5405639692482587
+  CorrDev     V0 0.35918367346938773 ; Va 0.35918367346938773 ; Vb 0.35918367346938773
+  BP          V0 1.4372791844265 ; Va 1.4372791844265 ; Vb 1.4372791844265
+  MinP4       V0 0.1032898723540695 ; Va 0.1032898723540695 ; Vb 0.1032898723540695
+  DW          V0 1.6195000666097097 ; Va 1.6195000666097097 ; Vb 1.6195000666097097
+  Runs        V0 -0.40032038451271784 ; Va -0.40032038451271784 ; Vb -0.40032038451271784
+  PenteIntra  V0 1.7329542100416289 ; Va 1.7329542100416289 ; Vb 1.7329542100416289
+  Origine     V0 16.549015115382527 ; Va 16.549015115382527 ; Vb 16.549015115382527
+  HomogF      V0 11.984472899773127 ; Va 11.984472899773127 ; Vb 11.984472899773127
+  Courbure    V0 18.061494043951082 ; Va 18.061494043951082 ; Vb 18.061494043951082
+  Alpha       V0 0.001110396341342908 ; Va 0.001110396341342908 ; Vb 0.001110396341342908
+  ExpVar      V0 6.9298757348104605 ; Va 6.9298757348104605 ; Vb 6.9298757348104605
+  KruskalAcc  V0 8.1793650793650841 ; Va 8.1793650793650841 ; Vb 8.1793650793650841
+motif_mc[["Alpha"]] : V0 aucun ; Va aucun ; Vb aucun
+
+M-b : ligne Alpha
+-----------------
+V0 : stat = 0.001110396341342908 ; p_retenue = 0.005 ; nature_p = Monte-Carlo (bootstrap de residus) ; type = test ; verdict (0.1) = ECHEC ; inoperant = FALSE
+     detail : Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+Va : stat = 0.001110396341342908 ; p_retenue = 0.005 ; nature_p = Monte-Carlo (bootstrap de residus) ; type = test ; verdict (0.1) = ECHEC ; inoperant = FALSE
+     detail : Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+Vb : stat = 0.001110396341342908 ; p_retenue = 0.005 ; nature_p = Monte-Carlo (bootstrap de residus) ; type = test ; verdict (0.1) = ECHEC ; inoperant = FALSE
+     detail : Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+
+M-c : p de famille et p globale (decomposition minP)
+----------------------------------------------------
+V0 M1  : p = 0.023 ; m_obs = 0.005 ; B_eff = 999 ; N = 1000 ; num_p = 23 ; num_m_obs = 5 ; minimum atteint par Alpha ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha
+       num_obs : PenteIntra = 90 ; Origine = 85 ; HomogF = 80 ; Courbure = 30 ; Alpha = 5
+V0 M2  : p = 0.471 ; m_obs = 0.285 ; B_eff = 999 ; N = 1000 ; num_p = 471 ; num_m_obs = 285 ; minimum atteint par BP ; p de la ligne identical : OK
+       membres : BP, ExpVar
+       num_obs : BP = 285 ; ExpVar = 428
+V0 M3  : p = 0.008 ; m_obs = 0.002 ; B_eff = 999 ; N = 1000 ; num_p = 8 ; num_m_obs = 2 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : Calendrier, KruskalAcc, CorrDev, DW
+       num_obs : Calendrier = 2 ; KruskalAcc = 300 ; CorrDev = 170 ; DW = 32
+V0 LC  : p = 0.024 ; m_obs = 0.002 ; B_eff = 999 ; N = 1000 ; num_p = 24 ; num_m_obs = 2 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha, BP, ExpVar, Calendrier, KruskalAcc, CorrDev, DW, MinP4
+       num_obs : PenteIntra = 90 ; Origine = 85 ; HomogF = 80 ; Courbure = 30 ; Alpha = 5 ; BP = 285 ; ExpVar = 428 ; Calendrier = 2 ; KruskalAcc = 300 ; CorrDev = 170 ; DW = 32 ; MinP4 = 898
+Va M1  : p = 0.023 ; m_obs = 0.005 ; B_eff = 999 ; N = 1000 ; num_p = 23 ; num_m_obs = 5 ; minimum atteint par Alpha ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha
+       num_obs : PenteIntra = 90 ; Origine = 85 ; HomogF = 80 ; Courbure = 30 ; Alpha = 5
+Va M2  : p = 0.471 ; m_obs = 0.285 ; B_eff = 999 ; N = 1000 ; num_p = 471 ; num_m_obs = 285 ; minimum atteint par BP ; p de la ligne identical : OK
+       membres : BP, ExpVar
+       num_obs : BP = 285 ; ExpVar = 428
+Va M3  : p = 0.008 ; m_obs = 0.002 ; B_eff = 999 ; N = 1000 ; num_p = 8 ; num_m_obs = 2 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : Calendrier, KruskalAcc, CorrDev, DW
+       num_obs : Calendrier = 2 ; KruskalAcc = 300 ; CorrDev = 170 ; DW = 32
+Va LC  : p = 0.024 ; m_obs = 0.002 ; B_eff = 999 ; N = 1000 ; num_p = 24 ; num_m_obs = 2 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha, BP, ExpVar, Calendrier, KruskalAcc, CorrDev, DW, MinP4
+       num_obs : PenteIntra = 90 ; Origine = 85 ; HomogF = 80 ; Courbure = 30 ; Alpha = 5 ; BP = 285 ; ExpVar = 428 ; Calendrier = 2 ; KruskalAcc = 300 ; CorrDev = 170 ; DW = 32 ; MinP4 = 898
+Vb M1  : p = 0.023 ; m_obs = 0.005 ; B_eff = 999 ; N = 1000 ; num_p = 23 ; num_m_obs = 5 ; minimum atteint par Alpha ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha
+       num_obs : PenteIntra = 90 ; Origine = 85 ; HomogF = 80 ; Courbure = 30 ; Alpha = 5
+Vb M2  : p = 0.471 ; m_obs = 0.285 ; B_eff = 999 ; N = 1000 ; num_p = 471 ; num_m_obs = 285 ; minimum atteint par BP ; p de la ligne identical : OK
+       membres : BP, ExpVar
+       num_obs : BP = 285 ; ExpVar = 428
+Vb M3  : p = 0.008 ; m_obs = 0.002 ; B_eff = 999 ; N = 1000 ; num_p = 8 ; num_m_obs = 2 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : Calendrier, KruskalAcc, CorrDev, DW
+       num_obs : Calendrier = 2 ; KruskalAcc = 300 ; CorrDev = 170 ; DW = 32
+Vb LC  : p = 0.024 ; m_obs = 0.002 ; B_eff = 999 ; N = 1000 ; num_p = 24 ; num_m_obs = 2 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha, BP, ExpVar, Calendrier, KruskalAcc, CorrDev, DW, MinP4
+       num_obs : PenteIntra = 90 ; Origine = 85 ; HomogF = 80 ; Courbure = 30 ; Alpha = 5 ; BP = 285 ; ExpVar = 428 ; Calendrier = 2 ; KruskalAcc = 300 ; CorrDev = 170 ; DW = 32 ; MinP4 = 898
+Familles sans Alpha (M2, M3) identical entre V0 et Va : OK
+Familles sans Alpha (M2, M3) identical entre V0 et Vb : OK
+
+M-d : verdicts d'Alpha a alpha saisi
+------------------------------------
+p d'Alpha : V0 0.005 ; Va 0.005 ; Vb 0.005 ; repere de l'application : alpha <= 4/(B+1) = 0.004 inadmissible a B = 999
+Va contre V0, alpha dans ]0 ; 0.3[ : aucun (p egales) ; dont admissible a B (alpha > 4/(B+1)) : aucun (p egales)
+    verdicts (0.1) de toutes les autres lignes identiques entre V0 et Va : OK
+Vb contre V0, alpha dans ]0 ; 0.3[ : aucun (p egales) ; dont admissible a B (alpha > 4/(B+1)) : aucun (p egales)
+    verdicts (0.1) de toutes les autres lignes identiques entre V0 et Vb : OK
+
+M-e : sigma_USP, sigma_boot, ic_bootstrap
+-----------------------------------------
+V0 : sigma_USP = 0.049776461289219934 ; sigma_boot : longueur = 999 ; moyenne = 0.0193639 ; q05 = 0.0133748 ; q50 = 0.0184474 ; q95 = 0.0275886
+     ic_bootstrap : 2.5% = 0.0443499 ; 5% = 0.0447911 ; 50% = 0.0477839 ; 95% = 0.0531772 ; 97.5% = 0.0539842 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+Va : sigma_USP = 0.049776461289219934 ; sigma_boot : longueur = 999 ; moyenne = 0.0193639 ; q05 = 0.0133748 ; q50 = 0.0184474 ; q95 = 0.0275886
+     ic_bootstrap : 2.5% = 0.0443499 ; 5% = 0.0447911 ; 50% = 0.0477839 ; 95% = 0.0531772 ; 97.5% = 0.0539842 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+Vb : sigma_USP = 0.049776461289219934 ; sigma_boot : longueur = 999 ; moyenne = 0.0193639 ; q05 = 0.0133748 ; q50 = 0.0184474 ; q95 = 0.0275886
+     ic_bootstrap : 2.5% = 0.0443499 ; 5% = 0.0447911 ; 50% = 0.0477839 ; 95% = 0.0531772 ; 97.5% = 0.0539842 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+ecarts relatifs Va/V0 - 1 : sigma_boot : moyenne 0 ; q05 0 ; q50 0 ; q95 0 ; ic : 2.5% 0 ; 5% 0 ; 50% 0 ; 95% 0 ; 97.5% 0
+    sigma_USP identical a V0 : OK ; sigma_boot identical : OK ; ic_bootstrap identical : OK
+ecarts relatifs Vb/V0 - 1 : sigma_boot : moyenne 0 ; q05 0 ; q50 0 ; q95 0 ; ic : 2.5% 0 ; 5% 0 ; 50% 0 ; 95% 0 ; 97.5% 0
+    sigma_USP identical a V0 : OK ; sigma_boot identical : OK ; ic_bootstrap identical : OK
+
+M-f : valeur de A
+-----------------
+A_obs V0 = 0.001110396341342908 ; A_obs Va = 0.001110396341342908 ; Sum n = 25 ; Sum' n = 25
+A_obs(Va) / A_obs(V0) = 1 ; Sum n / Sum' n = 1 ; ecart relatif = 0 (<= 1e-12 : OK)
+detail de mw_famille_alpha(aj), V0 :
+    j = 0 ; n = 7 ; f0 = 3.2018715668037259 ; f1 = 3.2037222222222224 ; f2 = 3.2056065949247436 ; amplitude = 0.0011658401889871166
+    j = 1 ; n = 6 ; f0 = 1.6503490428108556 ; f1 = 1.651754402653324 ; f2 = 1.6531408506883494 ; amplitude = 0.0016902076198550529
+    j = 2 ; n = 5 ; f0 = 1.3243299945323961 ; f1 = 1.3252453518183511 ; f2 = 1.3261342122939574 ; amplitude = 0.0013614216862453611
+    j = 3 ; n = 4 ; f0 = 1.1501406707269866 ; f1 = 1.1504240540992661 ; f2 = 1.1506856696995267 ; amplitude = 0.00047373746280612514
+    j = 4 ; n = 3 ; f0 = 1.0948207404586772 ; f1 = 1.0946867896158559 ; f2 = 1.0945449803874814 ; amplitude = 0.00025190773636041974
+detail de la variante Va sur aj (ensemble fige figes$degeneres) :
+    j = 0 ; n = 7 ; f0 = 3.2018715668037259 ; f1 = 3.2037222222222224 ; f2 = 3.2056065949247436 ; amplitude = 0.0011658401889871166
+    j = 1 ; n = 6 ; f0 = 1.6503490428108556 ; f1 = 1.651754402653324 ; f2 = 1.6531408506883494 ; amplitude = 0.0016902076198550529
+    j = 2 ; n = 5 ; f0 = 1.3243299945323961 ; f1 = 1.3252453518183511 ; f2 = 1.3261342122939574 ; amplitude = 0.0013614216862453611
+    j = 3 ; n = 4 ; f0 = 1.1501406707269866 ; f1 = 1.1504240540992661 ; f2 = 1.1506856696995267 ; amplitude = 0.00047373746280612514
+    j = 4 ; n = 3 ; f0 = 1.0948207404586772 ; f1 = 1.0946867896158559 ; f2 = 1.0945449803874814 ; amplitude = 0.00025190773636041974
+
+M-g : replications ou l'indicateur A* >= A_obs differe entre Vb et Va
+---------------------------------------------------------------------
+discordances : 0
+
+Crochets de Vb : I9 (Vb), Gb4
+-----------------------------
+I9 (Vb) : aj$sigma2[J] recu par .mw_tirer_triangle_valide() = regle (carre, pas d'estimateur direct) (0.097324760436861696) a chaque appel : OK (999 appels)
+colonne J-1 degeneree (.mw_colonne_degeneree) dans les replications de Vb : 999 / 999
+
+Comparaisons de variantes (Gb2, Gb3, Ga2, Ga3, Ga4)
+---------------------------------------------------
+Vb : 12 autres cles : p_mc OK ; verdicts OK ; colonnes de stats_boot OK
+Vb : sigma_USP identical : OK
+Vb : res identical a V0 : OK
+Va : 12 autres cles : p_mc OK ; colonnes OK ; sigma_boot OK ; ic_bootstrap OK ; sigma_USP OK ; (info) verdicts des 12 : OK
+Va : res identical a V0 : OK
+
+===============================================================================
+TRIANGLE R2T
+===============================================================================
+Triangle (format 17 chiffres), I = 7, J = 5 :
+   j0                  j1                  j2                  j3                  j4                  j5                 
+i0  300.00000000000000  962.71000000000004 1564.43000000000006 2025.44000000000005 2296.09999999999991 2512.36999999999989
+i1  311.42857142857099  981.49000000000001 1588.40000000000009 2084.96999999999980 2408.09999999999991 2652.21000000000004
+i2  322.85714285714300 1013.33000000000004 1662.65000000000009 2223.53999999999996 2584.98999999999978 2814.80000000000018
+i3  334.28571428571399 1063.74000000000001 1778.23000000000002 2393.71000000000004 2751.32000000000016                  NA
+i4  345.71428571428601 1120.81999999999994 1885.95000000000005 2509.96999999999980                  NA                  NA
+i5  357.14285714285700 1165.47000000000003 1938.88000000000011                  NA                  NA                  NA
+i6  368.57142857142901 1189.15000000000009                  NA                  NA                  NA                  NA
+i7  380.00000000000000                  NA                  NA                  NA                  NA                  NA
+sigma2_j (j = 0..J-1) : 0.72404040319674878 ; 0.71209194038563495 ; 0.69814138644820289 ; 0.3147787989762531 ; 0.14192783039124957
+sigma2_(J-1), regle de minimum : 0.14192783039124957
+sigma2_(J-1), estimateur direct : 0.097324760436861696
+figes$degeneres : {} ; figes$non_identifiables : {} ; figes$origine_non_identifiables : {}
+n_j (j = 0..J-1) : 7 ; 6 ; 5 ; 4 ; 3 ; cas = simulation
+
+Preconditions (I6) et ensembles figes (I7)
+------------------------------------------
+I6 : I, J = 7, 5 (attendu 7, 5) : OK
+I6 : degeneres = {} (attendu {}) : OK
+I6 : cas = simulation (attendu simulation) : OK
+I6 : regle = 0.141928 (attendu 0.141928) : OK
+I6 : direct = 0.0973248 (attendu 0.0973248) : OK
+I6 : colonnes d'Alpha = {0, 1, 2, 3, 4} (attendu {0, 1, 2, 3, 4}) : OK
+I7 : .mw_colonnes_degenerees(aj) identical a figes$degeneres : OK
+
+Executions
+----------
+V0   : ok = TRUE ; liaisons restaurees : OK ; 12.6 s
+Va   : ok = TRUE ; liaisons restaurees : OK ; 12.6 s
+Vb   : ok = TRUE ; liaisons restaurees : OK ; 13.3 s
+V0f  : ok = TRUE ; liaisons restaurees : OK ; 13.1 s
+I1 : V0 au debut identical a V0 a la fin : OK
+I8 : metadata$seed et metadata$B egaux a la graine et a B passes : OK
+
+M-a : p_mc, err_mc, B_effectif, stats_obs ; colonnes de stats_boot identical a V0
+---------------------------------------------------------------------------------
+cle         queue | p V0       p Va       p Vb       | err V0    err Va    err Vb    | BeV0 BeVa BeVb | colVa  colVb 
+Calendrier  bas   | 0.001      0.001      0.001      | 0.001     0.001     0.001     | 999  999  999  | OK     OK    
+CorrDev     deux  | 0.178      0.178      0.178      | 0.01802   0.01802   0.01802   | 999  999  999  | OK     OK    
+BP          haut  | 0.292      0.292      0.292      | 0.01439   0.01439   0.01439   | 999  999  999  | OK     OK    
+MinP4       bas   | 0.904      0.904      0.904      | 0.00932   0.00932   0.00932   | 999  999  999  | OK     OK    
+DW          deux  | 0.012      0.012      0.012      | 0.004887  0.004887  0.004887  | 999  999  999  | OK     OK    
+Runs        deux  | 0.192      0.192      0.192      | 0.01864   0.01864   0.01864   | 999  999  999  | OK     OK    
+PenteIntra  deux  | 0.058      0.058      0.058      | 0.01062   0.01062   0.01062   | 999  999  999  | OK     OK    
+Origine     haut  | 0.083      0.083      0.083      | 0.008729  0.008729  0.008729  | 999  999  999  | OK     OK    
+HomogF      haut  | 0.065      0.065      0.065      | 0.0078    0.0078    0.0078    | 999  999  999  | OK     OK    
+Courbure    haut  | 0.022      0.022      0.022      | 0.004641  0.004641  0.004641  | 999  999  999  | OK     OK    
+Alpha       haut  | 0.006      0.006      0.006      | 0.002443  0.002443  0.002443  | 999  999  999  | OK     OK    
+ExpVar      haut  | 0.424      0.424      0.424      | 0.01564   0.01564   0.01564   | 999  999  999  | OK     OK    
+KruskalAcc  haut  | 0.206      0.206      0.206      | 0.0128    0.0128    0.0128    | 999  999  999  | OK     OK    
+stats_obs (17 chiffres) :
+  Calendrier  V0 -3.1327298505869838 ; Va -3.1327298505869838 ; Vb -3.1327298505869838
+  CorrDev     V0 0.35918367346938773 ; Va 0.35918367346938773 ; Vb 0.35918367346938773
+  BP          V0 1.4372791844265 ; Va 1.4372791844265 ; Vb 1.4372791844265
+  MinP4       V0 0.1032898723540695 ; Va 0.1032898723540695 ; Vb 0.1032898723540695
+  DW          V0 1.4628418915521983 ; Va 1.4628418915521983 ; Vb 1.4628418915521983
+  Runs        V0 -0.83484710993672195 ; Va -0.83484710993672195 ; Vb -0.83484710993672195
+  PenteIntra  V0 1.9839495715122015 ; Va 1.9839495715122015 ; Vb 1.9839495715122015
+  Origine     V0 16.549015115382527 ; Va 16.549015115382527 ; Vb 16.549015115382527
+  HomogF      V0 11.984472899773127 ; Va 11.984472899773127 ; Vb 11.984472899773127
+  Courbure    V0 18.061494043951082 ; Va 18.061494043951082 ; Vb 18.061494043951082
+  Alpha       V0 0.001110396341342908 ; Va 0.001110396341342908 ; Vb 0.001110396341342908
+  ExpVar      V0 6.9298757348104605 ; Va 6.9298757348104605 ; Vb 6.9298757348104605
+  KruskalAcc  V0 9.0061538461538504 ; Va 9.0061538461538504 ; Vb 9.0061538461538504
+motif_mc[["Alpha"]] : V0 aucun ; Va aucun ; Vb aucun
+
+M-b : ligne Alpha
+-----------------
+V0 : stat = 0.001110396341342908 ; p_retenue = 0.006 ; nature_p = Monte-Carlo (bootstrap de residus) ; type = test ; verdict (0.1) = ECHEC ; inoperant = FALSE
+     detail : Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+Va : stat = 0.001110396341342908 ; p_retenue = 0.006 ; nature_p = Monte-Carlo (bootstrap de residus) ; type = test ; verdict (0.1) = ECHEC ; inoperant = FALSE
+     detail : Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+Vb : stat = 0.001110396341342908 ; p_retenue = 0.006 ; nature_p = Monte-Carlo (bootstrap de residus) ; type = test ; verdict (0.1) = ECHEC ; inoperant = FALSE
+     detail : Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents, donc une esperance non proportionnelle au cumul (M1), non un defaut de variance (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec "Absence de tendance des facteurs avec le cumul, a colonne donnee", meme association du facteur au volume, mais commune aux colonnes.
+
+M-c : p de famille et p globale (decomposition minP)
+----------------------------------------------------
+V0 M1  : p = 0.026 ; m_obs = 0.006 ; B_eff = 999 ; N = 1000 ; num_p = 26 ; num_m_obs = 6 ; minimum atteint par Alpha ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha
+       num_obs : PenteIntra = 58 ; Origine = 83 ; HomogF = 65 ; Courbure = 22 ; Alpha = 6
+V0 M2  : p = 0.486 ; m_obs = 0.292 ; B_eff = 999 ; N = 1000 ; num_p = 486 ; num_m_obs = 292 ; minimum atteint par BP ; p de la ligne identical : OK
+       membres : BP, ExpVar
+       num_obs : BP = 292 ; ExpVar = 424
+V0 M3  : p = 0.002 ; m_obs = 0.001 ; B_eff = 999 ; N = 1000 ; num_p = 2 ; num_m_obs = 1 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : Calendrier, KruskalAcc, CorrDev, DW
+       num_obs : Calendrier = 1 ; KruskalAcc = 206 ; CorrDev = 178 ; DW = 12
+V0 LC  : p = 0.008 ; m_obs = 0.001 ; B_eff = 999 ; N = 1000 ; num_p = 8 ; num_m_obs = 1 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha, BP, ExpVar, Calendrier, KruskalAcc, CorrDev, DW, MinP4
+       num_obs : PenteIntra = 58 ; Origine = 83 ; HomogF = 65 ; Courbure = 22 ; Alpha = 6 ; BP = 292 ; ExpVar = 424 ; Calendrier = 1 ; KruskalAcc = 206 ; CorrDev = 178 ; DW = 12 ; MinP4 = 904
+Va M1  : p = 0.026 ; m_obs = 0.006 ; B_eff = 999 ; N = 1000 ; num_p = 26 ; num_m_obs = 6 ; minimum atteint par Alpha ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha
+       num_obs : PenteIntra = 58 ; Origine = 83 ; HomogF = 65 ; Courbure = 22 ; Alpha = 6
+Va M2  : p = 0.486 ; m_obs = 0.292 ; B_eff = 999 ; N = 1000 ; num_p = 486 ; num_m_obs = 292 ; minimum atteint par BP ; p de la ligne identical : OK
+       membres : BP, ExpVar
+       num_obs : BP = 292 ; ExpVar = 424
+Va M3  : p = 0.002 ; m_obs = 0.001 ; B_eff = 999 ; N = 1000 ; num_p = 2 ; num_m_obs = 1 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : Calendrier, KruskalAcc, CorrDev, DW
+       num_obs : Calendrier = 1 ; KruskalAcc = 206 ; CorrDev = 178 ; DW = 12
+Va LC  : p = 0.008 ; m_obs = 0.001 ; B_eff = 999 ; N = 1000 ; num_p = 8 ; num_m_obs = 1 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha, BP, ExpVar, Calendrier, KruskalAcc, CorrDev, DW, MinP4
+       num_obs : PenteIntra = 58 ; Origine = 83 ; HomogF = 65 ; Courbure = 22 ; Alpha = 6 ; BP = 292 ; ExpVar = 424 ; Calendrier = 1 ; KruskalAcc = 206 ; CorrDev = 178 ; DW = 12 ; MinP4 = 904
+Vb M1  : p = 0.026 ; m_obs = 0.006 ; B_eff = 999 ; N = 1000 ; num_p = 26 ; num_m_obs = 6 ; minimum atteint par Alpha ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha
+       num_obs : PenteIntra = 58 ; Origine = 83 ; HomogF = 65 ; Courbure = 22 ; Alpha = 6
+Vb M2  : p = 0.486 ; m_obs = 0.292 ; B_eff = 999 ; N = 1000 ; num_p = 486 ; num_m_obs = 292 ; minimum atteint par BP ; p de la ligne identical : OK
+       membres : BP, ExpVar
+       num_obs : BP = 292 ; ExpVar = 424
+Vb M3  : p = 0.002 ; m_obs = 0.001 ; B_eff = 999 ; N = 1000 ; num_p = 2 ; num_m_obs = 1 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : Calendrier, KruskalAcc, CorrDev, DW
+       num_obs : Calendrier = 1 ; KruskalAcc = 206 ; CorrDev = 178 ; DW = 12
+Vb LC  : p = 0.008 ; m_obs = 0.001 ; B_eff = 999 ; N = 1000 ; num_p = 8 ; num_m_obs = 1 ; minimum atteint par Calendrier ; p de la ligne identical : OK
+       membres : PenteIntra, Origine, HomogF, Courbure, Alpha, BP, ExpVar, Calendrier, KruskalAcc, CorrDev, DW, MinP4
+       num_obs : PenteIntra = 58 ; Origine = 83 ; HomogF = 65 ; Courbure = 22 ; Alpha = 6 ; BP = 292 ; ExpVar = 424 ; Calendrier = 1 ; KruskalAcc = 206 ; CorrDev = 178 ; DW = 12 ; MinP4 = 904
+Familles sans Alpha (M2, M3) identical entre V0 et Va : OK
+Familles sans Alpha (M2, M3) identical entre V0 et Vb : OK
+
+M-d : verdicts d'Alpha a alpha saisi
+------------------------------------
+p d'Alpha : V0 0.006 ; Va 0.006 ; Vb 0.006 ; repere de l'application : alpha <= 4/(B+1) = 0.004 inadmissible a B = 999
+Va contre V0, alpha dans ]0 ; 0.3[ : aucun (p egales) ; dont admissible a B (alpha > 4/(B+1)) : aucun (p egales)
+    verdicts (0.1) de toutes les autres lignes identiques entre V0 et Va : OK
+Vb contre V0, alpha dans ]0 ; 0.3[ : aucun (p egales) ; dont admissible a B (alpha > 4/(B+1)) : aucun (p egales)
+    verdicts (0.1) de toutes les autres lignes identiques entre V0 et Vb : OK
+
+M-e : sigma_USP, sigma_boot, ic_bootstrap
+-----------------------------------------
+V0 : sigma_USP = 0.047579706708939767 ; sigma_boot : longueur = 999 ; moyenne = 0.0180279 ; q05 = 0.0134249 ; q50 = 0.0180214 ; q95 = 0.0226977
+     ic_bootstrap : 2.5% = 0.0443855 ; 5% = 0.0448207 ; 50% = 0.0475326 ; 95% = 0.0502916 ; 97.5% = 0.0506162 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+Va : sigma_USP = 0.047579706708939767 ; sigma_boot : longueur = 999 ; moyenne = 0.0180279 ; q05 = 0.0134249 ; q50 = 0.0180214 ; q95 = 0.0226977
+     ic_bootstrap : 2.5% = 0.0443855 ; 5% = 0.0448207 ; 50% = 0.0475326 ; 95% = 0.0502916 ; 97.5% = 0.0506162 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+Vb : sigma_USP = 0.047579706708939767 ; sigma_boot : longueur = 999 ; moyenne = 0.0180279 ; q05 = 0.0134249 ; q50 = 0.0180214 ; q95 = 0.0226977
+     ic_bootstrap : 2.5% = 0.0443855 ; 5% = 0.0448207 ; 50% = 0.0475326 ; 95% = 0.0502916 ; 97.5% = 0.0506162 ; n_sans_sigma = 0 ; cumuls_retires = FALSE ; plafond_cumuls = FALSE
+ecarts relatifs Va/V0 - 1 : sigma_boot : moyenne 0 ; q05 0 ; q50 0 ; q95 0 ; ic : 2.5% 0 ; 5% 0 ; 50% 0 ; 95% 0 ; 97.5% 0
+    sigma_USP identical a V0 : OK ; sigma_boot identical : OK ; ic_bootstrap identical : OK
+ecarts relatifs Vb/V0 - 1 : sigma_boot : moyenne 0 ; q05 0 ; q50 0 ; q95 0 ; ic : 2.5% 0 ; 5% 0 ; 50% 0 ; 95% 0 ; 97.5% 0
+    sigma_USP identical a V0 : OK ; sigma_boot identical : OK ; ic_bootstrap identical : OK
+
+M-f : valeur de A
+-----------------
+A_obs V0 = 0.001110396341342908 ; A_obs Va = 0.001110396341342908 ; Sum n = 25 ; Sum' n = 25
+A_obs(Va) / A_obs(V0) = 1 ; Sum n / Sum' n = 1 ; ecart relatif = 0 (<= 1e-12 : OK)
+detail de mw_famille_alpha(aj), V0 :
+    j = 0 ; n = 7 ; f0 = 3.2018715668037259 ; f1 = 3.2037222222222224 ; f2 = 3.2056065949247436 ; amplitude = 0.0011658401889871166
+    j = 1 ; n = 6 ; f0 = 1.6503490428108556 ; f1 = 1.651754402653324 ; f2 = 1.6531408506883494 ; amplitude = 0.0016902076198550529
+    j = 2 ; n = 5 ; f0 = 1.3243299945323961 ; f1 = 1.3252453518183511 ; f2 = 1.3261342122939574 ; amplitude = 0.0013614216862453611
+    j = 3 ; n = 4 ; f0 = 1.1501406707269866 ; f1 = 1.1504240540992661 ; f2 = 1.1506856696995267 ; amplitude = 0.00047373746280612514
+    j = 4 ; n = 3 ; f0 = 1.0948207404586772 ; f1 = 1.0946867896158559 ; f2 = 1.0945449803874814 ; amplitude = 0.00025190773636041974
+detail de la variante Va sur aj (ensemble fige figes$degeneres) :
+    j = 0 ; n = 7 ; f0 = 3.2018715668037259 ; f1 = 3.2037222222222224 ; f2 = 3.2056065949247436 ; amplitude = 0.0011658401889871166
+    j = 1 ; n = 6 ; f0 = 1.6503490428108556 ; f1 = 1.651754402653324 ; f2 = 1.6531408506883494 ; amplitude = 0.0016902076198550529
+    j = 2 ; n = 5 ; f0 = 1.3243299945323961 ; f1 = 1.3252453518183511 ; f2 = 1.3261342122939574 ; amplitude = 0.0013614216862453611
+    j = 3 ; n = 4 ; f0 = 1.1501406707269866 ; f1 = 1.1504240540992661 ; f2 = 1.1506856696995267 ; amplitude = 0.00047373746280612514
+    j = 4 ; n = 3 ; f0 = 1.0948207404586772 ; f1 = 1.0946867896158559 ; f2 = 1.0945449803874814 ; amplitude = 0.00025190773636041974
+
+M-g : replications ou l'indicateur A* >= A_obs differe entre Vb et Va
+---------------------------------------------------------------------
+discordances : 0
+
+Crochets de Vb : I9 (Vb), Gb4
+-----------------------------
+I9 (Vb) : aj$sigma2[J] recu par .mw_tirer_triangle_valide() = estimateur direct (0.097324760436861696) a chaque appel : OK (999 appels)
+colonne J-1 degeneree (.mw_colonne_degeneree) dans les replications de Vb : 0 / 999
+
+Comparaisons de variantes (Gb2, Gb3, Ga2, Ga3, Ga4)
+---------------------------------------------------
+Vb : 12 autres cles : p_mc OK ; verdicts OK ; colonnes de stats_boot OK
+Vb : sigma_USP identical : OK
+Vb : res identical a V0 : OK
+Va : 12 autres cles : p_mc OK ; colonnes OK ; sigma_boot OK ; ic_bootstrap OK ; sigma_USP OK ; (info) verdicts des 12 : OK
+Va : res identical a V0 : OK
+
+===============================================================================
+CONTROLES GLOBAUX
+===============================================================================
+
+I5 : V0 = moteur (references ; moteur charge a part)
+----------------------------------------------------
+I5 R2 : comparer_objets(tests/reference/reserve2.rds) : CONFORME : 18746 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00
+     p_mc egales : OK ; verdicts egaux : OK ; sigma_USP egal : OK : OK
+I5 R2T : comparer_objets(tests/reference/reserve2_trapeze.rds) : CONFORME : 18573 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00
+     p_mc egales : OK ; verdicts egaux : OK ; sigma_USP egal : OK : OK
+I5 T0 : p_mc des 13 cles (Alpha et les douze autres) de V0 identical a celles d'un moteur charge a part, jamais substitue : OK (15.4 s)
+I5 T1 : p_mc des 13 cles (Alpha et les douze autres) de V0 identical a celles d'un moteur charge a part, jamais substitue : OK (16.9 s)
+I5 T2 : p_mc des 13 cles (Alpha et les douze autres) de V0 identical a celles d'un moteur charge a part, jamais substitue : OK (15.0 s)
+I5 R2T : p_mc des 13 cles (Alpha et les douze autres) de V0 identical a celles d'un moteur charge a part, jamais substitue : OK (17.6 s)
+
+I1, I2, I3, I8, I9 (synthese)
+-----------------------------
+I9 : Vb sur T1 sans crochets identical a Vb avec crochets (crochets de lecture sans effet) : OK
+I8 : .Random.seed de l'environnement global inchange (le script ne tire rien) : OK ; B = 999 = 999 : OK
+I3 a la fin : md5 de R/engine.R = 723277ddfa5736d7411838d15d8dad00 : OK ; git status vide : OK
+I1  : OK  (T0 OK ; T0_journal OK ; T1 OK ; T1_journal OK ; T2 OK ; T2_journal OK ; T3 OK ; K1 OK ; K1_journal OK ; KA OK ; R2 OK ; R2T OK)
+I2  : OK  (T0 OK ; T1 OK ; T2 OK ; T3 OK ; K1 OK ; KA OK ; R2 OK ; R2T OK ; T1_vb_nu OK ; T1_Mh OK ; T2_Mh OK ; T0_frais OK ; T1_frais OK ; T2_frais OK ; R2T_frais OK)
+I3  : OK  (debut OK ; fin OK)
+I4  : OK  (T0 OK ; T1 OK ; T2 OK)
+I5  : OK  (R2 OK ; R2T OK ; T0_frais OK ; T1_frais OK ; T2_frais OK ; R2T_frais OK)
+I6  : OK  (T0 OK ; T1 OK ; T2 OK ; T3 OK ; K1 OK ; KA OK ; R2 OK ; R2T OK)
+I7  : OK  (T0 OK ; T1 OK ; T2 OK ; T3 OK ; K1 OK ; KA OK ; R2 OK ; R2T OK)
+I8  : OK  (T0 OK ; T1 OK ; T2 OK ; T3 OK ; K1 OK ; KA OK ; R2 OK ; R2T OK ; graine_globale OK ; B OK)
+I9  : OK  (T0_Va OK ; T0_Vb OK ; T1_Va OK ; T1_Vb OK ; T2_Va OK ; T2_Vb OK ; T3_Vb OK ; K1_Va OK ; K1_Vb OK ; KA_Vb OK ; R2_Vb OK ; R2T_Vb OK ; T1_crochets_sans_effet OK)
+R0 (I1 a I9 verts) : VERT
+
+===============================================================================
+CRITERES D'ADMISSIBILITE (par. 2) -- lecture mecanique, a l'etape 5 par actuary
+===============================================================================
+Gb1 : OK  (T0 OK ; T1 OK ; T2 OK)
+Gb2 : OK  (T0 OK ; T1 OK ; T2 OK ; T3 OK)
+Gb3 : OK  (T0_sigma_usp OK ; T1_sigma_usp OK ; T2_sigma_usp OK ; T3_sigma_usp OK ; K1_sigma_usp OK ; K1_res OK ; KA_sigma_usp OK ; KA_res OK ; R2_sigma_usp OK ; R2_res OK ; R2T_sigma_usp OK ; R2T_res OK)
+Gb4 : OK  (T1 OK ; T2 OK ; T3 OK)
+Ga1 : OK  (T0 OK ; T1 OK ; T2 OK ; K1 OK)
+Ga2 : OK  (T0 OK ; T1 OK ; T2 OK ; T3 OK ; K1 OK ; KA OK ; R2 OK ; R2T OK)
+Ga3 : OK  (T3 OK ; R2 OK ; R2T OK)
+Ga4 : OK  (KA OK)
+(b) admissible : OK ; (a) admissible : OK
+Regle de choix (b) > (a) > (c), appliquee mecaniquement : (b)
+
+===============================================================================
+PREDICTIONS H1 A H6 (par. 3.6) -- information, lecture a l'etape 5
+===============================================================================
+H1 T0 : p_Alpha(Va) = 0.016 ; p_sans = 0.016
+H2 T0 : p_Alpha(Vb) = 0.016
+H3 T0 : p famille M1 : V0 0.056 ; Va 0.056 ; Vb 0.056 | p globale : V0 0.111 ; Va 0.111 ; Vb 0.111 | Va = Vb : OK
+H1 T1 : p_Alpha(Va) = 0.007 ; p_sans = 0.007
+H2 T1 : p_Alpha(Vb) = 0.007
+H3 T1 : p famille M1 : V0 0.015 ; Va 0.015 ; Vb 0.015 | p globale : V0 0.027 ; Va 0.027 ; Vb 0.027 | Va = Vb : OK
+H1 T2 : p_Alpha(Va) = 0.01 ; p_sans = 0.01
+H2 T2 : p_Alpha(Vb) = 0.01
+H3 T2 : p famille M1 : V0 0.019 ; Va 0.019 ; Vb 0.019 | p globale : V0 0.022 ; Va 0.023 ; Vb 0.023 | Va = Vb : OK
+H1 K1 : p_Alpha V0 0.024 ; Va 0.024 ; ecart relatif du rapport des A_obs a Sum n / Sum' n : -2.22045e-16
+H2 T0 : ecarts relatifs Vb/V0 - 1 : sigma_boot moyenne 0 ; q05 0 ; q50 0 ; q95 0 ; ic 2.5% 0 ; 5% 0 ; 50% 0 ; 95% 0 ; 97.5% 0
+H2 T1 : ecarts relatifs Vb/V0 - 1 : sigma_boot moyenne -0.000194002 ; q05 -0.000160179 ; q50 -0.00159129 ; q95 0.00130817 ; ic 2.5% 0.000378458 ; 5% -2.81593e-05 ; 50% -0.000353628 ; 95% 0.000343636 ; 97.5% -0.000853039
+H2 T2 : ecarts relatifs Vb/V0 - 1 : sigma_boot moyenne -4.98616e-05 ; q05 0.000282572 ; q50 -0.00020891 ; q95 0.000479969 ; ic 2.5% -0.000693952 ; 5% 4.94845e-05 ; 50% -4.94145e-05 ; 95% 0.000135469 ; 97.5% -0.00244278
+H2 T3 : ecarts relatifs Vb/V0 - 1 : sigma_boot moyenne -2.85842e-06 ; q05 0.00117102 ; q50 -0.000394921 ; q95 -0.000781927 ; ic 2.5% -9.74442e-05 ; 5% 0.000198436 ; 50% -8.28529e-05 ; 95% -0.000189462 ; 97.5% 0.000198522
+H4 : voir Ga3 (R2, R2T, T3 sous Va) et Gb3 (R2, R2T, K1, KA sous Vb) ci-dessus.
+H5 : V0 sur KA : type = diagnostic ; inoperant = FALSE ; motif = loi simulee de dispersion nulle (prediction : loi simulee de dispersion nulle, inoperant = TRUE) ; Va : type = non applicable (prediction : non applicable)
+H6 T1 : verdict d'Alpha (0.1) : V0 ECHEC ; Va ECHEC ; Vb ECHEC
+H6 T2 : verdict d'Alpha (0.1) : V0 ECHEC ; Va ECHEC ; Vb ECHEC
+
+===============================================================================
+M-h : graine secondaire 20261125 (T1, T2 ; V0, Va, Vb)
+===============================================================================
+T1  V0 : p Alpha = 0.008 ; p famille M1 = 0.01 ; p globale = 0.021 ; graine = 20261125 ; 12.1 s
+T1  Va : p Alpha = 0.005 ; p famille M1 = 0.01 ; p globale = 0.021 ; graine = 20261125 ; 12.4 s
+T1  Vb : p Alpha = 0.005 ; p famille M1 = 0.01 ; p globale = 0.021 ; graine = 20261125 ; 12.3 s
+T2  V0 : p Alpha = 0.023 ; p famille M1 = 0.009 ; p globale = 0.008 ; graine = 20261125 ; 11.1 s
+T2  Va : p Alpha = 0.006 ; p famille M1 = 0.009 ; p globale = 0.008 ; graine = 20261125 ; 11.1 s
+T2  Vb : p Alpha = 0.006 ; p famille M1 = 0.009 ; p globale = 0.008 ; graine = 20261125 ; 10.4 s
+
+===============================================================================
+SYNTHESE
+===============================================================================
+tri  | pA V0      pA Va      pA Vb      p_sans     | M1 V0      M1 Va      M1 Vb      | LC V0      LC Va      LC Vb     
+T0   | 0.016      0.016      0.016      0.016      | 0.056      0.056      0.056      | 0.111      0.111      0.111     
+T1   | 0.008      0.007      0.007      0.007      | 0.015      0.015      0.015      | 0.027      0.027      0.027     
+T2   | 0.023      0.01       0.01       0.01       | 0.019      0.019      0.019      | 0.022      0.023      0.023     
+T3   | 0.004      0.004      0.004      -          | 0.017      0.017      0.017      | 0.042      0.042      0.042     
+K1   | 0.024      0.024      0.024      0.024      | 0.098      0.098      0.098      | 0.051      0.051      0.051     
+KA   | NA         NA         NA         -          | NA         NA         NA         | NA         NA         NA        
+R2   | 0.005      0.005      0.005      -          | 0.023      0.023      0.023      | 0.024      0.024      0.024     
+R2T  | 0.006      0.006      0.006      -          | 0.026      0.026      0.026      | 0.008      0.008      0.008     
+R0 : VERT ; (b) admissible : OK ; (a) admissible : OK ; choix mecanique : (b)
+
+PIED
+----
+duree totale : 562.3 s
+R version 4.3.3 (2024-02-29)
+RNGkind() : Mersenne-Twister, Inversion, Rejection
+graine = 20260831 ; graine secondaire = 20261125 ; B = 999
+git rev-parse HEAD : e4d79fb0e0cb9839189b2305da2cdf4fa41ee496
+md5 R/engine.R : 723277ddfa5736d7411838d15d8dad00
+md5 R/charger_moteur.R : 5ed6226c768d5ad781ea03a7306ccc11
+md5 mesure_620.R : e01f984b1ad019dd8caa292e3fcc4bd5

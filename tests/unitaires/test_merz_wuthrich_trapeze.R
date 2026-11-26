@@ -46,7 +46,15 @@
 #      degeneree, clause numerique de l'ancienne derogation, trapezes
 #      ordinaires, temoins), bootstrap du cas (s2) et du 8 x 6 de
 #      reserve2_trapeze (r = 1,458) sur l'estimateur direct, mentions M6 et
-#      legendes usage_sigma par cas (.mw_cas_sigma_direct(), trois cas).
+#      legendes usage_sigma par cas (.mw_cas_sigma_direct(), trois cas) ;
+#    - #620, piste (b) (decision du mainteneur au point d'arret PA-2 d'A3,
+#      26/11/2026 ; ADR 0005, annotation du 26/11/2026) : predicat
+#      .mw_simulation_sigma_direct() reduit a "trapeze", colonne J-1
+#      degeneree comprise (corps identique au prototype Vb de
+#      docs/revues/20261125-a3-creneau/mesure-620/mesure_620.R) ; cas
+#      "degenere" lu par .mw_colonne_degeneree() ; textes du cas "degenere"
+#      reecrits ; non-regression sur (s1) : colonne J-1 degeneree dans chaque
+#      replication, calcul observe et sigma_USP inchanges.
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -419,12 +427,15 @@ local({
 # docs/revues/20261120-s6-trapeze/actuary-10-avis-m1-bootstrap-jm1.md,
 # option (b), derogation du 22/11/2026), absorbe par la variante V2 de #612
 # (decision du mainteneur du 25/11/2026, PA-2, Q-PA2-1 et Q-PA2-2 (a) ;
-# ADR 0005, annotation du 25/11/2026) : .mw_simulation_sigma_direct() vrai
-# si et seulement si le trapeze a un estimateur direct et une colonne J-1
-# non degeneree, quelle que soit la valeur de la regle de minimum ;
+# ADR 0005, annotation du 25/11/2026), etendue par #620 (piste (b),
+# decision du mainteneur du 26/11/2026, PA-2-1 (b) ; ADR 0005, annotation
+# du 26/11/2026) : .mw_simulation_sigma_direct() vrai si et seulement si le
+# triangle est un trapeze (estimateur direct present), colonne J-1
+# degeneree comprise, quelle que soit la valeur de la regle de minimum ;
 # mw_bootstrap() tire alors la colonne J-1 avec l'estimateur direct ;
 # calcul observe, MSEP et sigma_USP inchanges. Mentions M6 et legendes
-# usage_sigma par cas (constat m-1, .mw_cas_sigma_direct(), trois cas).
+# usage_sigma par cas (constat m-1, .mw_cas_sigma_direct(), trois cas, le
+# cas "degenere" lu par .mw_colonne_degeneree()).
 # tz_fixer() : facteurs de la colonne jc (0..J-1) poses a Fv (longueur
 # I - jc), colonnes suivantes reconstruites avec les facteurs individuels
 # d'origine de t0, partie non observee a NA.
@@ -450,20 +461,24 @@ tz_m1 <- list(
 tz_m1_aj <- lapply(tz_m1, mw_ajuster)
 verifier("V2 : MW_TOL_SIGMA_SIMULATION retiree du moteur (clause numerique absorbee)",
          !exists("MW_TOL_SIGMA_SIMULATION", envir = environment(run_engine), inherits = FALSE))
-# F_V2 lu dans le script de mesure par parse(), sans l'executer : unique
-# affectation de premier niveau "F_V2 <- function(...) ..." du fichier.
-tz_f_v2 <- local({
-  ex <- parse(file.path(RACINE, "tests", "simulation_jm1_trapeze_t8.R"),
-              keep.source = FALSE, encoding = "UTF-8")
+# Prototype Vb de #620 lu dans le script de mesure par parse(), sans
+# l'executer : unique affectation de premier niveau
+# "sim_direct_vb <- function(...) ..." du fichier. Il remplace, depuis
+# #620, le corps F_V2 de tests/simulation_jm1_trapeze_t8.R (V2 de #612,
+# predicat a deux conditions), que le moteur ne suit plus pour une colonne
+# J-1 degeneree.
+tz_f_vb <- local({
+  ex <- parse(file.path(RACINE, "docs", "revues", "20261125-a3-creneau", "mesure-620",
+                        "mesure_620.R"), keep.source = FALSE, encoding = "UTF-8")
   aff <- Filter(function(e) is.call(e) && identical(e[[1]], as.name("<-")) &&
-                  identical(e[[2]], as.name("F_V2")), as.list(ex))
+                  identical(e[[2]], as.name("sim_direct_vb")), as.list(ex))
   if (length(aff) == 1L && is.call(aff[[1]][[3]]) &&
       identical(aff[[1]][[3]][[1]], as.name("function"))) aff[[1]][[3]] else NULL
 })
-verifier("V2 : corps et arguments de .mw_simulation_sigma_direct() identiques a ceux de F_V2, extrait par parse() du script de mesure (tests/simulation_jm1_trapeze_t8.R)",
-         !is.null(tz_f_v2) &&
-           identical(body(.mw_simulation_sigma_direct), tz_f_v2[[3]]) &&
-           identical(names(formals(.mw_simulation_sigma_direct)), names(tz_f_v2[[2]])))
+verifier("#620 : corps et arguments de .mw_simulation_sigma_direct() identiques a ceux du prototype Vb (sim_direct_vb), extrait par parse() du script de mesure (docs/revues/20261125-a3-creneau/mesure-620/mesure_620.R)",
+         !is.null(tz_f_vb) &&
+           identical(body(.mw_simulation_sigma_direct), tz_f_vb[[3]]) &&
+           identical(names(formals(.mw_simulation_sigma_direct)), names(tz_f_vb[[2]])))
 local({
   a <- tz_m1_aj$s2; J <- a$J; ex <- mw_extrapolation_sigma2(a)
   verifier("M-1 (s2) : regle nulle par la colonne J-3, colonne J-1 non degeneree, estimateur direct > 0, predicat vrai, cas \"simulation\"",
@@ -492,13 +507,15 @@ local({
              isTRUE(.mw_simulation_sigma_direct(b)) && identical(.mw_cas_sigma_direct(b), "simulation")
            }, logical(1))))
 })
-verifier("V2 temoins : predicat faux sur les carres (8 x 8, 5 x 5, GenIns) et (s1) (colonne J-1 degeneree), vrai sur les sept trapezes ordinaires ; trois cas seulement",
+verifier("V2 et #620 temoins : predicat faux sur les carres (8 x 8, 5 x 5, GenIns), vrai sur (s1) (colonne J-1 degeneree, #620) et sur les sept trapezes ordinaires ; trois cas seulement, (s1) en cas \"degenere\"",
          {
            t1 <- tz_jeux[["8x6"]]; t1[1:3, 6] <- 2 * t1[1:3, 5]
-           l0 <- list(mw_ajuster(tz_carre), mw_ajuster(tz_5x5), mw_ajuster(tz_ta), mw_ajuster(t1))
+           l0 <- list(mw_ajuster(tz_carre), mw_ajuster(tz_5x5), mw_ajuster(tz_ta))
+           a1 <- mw_ajuster(t1)
            all(vapply(l0, function(a) identical(.mw_simulation_sigma_direct(a), FALSE), logical(1))) &&
+             identical(.mw_simulation_sigma_direct(a1), TRUE) &&
              all(vapply(tz_aj, function(a) identical(.mw_simulation_sigma_direct(a), TRUE), logical(1))) &&
-             identical(unname(vapply(c(l0, tz_aj), .mw_cas_sigma_direct, character(1))),
+             identical(unname(vapply(c(l0, list(a1), tz_aj), .mw_cas_sigma_direct, character(1))),
                        c("carre", "carre", "carre", "degenere", rep("simulation", length(tz_aj))))
          })
 # Cas reserve2_trapeze (8 x 6, tests/donnees/triangle_mw_trapeze.csv = 8 x 8
@@ -612,11 +629,77 @@ local({
              identical(o$pd$usage_sigma, MW_USAGE_SIGMA_DEGENERE))
   verifier_detail(o$ts, "mw_tests() sur (s1) (mention M23_degenere)")
 })
-verifier("m-1 : legendes usage_sigma des trois cas, noms sigma et sigma_residus, ASCII, coupees au premier \" : \" ; cas degenere : legende sigma du carre",
+# #620, piste (b) (ADR 0005, annotation du 26/11/2026) : non-regression sur
+# (s1) (8 x 6, colonne J-1 = 4 degeneree, 3 facteurs exactement 2,
+# estimateur direct nul, regle de minimum > 0). mw_bootstrap() tire la
+# colonne J-1 avec l'estimateur direct : bootstrap identical a celui de aj
+# dont sigma2_(J-1) est remplace par l'estimateur direct ; boucle de
+# mw_bootstrap() reproduite (memes appels, meme graine) : colonne J-1
+# degeneree dans chaque replication. Temoin, comportement anterieur a #620 :
+# seam remplace par le predicat a deux conditions de la variante V2 de #612
+# (colonne J-1 degeneree simulee avec la regle), substitue dans
+# environment(run_engine) (ADR 0016) puis restaure. sigma_USP, statistiques
+# observees, ligne M6 et legendes usage_sigma ne dependent pas du seam (cas
+# "degenere" lu par .mw_colonne_degeneree()) ; sigma_boot et replications
+# d'Alpha en dependent ; les douze autres colonnes de stats_boot sont
+# identiques sur ce triangle (constat, aucun triangle retire).
+local({
+  t1 <- tz_jeux[["8x6"]]; t1[1:3, 6] <- 2 * t1[1:3, 5]
+  a <- mw_ajuster(t1); J <- a$J; fg <- .mw_ensembles_figes(a); B <- 99L
+  bt <- mw_bootstrap(a, B = B, seed = 20260831, figes = fg)
+  aB <- a; aB$sigma2[J] <- a$sigma2_Jm1_direct
+  verifier("#620 (s1) mw_bootstrap(B = 99) : identical a celui de aj dont sigma2_(J-1) est l'estimateur direct (nul, regle > 0)",
+           identical(a$sigma2_Jm1_direct, 0) && a$sigma2[J] > 0 &&
+             identical(bt, mw_bootstrap(aB, B = B, seed = 20260831, figes = fg)))
+  deg <- engine_sous_graine(20260831, {
+    combn <- new.env(parent = emptyenv())
+    pool <- .mw_pool_residus(a, fg$degeneres)
+    n_max <- FACTEUR_B_MAX_MW * (B + 1); n <- 0
+    sim <- matrix(NA_real_, B, length(bt$stats_obs), dimnames = list(NULL, names(bt$stats_obs)))
+    d <- logical(B)
+    for (b in seq_len(B)) {
+      tir <- .mw_tirer_triangle_valide(aB, pool, n_max - n); n <- n + tir$n
+      ab <- mw_ajuster(tir$tri)
+      sim[b, ] <- .mw_stats(ab, fg, replique = TRUE, combn = combn)[colnames(sim)]
+      d[b] <- .mw_colonne_degeneree(ab, J - 1L)
+    }
+    list(sim = sim, d = d)
+  })
+  verifier("#620 (s1) boucle reproduite : replications identical a bt$stats_boot ; colonne J-1 degeneree dans chaque replication",
+           identical(deg$sim, bt$stats_boot) && all(deg$d))
+  e <- environment(run_engine)
+  orig <- get(".mw_simulation_sigma_direct", envir = e, inherits = FALSE)
+  pred_v2 <- function(aj)
+    !is.null(aj[["sigma2_Jm1_direct"]]) && !.mw_colonne_degeneree(aj, aj$J - 1L)
+  environment(pred_v2) <- e
+  appel <- function() run_engine(methode = "reserve2", triangle = t1, segment = 1, annexe = "II",
+                                 date_reference = DATE_REFERENCE_TESTS, B = B, seed = 20260831)
+  r <- appel()
+  assign(".mw_simulation_sigma_direct", pred_v2, envir = e)
+  r0 <- tryCatch(appel(), finally = assign(".mw_simulation_sigma_direct", orig, envir = e))
+  m6 <- function(x) Filter(function(l) identical(l$test,
+    "Extrapolation de sigma pour la derniere annee de developpement"), x$tests)[[1]]
+  autres <- setdiff(colnames(r$bootstrap$stats_boot), "Alpha")
+  verifier("#620 (s1) run_engine(B = 99) : ok ; sigma_USP, statistiques observees, ligne M6 (mention M23_degenere) et usage_sigma (MW_USAGE_SIGMA_DEGENERE) identiques sous le predicat de V2 (temoin) ; seam restaure",
+           identical(r$ok, TRUE) && identical(r0$ok, TRUE) &&
+             identical(r$parametre_final$sigma_usp, r0$parametre_final$sigma_usp) &&
+             identical(r$bootstrap$stats_obs, r0$bootstrap$stats_obs) &&
+             identical(m6(r), m6(r0)) &&
+             identical(mentions_presentes(m6(r)$detail), "M23_degenere") &&
+             identical(r$plots_data$usage_sigma, MW_USAGE_SIGMA_DEGENERE) &&
+             identical(r0$plots_data$usage_sigma, MW_USAGE_SIGMA_DEGENERE) &&
+             identical(get(".mw_simulation_sigma_direct", envir = e, inherits = FALSE), orig))
+  verifier("#620 (s1) : sigma_boot et replications d'Alpha distincts du temoin (colonne J-1 simulee avec la regle) ; douze autres colonnes de stats_boot identiques",
+           !identical(r$bootstrap$sigma_boot, r0$bootstrap$sigma_boot) &&
+             !identical(r$bootstrap$stats_boot[, "Alpha"], r0$bootstrap$stats_boot[, "Alpha"]) &&
+             length(autres) == 12L &&
+             identical(r$bootstrap$stats_boot[, autres], r0$bootstrap$stats_boot[, autres]))
+})
+verifier("m-1 et #620 : legendes usage_sigma des trois cas, noms sigma et sigma_residus, ASCII, coupees au premier \" : \" ; cas degenere : legende sigma du cas simulation (colonne simulee avec l'estimateur direct, #620)",
          all(vapply(list(MW_USAGE_SIGMA, MW_USAGE_SIGMA_SIMULATION, MW_USAGE_SIGMA_DEGENERE), function(u)
            identical(names(u), c("sigma", "sigma_residus")) && !any(grepl("[^ -~]", u)) &&
              all(grepl(" : ", u, fixed = TRUE)), logical(1))) &&
-           identical(MW_USAGE_SIGMA_DEGENERE[["sigma"]], MW_USAGE_SIGMA[["sigma"]]))
+           identical(MW_USAGE_SIGMA_DEGENERE[["sigma"]], MW_USAGE_SIGMA_SIMULATION[["sigma"]]))
 # Legende du carre enregistree dans tests/reference/reserve2.rds : la
 # variante V2 de #612 ne la change pas (ADR 0005, annotation du 25/11/2026,
 # Consequences).

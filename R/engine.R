@@ -13109,10 +13109,11 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 ##     d'extension naturelle au trapeze (ADR 0005, meme annotation, point 3).
 ##     La regle de minimum de sigma2_(J-1) (paragraphe 5(d)(ii), seconde
 ##     ligne) s'applique quel que soit I ; l'estimateur direct de
-##     sigma2_(J-1) d'un trapeze ne sert qu'aux residus de la colonne J-1
-##     et, quand cette colonne n'est pas degeneree, a sa simulation par
-##     mw_bootstrap() (.mw_simulation_sigma_direct(), variante V2 de #612,
-##     convention de l'outil ; ADR 0005, annotation du 25/11/2026).
+##     sigma2_(J-1) d'un trapeze ne sert qu'aux residus de la colonne J-1,
+##     quand cette colonne n'est pas degeneree, et a sa simulation par
+##     mw_bootstrap(), degeneree ou non (.mw_simulation_sigma_direct(),
+##     variante V2 de #612 etendue par #620, convention de l'outil ;
+##     ADR 0005, annotations du 25/11/2026 et du 26/11/2026).
 ##     Un trapeze recoit de mw_valider_triangle() un avertissement non
 ##     bloquant (geometrie, colonne de developpement perdue, hypothese portee
 ##     par la convention pour les annees 0..I-J), et non plus le refus
@@ -13502,11 +13503,11 @@ mw_ajuster <- function(tri) {
   # n'entre ni dans f, ni dans C_chapeau, ni dans Q, donc pas dans la MSEP,
   # qui garde la valeur de la regle de minimum (prescrite pour j = J-1 quel
   # que soit I). Il reduit les residus de la colonne J-1
-  # (.mw_sigma2_residus()) et, quand la colonne J-1 n'est pas degeneree,
-  # mw_bootstrap() simule cette colonne avec lui
-  # (.mw_simulation_sigma_direct(), variante V2 de #612, decision du
-  # mainteneur du 25/11/2026). Champ sigma2_Jm1_direct ajoute en fin de
-  # liste pour I > J seulement : l'objet d'un carre est inchange.
+  # (.mw_sigma2_residus()) et mw_bootstrap() simule cette colonne avec lui,
+  # degeneree ou non (.mw_simulation_sigma_direct(), variante V2 de #612,
+  # decision du mainteneur du 25/11/2026, etendue a la colonne degeneree
+  # par #620, decision du 26/11/2026). Champ sigma2_Jm1_direct ajoute en
+  # fin de liste pour I > J seulement : l'objet d'un carre est inchange.
   s2_dir <- NULL
   if (I > J) {
     j <- J - 1L
@@ -13560,9 +13561,10 @@ mw_ajuster <- function(tri) {
 # seulement ; f, C_chapeau et la MSEP gardent
 # aj$sigma2 (regle de minimum). L'ecart-type des triangles tires par
 # mw_bootstrap() ne la lit pas : la colonne J-1 y est simulee avec
-# l'estimateur direct quand .mw_simulation_sigma_direct() est vrai (colonne
-# J-1 non degeneree), avec la regle sinon. Pour un carre, le champ est
-# absent et le vecteur rendu est aj$sigma2 tel quel.
+# l'estimateur direct quand .mw_simulation_sigma_direct() est vrai (tout
+# trapeze, colonne J-1 degeneree comprise, #620), avec la regle pour un
+# carre. Pour un carre, le champ est absent et le vecteur rendu est
+# aj$sigma2 tel quel.
 .mw_sigma2_residus <- function(aj) {
   s2 <- aj$sigma2
   d <- aj[["sigma2_Jm1_direct"]]
@@ -13834,7 +13836,9 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
 # Variante V2 de #612 : ADR 0005, annotation du 25/11/2026 ; decision du
 # mainteneur au point d'arret PA-2 (Q-PA2-1 (a), Q-PA2-2 (a)) ; mesure
 # tests/simulation_jm1_trapeze_t8.R (corps F_V2), lecture d'actuary
-# docs/revues/20261123-a2-creneau/actuary-4-lecture-mesure-612.md. Remplace
+# docs/revues/20261123-a2-creneau/actuary-4-lecture-mesure-612.md ; etendue
+# par #620 (corps Vb de docs/revues/20261125-a3-creneau/mesure-620/
+# mesure_620.R ; ADR 0005, annotation du 26/11/2026). Remplace
 # la decision Q-2a-2 du 20/11/2026 (colonne J-1 simulee avec la valeur de
 # la regle de minimum) et absorbe la derogation M-1 (b) du 22/11/2026
 # (estimateur direct dans le seul cas d'une regle nulle ou negligeable),
@@ -13849,29 +13853,42 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
 # f, C_chapeau, Q, la MSEP, sigma_USP, l'estimation de la ligne M6, tout le
 # calcul observe, et le sigma de chaque replication (racine(MSEP) / R par
 # mw_msep() sur le triangle reajuste, donc avec la regle de la replication).
-# Predicat sur aj seul, vrai si et seulement si :
-#   1. aj$sigma2_Jm1_direct existe (trapeze I > J ; un carre n'a pas
-#      d'estimateur direct, sa simulation est inchangee) ;
-#   2. la colonne J-1 n'est pas degeneree (.mw_colonne_degeneree()) : une
-#      colonne J-1 degeneree est figee a l'observe, sans residu, et reste
-#      simulee avec la valeur de la regle.
+# Predicat sur aj seul, vrai si et seulement si aj$sigma2_Jm1_direct existe
+# (trapeze I > J ; un carre n'a pas d'estimateur direct, sa simulation est
+# inchangee), colonne J-1 degeneree comprise (#620, piste (b) ; ADR 0005,
+# annotation du 26/11/2026, decision du mainteneur au point d'arret PA-2
+# d'A3, PA-2-1 (b) ; mesure
+# docs/revues/20261125-a3-creneau/mesure-620/mesure_620.R, prototype Vb,
+# lecture d'actuary actuary-2-lecture-mesure-620.md du meme dossier). Une
+# colonne J-1 degeneree (.mw_colonne_degeneree()) reste figee a
+# l'observe, sans residu retenu (tests, influence, vivier du bootstrap) ;
+# son estimateur direct, d'ordre relatif la tolerance du predicat par
+# construction de .mw_colonne_degeneree() (nul sur T1 a T3, 1,2e-28 sur
+# T0, triangles construits de la mesure), la garde d'amplitude
+# negligeable dans les triangles tires (ADR 0005, annotation du
+# 26/11/2026). Avant #620, une telle colonne etait simulee avec la valeur
+# de la regle ; non negligeable, celle-ci la rendait dispersee dans chaque
+# replication et majorait la p Monte-Carlo de la famille alpha (constat de
+# simulation de la mesure, trapezes construits T1 et T2).
 # Point d'entree unique de la regle de simulation, appele par mw_bootstrap()
-# et par .mw_cas_sigma_direct() (mention M6, plots_data$usage_sigma) : la
-# mention et les legendes suivent la simulation effective.
+# seul. Il ne distingue plus les cas restitues : .mw_cas_sigma_direct()
+# lit la degenerescence directement.
 .mw_simulation_sigma_direct <- function(aj)
-  !is.null(aj[["sigma2_Jm1_direct"]]) && !.mw_colonne_degeneree(aj, aj$J - 1L)
+  !is.null(aj[["sigma2_Jm1_direct"]])
 
 # Cas de la colonne J-1 lu par la mention M6 et par plots_data$usage_sigma
 # (constat m-1 de la revue finale de #567 ; trois cas depuis la variante V2
 # de #612, decision du mainteneur du 25/11/2026, Q-PA2-2 (a)) : "carre"
-# (champ sigma2_Jm1_direct absent), "simulation" (trapeze,
-# .mw_simulation_sigma_direct() vrai), "degenere" (trapeze dont le predicat
-# est faux, c'est-a-dire colonne J-1 degeneree au sens de
-# .mw_colonne_degeneree()). Une seule definition, partagee par mw_tests()
-# et .mw_usage_sigma().
+# (champ sigma2_Jm1_direct absent), "degenere" (trapeze dont la colonne J-1
+# est degeneree, lu par .mw_colonne_degeneree()), "simulation" (trapeze
+# sinon). Depuis #620 (ADR 0005, annotation du 26/11/2026, point 2), les
+# deux cas de trapeze sont simules avec l'estimateur direct : le cas
+# "degenere" ne se lit plus par .mw_simulation_sigma_direct(), qui est
+# vrai pour tout trapeze. Une seule definition, partagee par mw_tests() et
+# .mw_usage_sigma().
 .mw_cas_sigma_direct <- function(aj) {
   if (is.null(aj[["sigma2_Jm1_direct"]])) return("carre")
-  if (.mw_simulation_sigma_direct(aj)) "simulation" else "degenere"
+  if (.mw_colonne_degeneree(aj, aj$J - 1L)) "degenere" else "simulation"
 }
 
 # Mention conditionnelle du detail M6 pour un trapeze I > J (#567, etape 6
@@ -13901,16 +13918,20 @@ FORMAT_MENTION_MW_SIGMA_DIRECT_SIMULATION <- paste(
   "la colonne J-1 des triangles tires par le bootstrap. L'estimateur direct de",
   "sigma2_(J-1) n'entre ni dans la MSEP ni dans sigma(res,s,USP) : sa valeur est",
   "restituee pour information, sans sigma ni racine(MSEP) alternatifs.")
-# Cas "degenere" : colonne J-1 degeneree, sans residu, simulee avec la
-# valeur de la regle ; l'estimateur direct n'entre ni dans la MSEP ni dans
-# la simulation.
+# Cas "degenere" : colonne J-1 degeneree, sans residu, simulee avec
+# l'estimateur direct depuis #620 (ADR 0005, annotation du 26/11/2026 ;
+# texte d'actuary, actuary-2-lecture-mesure-620.md, par. 4.3, approuve au
+# point d'arret PA-2 d'A3) ; l'estimateur direct n'entre ni dans la MSEP
+# ni dans sigma_USP.
 FORMAT_MENTION_MW_SIGMA_DIRECT_DEGENERE <- paste(
   "Trapeze (I > J) : la regle de minimum s'applique a sigma2_(J-1) par prescription",
   "de l'annexe XVII, D(5)(d)(ii), seconde ligne, bien que la colonne J-1 porte %d",
   "facteurs, dont l'estimateur direct vaut %s a %d degre(s) de liberte ; cette",
   "colonne etant degeneree (voir l'avertissement sur les donnees), aucun de ses",
-  "residus n'est retenu (tests, influence, vivier du bootstrap) et l'estimateur",
-  "n'entre ni dans la MSEP ni dans la simulation : valeur donnee pour information.")
+  "residus n'est retenu (tests, influence, vivier du bootstrap). Par convention de",
+  "l'outil, non reglementaire, l'estimateur direct sert a simuler la colonne J-1",
+  "des triangles tires par le bootstrap ; il n'entre ni dans la MSEP ni dans",
+  "sigma(res,s,USP) : valeur donnee pour information.")
 
 # Usage des deux sigma_j de plots_data$facteurs (#567, forme (ii) de Q-A1,
 # texte (t3) fixe par actuary) : legendes restituees dans
@@ -13918,8 +13939,10 @@ FORMAT_MENTION_MW_SIGMA_DIRECT_DEGENERE <- paste(
 # ecrire (coupees au premier " : " par le graphique plotly). MW_USAGE_SIGMA :
 # carre, legende inchangee (enregistree dans la reference reserve2) ; les
 # cas "simulation" (texte reecrit pour la variante V2 de #612) et
-# "degenere" ont les leurs (constat m-1 de la revue finale de #567), memes
-# noms d'elements, choisies par .mw_usage_sigma().
+# "degenere" (texte reecrit pour #620, par. 4.3 de la lecture d'actuary :
+# sigma repris du cas "simulation", la colonne degeneree etant elle aussi
+# simulee avec l'estimateur direct) ont les leurs (constat m-1 de la revue
+# finale de #567), memes noms d'elements, choisies par .mw_usage_sigma().
 MW_USAGE_SIGMA <- c(
   sigma = "sigma_(J-1) de la regle de minimum (D(5)(d)(ii)) : MSEP et simulation",
   sigma_residus = "sigma_(J-1) estime directement : residus de Mack et tests")
@@ -13927,8 +13950,8 @@ MW_USAGE_SIGMA_SIMULATION <- c(
   sigma = "sigma_(J-1) regle de minimum : MSEP, sigma_USP, replications",
   sigma_residus = "sigma_(J-1) direct : residus, tests, simulation (convention)")
 MW_USAGE_SIGMA_DEGENERE <- c(
-  sigma = MW_USAGE_SIGMA[["sigma"]],
-  sigma_residus = "sigma_(J-1) estime directement : colonne degeneree, sans residu")
+  sigma = MW_USAGE_SIGMA_SIMULATION[["sigma"]],
+  sigma_residus = "sigma_(J-1) direct : colonne degeneree, sans residu ; simulation (convention)")
 .mw_usage_sigma <- function(aj)
   switch(.mw_cas_sigma_direct(aj),
          carre = MW_USAGE_SIGMA,
@@ -16207,11 +16230,12 @@ mw_simuler_triangle <- function(aj, res_pool) .mw_simuler_triangle_etat(aj, res_
     idx <- 0:(I - j - 1)
     # sigma_j lu dans aj$sigma2 tel que l'appelant le passe, sans choix
     # propre a cette fonction. Pour j = J-1, mw_bootstrap() y passe la
-    # valeur de la regle de minimum pour un carre et pour un trapeze dont la
-    # colonne J-1 est degeneree, et une copie dont sigma2_(J-1) est
-    # l'estimateur direct pour un trapeze I > J dont la colonne J-1 ne l'est
-    # pas (.mw_simulation_sigma_direct(), variante V2 de #612, decision du
-    # mainteneur du 25/11/2026, qui remplace la decision Q-2a-2).
+    # valeur de la regle de minimum pour un carre, et une copie dont
+    # sigma2_(J-1) est l'estimateur direct pour un trapeze I > J, colonne
+    # J-1 degeneree ou non (.mw_simulation_sigma_direct(), variante V2 de
+    # #612, decision du mainteneur du 25/11/2026, qui remplace la decision
+    # Q-2a-2 ; etendue a la colonne degeneree par #620, decision du
+    # 26/11/2026).
     sg <- sqrt(aj$sigma2[j + 1])
     if (!is.finite(sg)) sg <- 0
     e <- sample(res_pool, length(idx), replace = TRUE)
@@ -16403,10 +16427,10 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
     # exclues (#60), redresses par le levier puis recentres (#46).
     pool <- .mw_pool_residus(aj, figes$degeneres)
     # Ajustement des seuls tirages (variante V2 de #612, decision du
-    # mainteneur du 25/11/2026 ; ADR 0005, annotation du 25/11/2026) : copie
-    # de aj dont sigma2_(J-1) est l'estimateur direct quand
-    # .mw_simulation_sigma_direct() est vrai (trapeze, colonne J-1 non
-    # degeneree), aj sinon (carre, ou trapeze a colonne J-1 degeneree). Seul
+    # mainteneur du 25/11/2026 ; ADR 0005, annotations du 25/11/2026 et du
+    # 26/11/2026, #620) : copie de aj dont sigma2_(J-1) est l'estimateur
+    # direct quand .mw_simulation_sigma_direct() est vrai (trapeze, colonne
+    # J-1 degeneree comprise), aj sinon (carre). Seul
     # .mw_tirer_triangle_valide() la lit : vivier, contexte et
     # statistiques observes, ensembles figes, ajustement et MSEP des
     # replications restent sur aj ou sur le triangle simule. Pour chaque
@@ -17425,7 +17449,8 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   # donne pour information en fin de detail, estim inchange (valeur de la
   # regle). Gabarit choisi par .mw_cas_sigma_direct() (constat m-1 de la
   # revue finale de #567 ; trois cas depuis la variante V2 de #612) :
-  # colonne J-1 simulee avec l'estimateur direct, ou colonne J-1 degeneree.
+  # colonne J-1 non degeneree ou degeneree, simulee dans les deux cas avec
+  # l'estimateur direct (#620).
   # Carre : champ absent, mention vide, detail identique a l'octet
   # (.engine_joindre(a, "") rend a).
   s2_dir <- aj[["sigma2_Jm1_direct"]]
