@@ -32,4 +32,4 @@ Pièces de l'étape 4 de la fiche « Jalon court 3.1.1 » (§ 3 de `docs/feuille
 
 - **Problèmes gardés** : un seul, la batterie sous Windows non faite. Le critère de reproductibilité de l'ADR 0018 est rempli, car c'est la condition de l'ADR 0006 pour désigner l'état. Issue #625, créée sur autorisation du mainteneur, **hors du jalon** (aucune ligne de fermeture, § 5.2).
 - **Écartés** : aucun.
-- **Suite** : l'étiquette `v3.1.1` relève du point d'arrêt PC-1 et de Q-67-8 (a). Une étiquette sans batterie sous Windows demande une décision du mainteneur, et son message doit alors citer #625 parmi les limites.
+- **Suite** (décision du mainteneur du 26/11, E-26/11 (PC-1 du jalon 3.1.1)) : le jalon est fusionné sans attendre la batterie sous Windows ; l'étiquette `v3.1.1` n'est posée qu'une fois #625 faite et acceptée (Q-67-8 (a)).
