@@ -117,9 +117,11 @@ verifier("A10 : 2026-11-06T10:00 (horodatage ISO)", "A10" %in% motifs("2026-11-0
 verifier("A1 : Issue 452 et ISSUE~452 (casse indifferente pour issue), PR en majuscules seulement",
          "A1" %in% motifs("Issue 452") && "A1" %in% motifs("ISSUE~452") && identical(motifs("pr 12"), character(0)))
 # Reprise de l'audit de R36 : faux positifs latents d'A1 et double comptage d'une date.
-verifier("A1 negatif : definition de macro commentee (% \\newcommand{\\z}[1]{#1}), \\renewcommand, \\providecommand, \\def",
+# #544, point 6 : le mot de definition ne compte qu'avant le premier % ; une definition de macro
+# commentee n'est donc plus exemptee (son #1 est lu comme un numero, limite (i) d'A1).
+verifier("A1 : definition de macro commentee (% \\newcommand{\\z}[1]{#1}), \\renewcommand, \\providecommand, \\def : relevee (#544, point 6)",
          all(vapply(c("% \\newcommand{\\z}[1]{#1}", "%\\renewcommand{\\z}[2]{#1 #2}", "% \\providecommand{\\z}[1]{#1}",
-                     "% \\def\\z#1{#1}"), function(x) identical(motifs(x), character(0)), logical(1))))
+                     "% \\def\\z#1{#1}"), function(x) "A1" %in% motifs(x), logical(1))))
 verifier("A1 : un commentaire sans definition de macro garde ses numeros (% cf. #1 de la liste), meme apres du texte",
          "A1" %in% motifs("% cf. #1 de la liste") && "A1" %in% motifs("\\emph{x} % \\newcommande #7"))
 verifier("A1 negatif : ancre d'URL (\\url{https://ex.org/p#12}, \\href{https://ex.org/p#12}{x})",
@@ -167,6 +169,142 @@ verifier("A12 : l'issue suivie d'un numero relevee par A1 seul (l'issue 452, l'i
          all(vapply(c("l'issue 452", "l'issue~452", "l'issue~\\#452", "l'issue \\# 452", "l'issue #452"),
                     function(x) { m <- motifs(x); "A1" %in% m && !("A12" %in% m) }, logical(1))))
 verifier("A12 : l'issue sans numero reste relevee", "A12" %in% motifs("avant l'issue, un nom") && "A12" %in% motifs("l'issue~: voir"))
+
+# --- #544, points 5 a 8 : limites de detection relevees par l'audit de R36 ------------------------
+# Point 6 : le mot de definition ne compte qu'avant le premier % non echappe.
+verifier("#544-6 : % \\newcommand{\\x}{#1} ancien code, issue #452 releve #1 et #452 (le commentaire n'est plus saute)",
+         identical(nd$nd_chercher("% \\newcommand{\\x}{#1} ancien code, issue #452", "Partie I", nd$MOTIFS_A)$texte, c("#1", "#452")))
+verifier("#544-6 : texte \\emph{x} % \\renewcommand{\\x}{#1}, voir #452 : #452 releve",
+         "#452" %in% nd$nd_chercher("\\emph{x} % \\renewcommand{\\x}{#1}, voir #452", "Partie I", nd$MOTIFS_A)$texte)
+verifier("#544-6 negatif : definition active avec son commentaire (\\newcommand{\\z}[1]{#1} % voir #452) : ligne de definition, rien n'est lu",
+         identical(motifs("\\newcommand{\\z}[1]{#1} % voir #452"), character(0)))
+verifier("#544-6 negatif : \\newenvironment{fiche}[1]{% #1 = titre et \\def\\z#1{% #12 : mot de definition avant le %, # apres",
+         identical(motifs("\\newenvironment{fiche}[1]{% #1 = titre"), character(0)) &&
+         identical(motifs("\\def\\z#1{% #12"), character(0)))
+verifier("#544-6 negatif : \\% litteral ne ferme pas la partie code (\\% \\newcommand{\\z}[1]{#12} : ligne de definition)",
+         identical(motifs("\\% \\newcommand{\\z}[1]{#12}"), character(0)))
+verifier("#544-6 : le # d'un mot de definition en commentaire releve a deux chiffres aussi (% \\def\\z#1{#12})",
+         "A1" %in% motifs("% \\def\\z#1{#12}"))
+verifier("#544-6 : \\\\ n'echappe pas le % (a\\\\% \\newcommand{\\z}[1]{#1} : commentaire, releve)",
+         "A1" %in% motifs("a\\\\% \\newcommand{\\z}[1]{#1}"))
+verifier("#544-6 : un mot de definition apres un # sans # ensuite ne fait pas une ligne de definition (voir #452 \\def\\z)",
+         "A1" %in% motifs("voir #452 \\def\\z"))
+verifier("#544-6 negatif : \\definecolor n'est pas un mot de definition (\\definecolor{x}{rgb}{0,0,0} voir #452 releve)",
+         "A1" %in% motifs("\\definecolor{x}{rgb}{0,0,0} voir #452"))
+
+# Point 5 : lecture lineaire de la ligne de definition ; une erreur de PCRE est une erreur.
+.long_def <- function(n, fin) paste0(strrep("\\def ", n %/% 5L), fin)
+verifier("#544-5 : ligne de 19 009 caracteres de \\def repetes, # a la fin : ligne de definition, aucune erreur PCRE, aucune occurrence",
+         identical(tryCatch(motifs(.long_def(19000L, "voir #452")), error = function(e) "ERREUR"), character(0)))
+verifier("#544-5 : meme ligne, # en tete et \\def ensuite (19 009 caracteres) : #452 releve (l'ancienne forme rendait -1)",
+         identical(tryCatch(nd$nd_chercher(paste0("voir #452", .long_def(19000L, "")), "Partie I", nd$MOTIFS_A)$texte,
+                            error = function(e) "ERREUR"), "#452"))
+verifier("#544-5 : lignes de 100 000 caracteres (\\def sans # ; \\def % repetes puis #452 ; \\\\\\% repetes puis #452), aucune erreur PCRE",
+         identical(tryCatch(motifs(.long_def(100000L, "x")), error = function(e) "ERREUR"), character(0)) &&
+         identical(tryCatch(motifs(paste0(strrep("% \\def ", 14000L), "x #452")), error = function(e) "ERREUR"), "A1") &&
+         identical(tryCatch(motifs(paste0(strrep("\\\\\\%", 25000L), "x #452")), error = function(e) "ERREUR"), "A1"))
+.rx_pcre <- "(*UCP)^(?:a+)+$"      # retour arriere catastrophique : "match limit exceeded" sur 41 caracteres
+.x_pcre <- paste0(strrep("a", 40L), "b")
+e_pcre <- tryCatch(nd$nd_gregexpr(.rx_pcre, c("sans objet", .x_pcre), "motif X, regex 1"), error = function(e) e)
+verifier("#544-5 : nd_gregexpr leve une erreur de classe nd_erreur_pcre sur 'match limit exceeded' (l'avertissement de gregexpr, lui, ne leve rien)",
+         inherits(e_pcre, "nd_erreur_pcre") &&
+         identical(suppressWarnings(gregexpr(.rx_pcre, .x_pcre, perl = TRUE)[[1L]][1L]), -1L))
+verifier("#544-5 : le message de l'erreur nomme le motif, la regex et la ligne en cause (ligne 2)",
+         inherits(e_pcre, "nd_erreur_pcre") && grepl("motif X, regex 1", conditionMessage(e_pcre), fixed = TRUE) &&
+         grepl("ligne 2", conditionMessage(e_pcre), fixed = TRUE) && grepl("match limit exceeded", conditionMessage(e_pcre), fixed = TRUE))
+verifier("#544-5 : nd_gregexpr sans erreur rend le resultat de gregexpr, inchange",
+         identical(nd$nd_gregexpr("b", c("abc", "xyz"), "t"), gregexpr("b", c("abc", "xyz"), perl = TRUE)))
+verifier("#544-5 : nd_chercher laisse monter l'erreur PCRE d'un motif (jamais 'aucune occurrence')",
+         inherits(tryCatch(nd$nd_chercher(.x_pcre, "Partie I", list(list(id = "X", regex = .rx_pcre))), error = function(e) e), "nd_erreur_pcre"))
+verifier("#544-5 : une zone d'exception qui echoue sous PCRE leve aussi l'erreur (nd_appliquer_exceptions)",
+         inherits(tryCatch(nd$nd_appliquer_exceptions(
+           data.frame(ligne = 1L, partie = "Partie I", motif = "A4", debut = 1L, fin = 1L, texte = "a", stringsAsFactors = FALSE),
+           .x_pcre, list(list(id = "EX", motifs = "A4", zone = .rx_pcre, fenetre = 1L, parties = NULL, actif = TRUE, raison = "t"))),
+           error = function(e) e), "nd_erreur_pcre"))
+
+# Lecture du message (m4) : numero de l'element = dernier entier du message, quelle que soit la langue.
+d_en <- nd$nd_diagnostic_pcre("PCRE error\n\t'match limit exceeded'\n\tfor element 12")
+d_fr <- nd$nd_diagnostic_pcre("Erreur PCRE\n\t'match limit exceeded'\n\tpour l'élément 3")
+verifier("#544-5 : nd_diagnostic_pcre lit le numero de l'element dans le message anglais (12) et dans un message simule en francais (3)",
+         identical(d_en$ligne, 12L) && identical(d_fr$ligne, 3L))
+verifier("#544-5 : un message PCRE sans entier final donne une ligne NA (l'erreur est levee quand meme, sans numero de ligne)",
+         is.na(nd$nd_diagnostic_pcre("PCRE error 'match limit exceeded'")$ligne) && !is.null(nd$nd_diagnostic_pcre("PCRE error 'x' 12 puis texte")))
+verifier("#544-5 : \"PCRE JIT compilation error\" (R continue sans JIT) et un avertissement sans PCRE ne sont pas des erreurs",
+         is.null(nd$nd_diagnostic_pcre("PCRE JIT compilation error\n\t'no more memory'")) &&
+         is.null(nd$nd_diagnostic_pcre("erreur de compilation PCRE JIT\n\t'no more memory'")) &&
+         is.null(nd$nd_diagnostic_pcre("input string 1 is invalid in this locale")))
+# nd_gregexpr sur des avertissements simules : gregexpr est masque dans l'environnement du script charge.
+.gregexpr_simule <- function(msg) {
+  nd$gregexpr <- function(...) { warning(msg, call. = FALSE); base::gregexpr(...) }
+  on.exit(rm("gregexpr", envir = nd))
+  tryCatch(list(valeur = withCallingHandlers(nd$nd_gregexpr("b", c("abc", "xyz"), "t"), warning = function(w) { assign("vu", TRUE, envir = environment(.gregexpr_simule)); invokeRestart("muffleWarning") })),
+           error = function(e) list(erreur = e))
+}
+vu <- FALSE
+r_fr <- .gregexpr_simule("Erreur PCRE\n\t'match limit exceeded'\n\tpour l'élément 2")
+verifier("#544-5 : avertissement PCRE simule en francais ('pour l'element 2') : erreur nd_erreur_pcre qui nomme la ligne 2",
+         inherits(r_fr$erreur, "nd_erreur_pcre") && grepl("ligne 2", conditionMessage(r_fr$erreur), fixed = TRUE))
+vu <- FALSE
+r_jit <- .gregexpr_simule("PCRE JIT compilation error\n\t'no more memory'")
+verifier("#544-5 : avertissement 'PCRE JIT compilation error' simule : pas d'erreur, le resultat de gregexpr est rendu, l'avertissement suit son cours",
+         is.null(r_jit$erreur) && identical(r_jit$valeur, gregexpr("b", c("abc", "xyz"), perl = TRUE)) && isTRUE(vu))
+verifier("#544-5 : le masque de gregexpr est retire de l'environnement du script charge",
+         !exists("gregexpr", envir = nd, inherits = FALSE))
+
+# Point 7 : fenetre de deux lignes d'A1 bornee a la locution.
+verifier("#544-7 : \"a l'issue\" en fin de ligne, \"8 annees\" en tete de la suivante : ni A1 ni A12",
+         identical(motifs(c("à l'issue", "8 années")), character(0)) &&
+         identical(motifs(c("à~l'issue", "8 années")), character(0)) &&
+         identical(motifs(c("À l'issue", "8 années")), character(0)))
+verifier("#544-7 : \"avant l'issue\" / \"452 reste\" et \"voir la PR\" / \"459\" restent releves par A1 (fenetre de deux lignes gardee hors locution)",
+         "A1" %in% motifs(c("avant l'issue", "452 reste")) && "A1" %in% motifs(c("voir la PR", "459")) &&
+         "A1" %in% motifs(c("des issues", "452 et 453")) && "A1" %in% motifs(c("ISSUE", "12")))
+verifier("#544-7 : la locution sur une seule ligne reste lue par la regex 4 (\"a l'issue 452\" : A1, detection inchangee)",
+         "A1" %in% motifs("à l'issue 452"))
+verifier("#544-7 negatif : \"a l'issue\" / \"du calcul\" et \"a l'issue de\" en fin de ligne : aucun motif",
+         identical(motifs(c("à l'issue", "du calcul")), character(0)) && identical(motifs(c("à l'issue de", "la procédure")), character(0)))
+
+verifier("#544-7 : plusieurs espaces dans la locution (\"a  l'issue\", trois espaces, ~ puis espace) / \"8 annees\" : ni A1 ni A12",
+         all(vapply(c("à  l'issue", "à   l'issue", "à~ l'issue", "À l'issue"), function(x)
+           identical(motifs(c(x, "8 années")), character(0)), logical(1))))
+verifier("#544-7 : \"a l'issue\" / \"12 mois\" (nombre a deux chiffres) : aucun motif ; \"a l'issue\" / \"452 reste\", \"452\" et \"1000 repetitions\" : A1 seul (une occurrence, pas de A12)",
+         identical(motifs(c("à l'issue", "12 mois")), character(0)) &&
+         identical(nd$nd_chercher(c("à l'issue", "452 reste"), rep("Partie I", 2L), nd$MOTIFS_A)$motif, "A1") &&
+         identical(nd$nd_chercher(c("à l'issue", "452"), rep("Partie I", 2L), nd$MOTIFS_A)$motif, "A1") &&
+         identical(nd$nd_chercher(c("à  l'issue", "1000 répétitions"), rep("Partie I", 2L), nd$MOTIFS_A)$motif, "A1"))
+verifier("#544-7 : \"voila l'issue\" / \"8 annees\" : ce n'est pas la locution (mot en \"a\" non isole), A1 relevee comme avant",
+         "A1" %in% motifs(c("voilà l'issue", "8 années")))
+
+# Point 8 : A1 et A12 apparies sur deux lignes, jamais comptes ensemble.
+.m8 <- function(x) nd$nd_chercher(x, rep("Partie I", length(x)), nd$MOTIFS_A)
+verifier("#544-8 : \"l'issue\" en fin de ligne, son numero en tete de la suivante : une seule occurrence, d'A1 (plus d'A12)",
+         identical(.m8(c("avant l'issue", "452 reste"))$motif, "A1") && identical(.m8(c("avant l'issue", "\\#452"))$motif, "A1") &&
+         identical(.m8(c("avant l'issue", "#452"))$motif, "A1") && identical(.m8(c("l'issue", "~452"))$motif, "A1"))
+verifier("#544-8 : \"l'issue\" en fin de ligne sans numero a la suivante reste releve par A12 seul (avant l'issue / un nom ; derniere ligne)",
+         identical(.m8(c("avant l'issue", "un nom"))$motif, "A12") && identical(.m8("avant l'issue")$motif, "A12"))
+verifier("#544-8 : l'appariement ne compte que les occurrences de la ligne : le numero seul en tete de la 2e ligne ne fait aucun motif (452 reste)",
+         identical(motifs(c("un texte", "452 reste")), character(0)))
+verifier("#544-8 : \"l'issue\" / \"de ...\" ou \"du ...\" a la ligne suivante : exception de A12 lue aussi par-dessus le retour a la ligne",
+         identical(motifs(c("avant l'issue", "de calcul")), character(0)) && identical(motifs(c("avant l'issue", "du calcul")), character(0)))
+verifier("#544-8 : la phrase sur une seule ligne : l'issue 452 = A1 seul, l'issue seule = A12 seul (comptes inchanges)",
+         identical(.m8("l'issue 452")$motif, "A1") && identical(.m8("avant l'issue, un nom")$motif, "A12"))
+verifier("#544-8 : \"cette issue\" en fin de ligne suivie d'un nombre reste releve par A12 (regex 1, sans fenetre) ; A1 n'y lit que le numero apres \"issue\"",
+         identical(sort(.m8(c("cette issue", "452"))$motif), c("A1", "A12")))
+
+# Exception E4 de CONVENTIONS.md section 5 : dates et numeros reglementaires, hors motifs par
+# construction. Cas negatifs de chaque forme de la liste (les cinq premieres sont aussi dans la
+# liste `negatifs` plus bas), seules et dans une phrase.
+.e4 <- c("17~janvier 2015", "14~novembre 2024", "25.3.2015", "30.1.2027", "18.2.2026", "10.11.2026", "12.11.2026",
+         "2015/35", "2019/981", "2015/498", "2026/269", "EIOPA-BoS-14/178", "EIOPA-BoS-25/249")
+verifier("E4 negatif : chaque date ou numero reglementaire de la liste, seul, ne releve aucun motif de la liste A",
+         all(vapply(.e4, function(x) identical(motifs(x), character(0)), logical(1))))
+verifier("E4 negatif : dans une phrase (règlement délégué (UE) 2026/269 du 18.2.2026, applicable au 30.1.2027 ; avis du 10.11.2026 et du 12.11.2026 ; orientations EIOPA-BoS-25/249)",
+         identical(motifs(c("le règlement délégué (UE) 2026/269 du 18.2.2026, applicable au 30.1.2027,",
+                            "modifie le règlement 2015/35 (JOUE du 17~janvier 2015, 2019/981, 2015/498) ; avis de",
+                            "l'ACPR des 10.11.2026 et 12.11.2026 aux orientations EIOPA-BoS-25/249 et EIOPA-BoS-14/178.")),
+                   character(0)))
+verifier("E4 : les autres dates restent relevees (10/11/2026, 6~novembre 2026, novembre~2026, 2026-11-10) : l'exception ne couvre que les formes de la liste",
+         all(vapply(c("10/11/2026", "6~novembre 2026", "novembre~2026", "2026-11-10"), function(x) "A10" %in% motifs(x), logical(1))))
 
 # --- Verdict avec exception : jamais plus severe que sans exception (#465) ----------------------
 .rang <- function(x) if (grepl("^conforme", x)) 1L else if (grepl("^a verifier", x)) 2L else 3L
@@ -659,6 +797,33 @@ r <- lancer(paste0("--tex=", f_tolere), paste0("--aux=", file.path(dir_b, "absen
 verifier("sans --bloquant, .aux et .log absents : avertissements, code 0", r$statut == 0L)
 r <- lancer(paste0("--tex=", f_tolere), paste0("--aux=", file.path(dir_b, "absent.aux")), "--pages-seules", "--bloquant")
 verifier("--bloquant --pages-seules, .aux absent : code 2", r$statut == 2L)
+
+# Erreur PCRE sous nd_main (#544, point 5) : le motif catastrophique est pose dans le script charge
+# (nd$MOTIFS_A), qui n'est jamais celui du depot ; restaure ensuite. Code 2 avec et sans --bloquant,
+# aucun BILAN : le controle (a) n'a pas tout lu et ne passe pas pour vert.
+.motifs_a_sain <- nd$MOTIFS_A
+f_pcre <- file.path(dir_b, "pcre.tex")
+writeLines(c("\\partie{Partie I}{P}", paste0(strrep("a", 40L), "b")), f_pcre)
+.main_pcre <- function(...) {
+  nd$MOTIFS_A <- list(list(id = "AX", desc = "motif catastrophique", regex = "(*UCP)^(?:a+)+$"))
+  on.exit(nd$MOTIFS_A <- .motifs_a_sain)
+  sortie <- NULL
+  code <- NULL
+  sortie <- capture.output(code <- nd$nd_main(c(paste0("--tex=", f_pcre), ...)))
+  list(sortie = sortie, statut = code)
+}
+r <- .main_pcre("--motifs-seuls", "--bloquant")
+verifier("erreur PCRE, --motifs-seuls --bloquant : code 2, message ERREUR nommant le motif, la regex et la ligne, aucun BILAN",
+         identical(r$statut, 2L) && any(grepl("^ERREUR : controle \\(a\\) interrompu", r$sortie)) &&
+         any(grepl("motif AX, regex 1), ligne 2", r$sortie, fixed = TRUE)) && !any(grepl("BILAN", r$sortie)))
+r <- .main_pcre("--bloquant", paste0("--aux=", f_propre_aux), paste0("--log=", sub("[.]tex$", ".log", f_propre)))
+verifier("erreur PCRE, --bloquant sans selecteur : code 2", identical(r$statut, 2L) && any(grepl("ERREUR", r$sortie)))
+r <- .main_pcre("--motifs-seuls")
+verifier("erreur PCRE sans --bloquant : code 2 aussi, jamais un silence (code 0)", identical(r$statut, 2L) && any(grepl("ERREUR", r$sortie)))
+verifier("le motif d'essai est restaure (MOTIFS_A du script charge inchange apres l'essai)", identical(nd$MOTIFS_A, .motifs_a_sain))
+r <- lancer(paste0("--tex=", f_propre), paste0("--aux=", f_propre_aux), "--motifs-seuls", "--bloquant")
+verifier("negatif : sans erreur PCRE, --bloquant --motifs-seuls sur un .tex propre : code 0, BILAN ou TOTAL imprime",
+         r$statut == 0L && any(grepl("TOTAL liste A : 0 occurrence", r$sortie)))
 # Liste A imprimee avant le refus en code 2 (#475) : (a) n'a besoin ni du .aux ni du .log.
 r <- lancer(paste0("--tex=", f_sale), paste0("--aux=", file.path(dir_b, "absent.aux")), "--bloquant")
 i_a <- grep("Liste A (interdits)", r$sortie, fixed = TRUE); i_ref <- grep("controle impossible", r$sortie, fixed = TRUE)

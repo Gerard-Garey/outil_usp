@@ -3,7 +3,8 @@
 #  (branche ND, lot L0, issue #451)
 #
 #  Quatre controles sur docs/latex/doc_tests_usp.tex, en AVERTISSEMENT par
-#  defaut (code de sortie 0, decompte publie) ; l'option --bloquant rend
+#  defaut (code de sortie 0, decompte publie, sauf code 2 sur une erreur PCRE du
+#  controle (a), avec ou sans --bloquant : voir "Code 2" plus bas) ; l'option --bloquant rend
 #  bloquants (lot L7) les controles (a), (b) et les violations de (c). Le
 #  controle (d) ne l'est jamais.
 #
@@ -96,7 +97,10 @@
 #  (#465). Hors --bloquant, ces cas restent des avertissements. Le controle (a),
 #  qui ne lit ni le .aux ni le .log, est lance et imprime AVANT ce refus : le code
 #  de sortie reste 2, mais le rapport de (a) n'est pas masque (#475). Ce rapport
-#  comprend aussi la liste B (nd_imprimer_motifs()).
+#  comprend aussi la liste B (nd_imprimer_motifs()). Code 2 aussi, avec ou sans
+#  --bloquant, quand PCRE echoue sur un motif de (a) (limite de correspondance : gregexpr
+#  rendrait -1, "aucune occurrence", avec un simple avertissement) : le message nomme le
+#  motif, la regex et la ligne ; jamais un silence (nd_gregexpr(), #544).
 #
 #  R base uniquement (pdflatex, pdftotext et pdfinfo pour le controle (d)). Les
 #  motifs sont ecrits en sequences \u (independants de la locale du script) ;
@@ -158,12 +162,20 @@ EXCEPTIONS_PLAFOND <- list(
 # Mots de definition de macro ou d'environnement : sur une ligne ou un mot de definition
 # precede un #, ce # est un parametre de macro (#1 a #9, #10 = #1 suivi de 0), jamais un
 # numero d'issue. La liste est celle de CONVENTIONS.md, section 5.
+# Le mot de definition ne compte que s'il est dans la partie code de la ligne, avant le
+# premier % non echappe (\% est un pourcent litteral, \\ ne l'echappe pas) : un mot de
+# definition dans un commentaire (% \newcommand{\x}{#1} ancien code, issue #452) ne fait plus
+# sauter la ligne (#544, point 6). Le # qui suit, lui, peut etre n'importe ou apres le mot
+# (\newenvironment{fiche}[1]{% #1 = titre). Lecture lineaire, sans retour arriere : le premier
+# mot de definition est fige (groupe possessif), car s'il n'est suivi d'aucun # aucun mot
+# ulterieur ne l'est ; l'ancienne forme (.*\def\b.*#) depassait la limite de correspondance
+# de PCRE sur une ligne de 19 000 caracteres de mots \def repetes (#544, point 5).
 .def_macro <- "(?:[gex]?def|newcommand|renewcommand|providecommand|newenvironment|renewenvironment|NewDocumentCommand|RenewDocumentCommand|DeclareDocumentCommand)"
-.ligne_definition <- paste0("^(?=.*\\\\", .def_macro, "\\b.*#).*(*SKIP)(*FAIL)")
+.ligne_definition <- paste0("^(?=(?:[^\\\\%]|(?!\\\\", .def_macro, "\\b)\\\\.)*+\\\\", .def_macro, "\\b.*#).*(*SKIP)(*FAIL)")
 .arg_url <- "\\\\(?:url|href)\\{[^}]*\\}"
 
 MOTIFS_A <- list(
-  # A1, quatre regex :
+  # A1, cinq regex :
   #  1. \# suivi d'un numero, avec espace, ~ ou \, entre les deux ;
   #  2. # non echappe suivi d'au moins deux chiffres, hors ligne de definition de macro et
   #     hors argument de \url ou \href (ancre d'URL) ;
@@ -171,18 +183,33 @@ MOTIFS_A <- list(
   #     les numeros du commentaire (\G reprend apres chaque numero). Le % ouvre un commentaire
   #     s'il n'est pas precede d'un nombre impair de \ (fin\\% est un commentaire, \% non) et
   #     s'il n'est pas dans un argument de \url ou \href. Rien n'est lu sur une ligne de
-  #     definition de macro, ni sur une ligne dont la partie avant le % contient un # (corps
-  #     de macro, ancre d'URL hors \url) ;
-  #  4. "issue" (casse indifferente) ou "PR" suivi d'un numero, lu sur deux lignes (fenetre2).
+  #     definition de macro (mot de definition avant le premier %, voir .ligne_definition),
+  #     ni sur une ligne dont la partie avant le % contient un # (corps de macro, ancre d'URL
+  #     hors \url) ;
+  #  4. "issue" (casse indifferente) ou "PR" suivi d'un numero, sur une seule ligne ;
+  #  5. la meme lecture sur deux lignes (fenetre2) : "issue" ou "PR" en fin de ligne, numero en
+  #     tete de la suivante. Borne (#544, point 7) : la locution "a l'issue" (a ou A, une ou
+  #     plusieurs espaces ou ~) ne s'etend a la ligne suivante que pour un numero d'au moins
+  #     trois chiffres, pour que "a l'issue" / "8 annees" ne soit pas un faux positif et que
+  #     "a l'issue" / "452 reste" reste releve ; sur une seule ligne, la regex 4 la lit toujours.
+  #     A12 lit la meme fenetre (voir A12) : un numero en tete de la ligne suivante releve d'A1,
+  #     jamais aussi d'A12 (point 8).
   # Limites : (i) un # a un chiffre dans un commentaire est lu comme un numero d'issue (le
-  # commentaire "% le parametre #1 est le titre" est releve) ; (ii) le commentaire final d'une
-  # ligne de definition de macro ou d'une ligne dont la partie code contient un # n'est pas lu.
+  # commentaire "% le parametre #1 est le titre" est releve, ainsi que le corps #1 d'une
+  # definition de macro commentee) ; (ii) le commentaire final d'une ligne de definition de macro
+  # (mot de definition avant le %) ou d'une ligne dont la partie code contient un # n'est pas lu ;
+  # (iii) "issue" en fin de ligne suivi d'un nombre en tete de la suivante est lu comme une
+  # reference ("avant l'issue" / "8 annees" est releve) ; apres la locution "a l'issue", seul
+  # un nombre de trois chiffres ou plus l'est ("a l'issue" / "1000 repetitions" est releve,
+  # "a l'issue" / "12 mois" ne l'est pas).
   list(id = "A1", desc = "numero d'issue ou de PR (\\#N, # N en commentaire, issue N, PR N)",
-       fenetre2 = 4L,
+       fenetre2 = 5L,
        regex = c("\\\\#(?:[~\\s]|\\\\[,;:!])*[0-9]+",
                  paste0(.ligne_definition, "|", .arg_url, "(*SKIP)(*FAIL)|(?<![\\\\#])#[0-9]{2,}"),
                  paste0(.ligne_definition, "|(?:^(?:", .arg_url, "|[^\\\\%#]|\\\\.)*+%|(?!^)\\G).*?\\K(?<![\\\\#])#[0-9]+"),
-                 "\\b(?:(?i:issues?)|PR)[~\\s]+[0-9]+")),
+                 "\\b(?:(?i:issues?)|PR)[~\\s]+[0-9]+",
+                 paste0("\\b[\u00e0\u00c0][~\\s]+l'(?i:issues?)(?![~\\s]+[0-9]{3})(*SKIP)(*FAIL)|",
+                        "(?:\\b(?i:issues?)|\\bPR)[~\\s]+[0-9]+"))),
   list(id = "A2", desc = "identifiant de commentaire de PR",
        regex = "\\bcommentaires?[~\\s]+[0-9]{8,}\\b"),
   list(id = "A3", desc = "renvoi a un ADR",
@@ -214,7 +241,12 @@ MOTIFS_A <- list(
                  paste0("\\b", .mois, "[~\\s]+(?:202[6-9]|20[3-9][0-9])(?![0-9])"))),
   list(id = "A11", desc = "SHA de commit (7 a 40 hexadecimaux avec lettre et chiffre)",
        regex = "\\b(?=[0-9a-f]*[a-f])(?=[0-9a-f]*[0-9])[0-9a-f]{7,40}\\b"),
+  # A12 : la deuxieme regex (l'issue sans numero) est lue sur deux lignes (fenetre2), comme
+  # la regex 5 d'A1 : "l'issue" en fin de ligne suivi de son numero en tete de la suivante
+  # releve d'A1 seul, pas aussi d'A12 (#544, point 8). La meme fenetre lit l'exception
+  # "l'issue de / du" par-dessus un retour a la ligne : le retour a la ligne n'y change rien.
   list(id = "A12", desc = "l'issue comme objet du depot, sans numero",
+       fenetre2 = 2L,
        regex = c("\\b(?:cette|chaque|une|la m\u00eame)~?\\s*issue\\b",
                  "\\bl'issue\\b(?!\\s+d[eu]\\b)(?![~\\s]*(?:\\\\#(?:[~\\s]|\\\\[,;:!])*|#)?[0-9])",
                  "\\ben issue\\b",
@@ -303,6 +335,40 @@ nd_parties <- function(lignes) {
 }
 
 # --- (a) Motifs -------------------------------------------------------------------------
+# Diagnostic d'un avertissement de gregexpr : NULL s'il ne vaut pas erreur, sinon
+# list(ligne = numero de l'element en cause, NA s'il n'est pas lisible). Le numero est le
+# dernier entier du message ("for element 2" en anglais, "pour l'element 2" sous une locale
+# francaise) : le texte n'est pas lu. Une erreur de compilation JIT ("PCRE JIT compilation
+# error") n'en est pas une : R continue sans JIT, le resultat est juste.
+nd_diagnostic_pcre <- function(msg) {
+  if (!grepl("PCRE", msg, fixed = TRUE)) return(NULL)
+  if (grepl("JIT", msg, fixed = TRUE) && grepl("compil", msg, ignore.case = TRUE)) return(NULL)
+  list(ligne = suppressWarnings(as.integer(sub("(?s).*?([0-9]+)\\s*$", "\\1", msg, perl = TRUE))))
+}
+
+# gregexpr(perl = TRUE) qui ne se tait jamais : sur une erreur de PCRE (limite de
+# correspondance, ...), gregexpr rend -1 pour l'element en cause avec un simple
+# avertissement, donc "aucune occurrence" ; un controle bloquant ne doit pas passer pour vert
+# faute d'avoir lu (#544, point 5). L'avertissement devient une erreur de classe
+# nd_erreur_pcre, qui nomme la ligne ; nd_main() la rend en code 2. Les autres
+# avertissements suivent leur cours.
+nd_gregexpr <- function(rx, texte, contexte = "", avec_ligne = TRUE) {
+  withCallingHandlers(
+    gregexpr(rx, texte, perl = TRUE),
+    warning = function(w) {
+      msg <- conditionMessage(w)
+      d <- nd_diagnostic_pcre(msg)
+      if (!is.null(d)) {
+        el <- d$ligne
+        stop(structure(class = c("nd_erreur_pcre", "error", "condition"),
+                       list(message = sprintf("erreur PCRE%s%s : %s", if (nzchar(contexte)) paste0(" (", contexte, ")") else "",
+                                              if (is.na(el) || !avec_ligne) "" else sprintf(", ligne %d", el),
+                                              gsub("[[:space:]]+", " ", msg)),
+                            call = NULL)))
+      }
+    })
+}
+
 # Occurrences de `motifs` dans `lignes` : data.frame (ligne, partie, motif, debut,
 # fin, texte). Une occurrence contenue dans une autre du meme motif sur la meme
 # ligne n'est pas recomptee (ex. \code{actuary} et le mot actuary).
@@ -315,7 +381,7 @@ nd_chercher <- function(lignes, parties, motifs) {
       # Motif a fenetre de deux lignes : lu sur la ligne suivie de la suivante ; seules
       # les occurrences qui commencent dans la ligne comptent.
       texte <- if (r %in% m$fenetre2) paste(lignes, c(lignes[-1L], "")) else lignes
-      g <- gregexpr(rx, texte, perl = TRUE)
+      g <- nd_gregexpr(rx, texte, sprintf("motif %s, regex %d", m$id, r))
       for (i in which(vapply(g, function(x) x[1L] > 0L, logical(1)))) {
         deb <- as.integer(g[[i]])
         lon <- attr(g[[i]], "match.length")
@@ -375,7 +441,7 @@ nd_appliquer_exceptions <- function(occ, lignes, exceptions) {
         texte <- paste(lignes[debut_fen:i], collapse = " ")
         decalage <- nchar(texte) - nchar(lignes[i])
         for (zone in e$zone) {
-          z <- gregexpr(zone, texte, perl = TRUE)[[1L]]
+          z <- nd_gregexpr(zone, texte, sprintf("exception %s", e$id), avec_ligne = FALSE)[[1L]]
           if (z[1L] > 0L) {
             zd <- as.integer(z); zf <- zd + attr(z, "match.length") - 1L
             if (any(zd <= occ$debut[k] + decalage & zf >= occ$fin[k] + decalage)) {
@@ -1109,7 +1175,16 @@ nd_main <- function(args) {
   n_a <- 0L; n_b <- 0L; n_c <- 0L; n_d <- 0L
   if (sel("motifs") || !length(manque)) cat(entete)
   if (sel("motifs")) {
-    n_a <- nd_imprimer_motifs(nd_controle_motifs(lignes, exceptions_motifs_defaut()), max_lignes)
+    # Une erreur PCRE (nd_gregexpr) n'est jamais un silence : le controle (a) n'a pas tout lu,
+    # code 2 avec ou sans --bloquant (comme un argument inconnu : le controle ne s'est pas
+    # execute, ce n'est pas une violation du document).
+    ctl_a <- tryCatch(nd_controle_motifs(lignes, exceptions_motifs_defaut()), nd_erreur_pcre = function(e) e)
+    if (inherits(ctl_a, "nd_erreur_pcre")) {
+      cat("ERREUR : controle (a) interrompu, ", conditionMessage(ctl_a),
+          ".\nLe controle n'a pas tout lu ; le code de sortie est 2.\n", sep = "")
+      return(2L)
+    }
+    n_a <- nd_imprimer_motifs(ctl_a, max_lignes)
   }
   if (length(manque)) {
     # Le code de sortie reste 2, quel que soit le resultat de (a).
