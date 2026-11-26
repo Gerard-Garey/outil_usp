@@ -161,6 +161,18 @@ verifier("A1 negatif : % encode dans un argument d'URL, hors commentaire (\\url{
          identical(motifs("\\href{https://ex.org/a%20b#12}{texte}"), character(0)))
 verifier("A1 : commentaire apres un argument d'URL relu (\\url{https://ex.org/a%20b#1} % voir #452)",
          identical(nd$nd_chercher("\\url{https://ex.org/a%20b#1} % voir #452", "Partie I", nd$MOTIFS_A)$texte, "#452"))
+# #544 (revue S8, m1) : le % d'un argument de \url ou de \href n'ouvre pas de commentaire pour la
+# regle de definition (.ligne_definition), comme pour la regex 3 : la definition qui suit reste active.
+verifier("A1 negatif : definition de macro apres un % encode dans un \\url, un \\href (#544 m1)",
+         identical(motifs("\\url{https://ex.org/a%20b}\\newcommand{\\z}[1]{#12}"), character(0)) &&
+         identical(motifs("\\href{https://ex.org/a%20b}{lien} \\def\\z#1{#10}"), character(0)) &&
+         identical(motifs("\\url{https://ex.org/a%20b} \\newenvironment{e}[1]{% #1 = titre"), character(0)))
+verifier("A1 : un vrai commentaire apres l'URL ouvre le commentaire, la definition qui suit ne compte pas (#544 m1)",
+         identical(nd$nd_chercher("\\url{https://ex.org/a%20b} % \\newcommand{\\z}[1]{#12}", "Partie I", nd$MOTIFS_A)$texte, "#12") &&
+         identical(nd$nd_chercher("\\href{https://ex.org/a%20b}{lien} a % \\def\\z#1{#10}", "Partie I", nd$MOTIFS_A)$texte, c("#1", "#10")) &&
+         identical(nd$nd_chercher("a % \\url{x} \\newcommand{\\z}[1]{#12}", "Partie I", nd$MOTIFS_A)$texte, "#12"))
+verifier("A1 limite connue : \\verb|%| n'est pas lu comme un % litteral (\\verb|%| \\newcommand{\\z}[1]{#12} est relevee ; aucun \\verb dans le document, #544 m1)",
+         "A1" %in% motifs("\\verb|%| \\newcommand{\\z}[1]{#12}"))
 verifier("A1 limite connue : un # a un chiffre en commentaire est lu comme un numero (% le parametre #1 est le titre)",
          "A1" %in% motifs("% le parametre #1 est le titre"))
 verifier("A1 : issue / PR et son numero sur deux lignes (fenetre de deux lignes)",

@@ -163,7 +163,8 @@ EXCEPTIONS_PLAFOND <- list(
 # precede un #, ce # est un parametre de macro (#1 a #9, #10 = #1 suivi de 0), jamais un
 # numero d'issue. La liste est celle de CONVENTIONS.md, section 5.
 # Le mot de definition ne compte que s'il est dans la partie code de la ligne, avant le
-# premier % non echappe (\% est un pourcent litteral, \\ ne l'echappe pas) : un mot de
+# premier % non echappe (\% est un pourcent litteral, \\ ne l'echappe pas, et un % dans
+# l'argument d'un \url ou d'un \href, lu en bloc par .arg_url, n'ouvre pas de commentaire) : un mot de
 # definition dans un commentaire (% \newcommand{\x}{#1} ancien code, issue #452) ne fait plus
 # sauter la ligne (#544, point 6). Le # qui suit, lui, peut etre n'importe ou apres le mot
 # (\newenvironment{fiche}[1]{% #1 = titre). Lecture lineaire, sans retour arriere : le premier
@@ -171,8 +172,8 @@ EXCEPTIONS_PLAFOND <- list(
 # ulterieur ne l'est ; l'ancienne forme (.*\def\b.*#) depassait la limite de correspondance
 # de PCRE sur une ligne de 19 000 caracteres de mots \def repetes (#544, point 5).
 .def_macro <- "(?:[gex]?def|newcommand|renewcommand|providecommand|newenvironment|renewenvironment|NewDocumentCommand|RenewDocumentCommand|DeclareDocumentCommand)"
-.ligne_definition <- paste0("^(?=(?:[^\\\\%]|(?!\\\\", .def_macro, "\\b)\\\\.)*+\\\\", .def_macro, "\\b.*#).*(*SKIP)(*FAIL)")
 .arg_url <- "\\\\(?:url|href)\\{[^}]*\\}"
+.ligne_definition <- paste0("^(?=(?:", .arg_url, "|[^\\\\%]|(?!\\\\", .def_macro, "\\b)\\\\.)*+\\\\", .def_macro, "\\b.*#).*(*SKIP)(*FAIL)")
 
 MOTIFS_A <- list(
   # A1, cinq regex :
