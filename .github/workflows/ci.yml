@@ -99,8 +99,8 @@ jobs:
   # comprise (setup-r 39 s, BLAS 5 s, paquets de l'application 7 s avec le
   # cache), 417 s à 2 lots, 296 s à 3 lots, 246 s à 4 lots (au lieu de 992 s
   # en un job). Trois lots : le 4e ne gagne qu'une cinquantaine de secondes,
-  # borné par le fichier le plus long (test_application, 137,0 s dans
-  # tests/durees_unitaires.tsv) et par la préparation, pour une
+  # borné par test_application (195 s en CI, durées du run 1152 de l'issue
+  # #512, avant la coupe de ce fichier) et par la préparation, pour une
   # minute et demie de runner de plus et un setup-r lent de plus à courir
   # (14 min 36 s le 04/11/2026). La répartition (LPT sur
   # tests/durees_unitaires.tsv) est celle de tests/test_unitaires.R --lot=k/n :
@@ -383,9 +383,11 @@ jobs:
   #
   # Fichiers exécutés par l'option --fichiers du lanceur tests/test_unitaires.R,
   # en parallèle (mode --parallele, quatre processus à la fois, comme dans les
-  # lots), sous LC_ALL=C.UTF-8 : test_controles_entree.R et
-  # test_controles_entree_partie_2.R (témoin openxlsx, voie « paquet » de zip ;
-  # le fichier est coupé en deux depuis #561), test_outdec.R (export xlsx sous
+  # lots), sous LC_ALL=C.UTF-8 : test_controles_entree.R (témoin openxlsx,
+  # voie « paquet » de zip) et test_controles_entree_partie_2.R (seconde moitié
+  # du fichier précédent, coupé en deux depuis #561 ; aucun témoin propre : il
+  # ne contient ni openxlsx ni zip, il est lancé ici par la règle PS-1-c
+  # ci-dessous), test_outdec.R (export xlsx sous
   # OutDec = ","), test_defauts_connus.R (voie « paquet » de zip) et
   # test_application.R avec test_application_partie_2.R (export xlsx de
   # l'application par zip::zipr(), celui qu'emprunte un poste muni du paquet
