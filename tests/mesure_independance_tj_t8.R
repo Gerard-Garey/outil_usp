@@ -77,20 +77,39 @@
 #      Rscript tests/mesure_independance_tj_t8.R --ecrire [--coeurs 3]
 #  --pilote : essai chronometre, k = 0, b <= 2000, trois plans (memes graines
 #    pour les trois plans), NON versionnable (--ecrire refuse) ; imprime la
-#    duree par triangle et la duree projetee de la mesure complete.
+#    duree de calcul par triangle et par coeur (duree x coeurs / triangles) et
+#    la duree projetee du calcul de la mesure complete (extrapolation lineaire
+#    en N, hors analyse et ecriture), puis, par plan et par ligne, les memes
+#    resumes que la mesure complete, dont la paire et le seuil de Spearman.
 #  --coeurs n : processus paralleles (parallel::mclapply, une tache par bloc de
 #    2 500 triangles d'un plan ; defaut 3 ; 1 sous Windows).
-#  --ecrire : ecrit docs/tableaux/<AAAAMMJJ>-issue448-independance-tj.md (date
-#    d'execution). REFUSE : pilote, fichier cible deja suivi par git
-#    (garde_ecrasement(), #173). Contrairement aux autres scripts de mesure, un
-#    arbre de travail modifie ou un script non suivi NE refuse PAS l'ecriture :
-#    la ligne "Commit" du tableau cite alors le resultat de commit_depot()
-#    tel quel (avec la mention d'arbre modifie ou de script non suivi) et le
-#    md5 du script, que l'on verifie contre le script commite ensuite.
+#  --ecrire : ecrit docs/tableaux/<AAAAMMJJ>-issue448-independance-tj.md.
+#    AAAAMMJJ est la date de DEBUT d'execution (t_debut), prise une fois : le
+#    nom du fichier et la ligne "Date" du tableau portent la meme date, meme si
+#    le calcul franchit minuit. REFUSE (message, code de sortie 1, rien
+#    d'ecrit) : pilote ; dossier docs/tableaux absent ; fichier cible deja
+#    suivi par git (garde_ecrasement(), #173) ; arbre de travail modifie,
+#    script non suivi ou git indisponible (motifs_non_versionnable() sur
+#    commit_depot(), comme les autres scripts de mesure, #205, #470). Ces
+#    gardes passent des l'analyse des options, avant tout calcul, puis de
+#    nouveau avant d'ecrire (l'etat du depot peut changer pendant le calcul) ;
+#    le second passage refuse aussi un commit different de celui du depart
+#    (la ligne "Commit" du tableau doit citer le commit de l'execution). La
+#    sortie reste alors imprimee sur la console.
 #  Duree : voir la ligne "Duree" de la sortie.
 #  Code de sortie : 0 si l'execution va a son terme (le critere est un constat,
-#  il ne conditionne pas le code de sortie), 1 en cas de controle d'implementation
-#  en echec (generateur, ou graines hors plage).
+#  il ne conditionne pas le code de sortie). 1 dans quatre cas :
+#    - controle des degres de liberte en echec (ecart absolu maximal entre les
+#      p_j du moteur et 2 P(T_df > |t_j|) superieur a TOL_DF) : sortie
+#      imprimee, tableau ecrit le cas echeant avec la mention "EN ECHEC",
+#      puis code 1 ;
+#    - refus de --ecrire par l'un des motifs ci-dessus ;
+#    - controle d'implementation de mise en place en echec (plans, generateur,
+#      graines hors plage : stop()) ;
+#    - option inconnue ou sans valeur, ou tache parallele en echec (stop()).
+#  analyser() refuse (stop()) un appel sans matrice de triangles, ou sans
+#  aucun triangle admis (n = 0), au lieu d'echouer plus loin sur un tableau
+#  vide.
 ###############################################################################
 
 t_debut <- Sys.time()
@@ -128,14 +147,32 @@ DOSSIER_SCRIPT <- local({
 })
 source(file.path(DOSSIER_SCRIPT, "outils_tests.R"))
 
-DATE_SORTIE <- format(Sys.Date(), "%Y%m%d")
+# Date de la sortie : date de DEBUT d'execution, prise une fois (t_debut) ; elle
+# nomme le fichier ecrit et remplit la ligne "Date" du tableau (meme date, meme
+# si le calcul franchit minuit).
+DATE_SORTIE <- format(t_debut, "%Y%m%d")
+DATE_AFFICHEE <- format(t_debut, "%d/%m/%Y")
 NOM_FICHIER <- sprintf("%s-issue448-independance-tj.md", DATE_SORTIE)
 CHEMIN_ECRIT <- file.path(RACINE, "docs", "tableaux", NOM_FICHIER)
+COMMIT <- commit_depot(SCRIPT)
+# Garde de --ecrire (#470) : arbre de travail modifie, script non suivi ou git
+# indisponible refusent l'ecriture (code 1, rien d'ecrit). commit : resultat de
+# commit_depot() a l'instant du controle ; depart : commit pris au debut.
+refuser_si_non_versionnable <- function(commit, quand, depart = commit) {
+  nv <- motifs_non_versionnable(commit, "", "de l'execution")
+  if (!length(nv) && !identical(commit, depart))
+    nv <- sprintf("commit de l'execution %s, different de celui du depart (%s)", commit, depart)
+  if (length(nv)) {
+    message("--ecrire refuse ", quand, " (tableau versionne dans docs/tableaux/) : ", paste(nv, collapse = " ; "),
+            " -- aucun fichier ecrit")
+    quit(status = 1L)
+  }
+}
 if (OPT_ECRIRE) {
   if (!dir.exists(file.path(RACINE, "docs", "tableaux"))) stop("dossier de sortie introuvable : docs/tableaux")
+  refuser_si_non_versionnable(COMMIT, "avant tout calcul")
   garde_ecrasement(CHEMIN_ECRIT, FALSE, RACINE)
 }
-COMMIT <- commit_depot(SCRIPT)
 FICHIER_EXEC <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
 MD5_SCRIPT <- if (length(FICHIER_EXEC) == 1L && file.exists(FICHIER_EXEC)) unname(tools::md5sum(FICHIER_EXEC)) else "inconnu"
 MD5_MOTEUR <- unname(tools::md5sum(file.path(RACINE, "R", "engine.R")))
@@ -268,6 +305,9 @@ colonnes <- function(ligne) {
 }
 z_spearman <- function(m) stats::qnorm(1 - NIVEAU / 2 / m)
 analyser <- function(M, ligne) {
+  # Refus explicite (#470) : sans matrice de triangles, ou sans aucun triangle admis.
+  if (missing(M) || !is.matrix(M) || !is.numeric(M) || nrow(M) < 1L || ncol(M) != LARG)
+    stop("analyser() : aucun triangle (matrice numerique de ", LARG, " colonnes et d'au moins une ligne attendue)")
   cl <- colonnes(ligne); km <- K_PREVU[[ligne]]
   tire <- nrow(M)
   n_cumul <- sum(M[, 1] == 1); n_ajust <- sum(M[, 1] == 2)
@@ -276,6 +316,8 @@ analyser <- function(M, ligne) {
   n_na <- sum(!ok_stat)
   A <- A[ok_stat, , drop = FALSE]
   n <- nrow(A)
+  if (n == 0L) stop("analyser() : aucun triangle admis sur ", tire, " tire(s) (cumul <= 0 : ", n_cumul,
+                    ", ajustement en erreur : ", n_ajust, ", statistique non definie : ", n_na, ")")
   Kv <- A[, cl$K]
   tabK <- table(Kv)
   K_modal <- as.integer(names(tabK)[which.max(tabK)])
@@ -344,19 +386,22 @@ if (OPT_PILOTE) {
   proj <- duree_calcul * (100000 / N_TRI)
   ecrire_console(c(
     "## Essai pilote (k = 0, b <= 2000, trois plans, NON versionnable)", "",
-    sprintf("- Dur\u00e9e du calcul : %s pour %d triangles (%s par triangle, %d c\u0153ur(s)).",
-            fmt_duree(duree_calcul), ntot, sprintf("%.2f ms", 1000 * duree_calcul / ntot * COEURS), COEURS),
-    sprintf("- Dur\u00e9e projet\u00e9e de la mesure compl\u00e8te (3 plans x 100 000 triangles, %d c\u0153ur(s)) : %s.",
+    sprintf("- Dur\u00e9e du calcul : %s pour %d triangles sur %d c\u0153ur(s) (%s de calcul par triangle et par c\u0153ur : dur\u00e9e \u00d7 c\u0153urs / triangles).",
+            fmt_duree(duree_calcul), ntot, COEURS, virg(sprintf("%.2f ms", 1000 * duree_calcul / ntot * COEURS))),
+    sprintf("- Dur\u00e9e projet\u00e9e du calcul de la mesure compl\u00e8te (3 plans x 100 000 triangles, %d c\u0153ur(s)) : %s, extrapolation lin\u00e9aire de l'essai, hors analyse et \u00e9criture ; la dur\u00e9e r\u00e9elle peut s'en \u00e9carter.",
             COEURS, fmt_duree(proj)),
     sprintf("- Contr\u00f4le des degr\u00e9s de libert\u00e9 : \u00e9cart absolu maximal sur p_j = %s (tol\u00e9rance %s) : %s.",
             sprintf("%.2e", ECART_DF_MAX), sprintf("%.0e", TOL_DF), if (DF_OK) "tenu" else "EN \u00c9CHEC"), ""))
   for (pl in PLANS) for (l in names(LIGNES)) {
     r <- RES[[pl]][[l]]
-    ecrire_console(sprintf("%s, %s : tir\u00e9s %d, \u00e9cart\u00e9s cumul %d, ajustement %d, stat. non d\u00e9finie %d, admis %d ; K : %s ; m = %d ; taux %s ; KS p = %s ; max|rho(t)| = %s ; max|rho(|t|)| = %s ; contr\u00f4les rejet\u00e9s : %d",
+    ecrire_console(sprintf("%s, %s : tir\u00e9s %d, \u00e9cart\u00e9s cumul %d, ajustement %d, stat. non d\u00e9finie %d, admis %d ; K : %s ; m = %d ; taux %s ; KS p = %s ; max|rho(t)| = %s (paire (%d, %d), seuil %s) ; max|rho(|t|)| = %s (paire (%d, %d), seuil %s) ; contr\u00f4les rejet\u00e9s : %d",
                            pl, LIGNES[[l]], r$tire, r$n_cumul, r$n_ajust, r$n_na, r$n,
                            paste(sprintf("K=%s : %d", names(r$tabK), as.integer(r$tabK)), collapse = ", "), r$m,
                            paste(vapply(r$taux, function(t) num(t$taux, 4), ""), collapse = " / "),
-                           pval(r$ks_p$p), num(r$rho_t$max, 4), num(r$rho_a$max, 4), r$n_ctrl_rejetes))
+                           pval(r$ks_p$p),
+                           num(r$rho_t$max, 4), r$rho_t$paire[1], r$rho_t$paire[2], num(r$rho_t$seuil, 4),
+                           num(r$rho_a$max, 4), r$rho_a$paire[1], r$rho_a$paire[2], num(r$rho_a$seuil, 4),
+                           r$n_ctrl_rejetes))
   }
   ecrire_console(c("", sprintf("Dur\u00e9e totale : %s.", fmt_duree(duree_totale))))
   quit(status = if (DF_OK) 0L else 1L)
@@ -400,7 +445,7 @@ add(sprintf("## Ind\u00e9pendance des t_j et loi des p-values de l'ordonn\u00e9e
     "Statut : **constat de simulation sous un plan** (mod\u00e8le de Mack gaussien ajust\u00e9 \u00e0 `reserve2`, plans P1 \u00e0 P3 de #309), de compatibilit\u00e9 avec le r\u00e9sultat \u00ab p \u03c7\u00b2(2K) exacte sous erreurs conditionnelles gaussiennes et ann\u00e9es ind\u00e9pendantes \u00bb des fiches `mw:m1a` et `mw:m1c`, **pas une d\u00e9monstration** ni un r\u00e9sultat g\u00e9n\u00e9ral. Aucun bootstrap : les p lues sont les p \u03c7\u00b2(2K) de la combinaison de Fisher du moteur (`mw_test_ordonnee_origine()`, `mw_test_courbure()`), les t_j et p_j sont lus dans leur tableau `detail`.", "")
 add("### En-t\u00eate", "",
     ligne_md("Param\u00e8tre | Valeur"), ligne_md("--- | ---"),
-    ligne_md("Date", format(Sys.Date(), "%d/%m/%Y")),
+    ligne_md("Date (d\u00e9but de l'ex\u00e9cution)", DATE_AFFICHEE),
     ligne_md("Plan", "plan d'`actuary`, accept\u00e9 par le mainteneur le 06/11/2026 (issue #448) ; script `tests/mesure_independance_tj_t8.R`"),
     ligne_md("Commit", sprintf("`%s`%s", COMMIT, if (grepl("^[0-9a-f]{40}$", COMMIT)) "" else
               " \u2014 ex\u00e9cution sur un arbre de travail non propre ou un script non encore suivi ; le md5 du script ci-dessous identifie le code ex\u00e9cut\u00e9")),
@@ -453,6 +498,7 @@ add("### Limites", "",
 sortie <- Sx
 ecrire_console(c(sortie, sprintf("Dur\u00e9e totale : %s.", fmt_duree(duree_totale))))
 if (OPT_ECRIRE) {
+  refuser_si_non_versionnable(commit_depot(SCRIPT), "avant d'ecrire", depart = COMMIT)
   garde_ecrasement(CHEMIN_ECRIT, FALSE, RACINE)
   con <- file(CHEMIN_ECRIT, "wb")
   writeLines(enc2utf8(sortie), con, useBytes = TRUE)
