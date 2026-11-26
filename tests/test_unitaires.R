@@ -204,7 +204,7 @@ if (length(.option_fichiers)) {
   .disque <- basename(FICHIERS_UNITAIRES)
   .vides <- !nzchar(.noms)
   .inconnus <- .noms[!.vides & !(.complets %in% .disque)]
-  .repetes <- unique(.noms[duplicated(.complets)])
+  .repetes <- unique(.noms[!.vides & duplicated(.complets)])
   if (!length(.noms) || any(.vides) || length(.inconnus) || length(.repetes)) {
     cat("Selection de fichiers invalide :", .option_fichiers, "\n")
     if (!length(.noms) || any(.vides)) cat("  nom vide (--fichiers=a,b,c, noms separes par une virgule)\n")
