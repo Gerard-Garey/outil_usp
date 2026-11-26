@@ -1410,9 +1410,15 @@ verifier("sw_loi_nulle() : loi identique qu'elle soit calculee sous L'Ecuyer-CMR
 # et laisse le generateur de l'appelant intact. Le cache de la loi nulle de
 # Shapiro-Wilk est vide avant chaque appel sous un autre generateur, pour que
 # la loi soit recalculee sous ce generateur (constat du 22/09 sur #37).
+# Mise en memoire (#561) : un seul appel par methode sous le generateur par
+# defaut, sans horodatage ni duree ; ce reservoir sert de reference ici et de
+# lecture seule aux assertions plus bas. Les appels de la premiere boucle sur
+# appels_run (etat du generateur de l'appelant) et r_g ci-dessous (generateur
+# substitue, cache de Shapiro-Wilk vide) restent neufs.
+r_def_run <- lapply(appels_run, function(appel) sans_horodatage(appel()))
 for (m in names(appels_run)) local({
   appel <- appels_run[[m]]
-  r_def <- sans_horodatage(appel())
+  r_def <- r_def_run[[m]]
   for (g in names(generateurs_appelant)) {
     a <- generateurs_appelant[[g]]
     verifier(sprintf("run_engine(%s) sous l'appelant %s : resultat identique au generateur par defaut, generateur de l'appelant intact", m, g),
@@ -1434,7 +1440,7 @@ for (m in names(appels_run)) local({
 # graine de la loi nulle de Shapiro-Wilk n'est consignee qu'en reserve2, seule
 # methode qui l'emploie (mw_tests()) : absente des methodes lognormales.
 for (m in names(appels_run)) local({
-  r <- appels_run[[m]]()
+  r <- r_def_run[[m]]
   verifier(sprintf("run_engine(%s) : generateur et graine consignes dans $metadata, sans seed_enveloppe_qq (#47), seed_loi_nulle_sw en reserve2 seulement (#351)", m),
            {
              md <- r$metadata
@@ -1461,7 +1467,7 @@ verifier("sw_loi_nulle() par defaut = loi tiree sous metadata$seed_loi_nulle_sw"
          {
            rm(list = grep("^n9_B300_", ls(.cache_sw), value = TRUE), envir = .cache_sw)
            a <- sw_loi_nulle(9, B_null = 300)
-           b <- sw_loi_nulle(9, B_null = 300, seed = appels_run$reserve2()$metadata$seed_loi_nulle_sw)
+           b <- sw_loi_nulle(9, B_null = 300, seed = r_def_run$reserve2$metadata$seed_loi_nulle_sw)
            w <- engine_sous_graine(20260901, replicate(300, unname(stats::shapiro.test(stats::rnorm(9))$statistic)))
            identical(a, b) && identical(a, sort(w[is.finite(w)]))
          })
@@ -1473,7 +1479,7 @@ verifier("engine_influence() : fort_ecart_sigma = |ecart_sigma| > REPERE_INFLUEN
          {
            ok <- TRUE
            for (m in c("premium", "reserve1")) {
-             d <- appels_run[[m]]()$plots_data$influence
+             d <- r_def_run[[m]]$plots_data$influence
              ok <- ok && is.logical(d$fort_ecart_sigma) &&
                identical(d$fort_ecart_sigma, abs(d$ecart_sigma) > REPERE_INFLUENCE_SIGMA) &&
                identical(d$fort_ecart_sigma, abs(100 * d$ecart_sigma) > 100 * REPERE_INFLUENCE_SIGMA)
@@ -1493,7 +1499,7 @@ verifier("engine_influence() : repere_levier = REPERE_LEVIER k / T = 2/T, repere
          {
            ok <- identical(c(REPERE_LEVIER, REPERE_COOK_LN), c(2, 4))
            for (m in c("premium", "reserve1")) {
-             d <- appels_run[[m]]()$plots_data$influence; T <- nrow(d)
+             d <- r_def_run[[m]]$plots_data$influence; T <- nrow(d)
              ok <- ok && !any(startsWith(names(d), "seuil")) &&
                identical(d$repere_levier, rep(2 / T, T)) &&
                identical(d$repere_cook, rep(4 / T, T)) &&
@@ -1509,7 +1515,7 @@ verifier("usp_tests() : repere imprime dans le detail des lignes 'Leviers (hat v
          {
            ok <- TRUE
            for (m in c("premium", "reserve1")) {
-             r <- appels_run[[m]](); d <- r$plots_data$influence
+             r <- r_def_run[[m]]; d <- r$plots_data$influence
              det <- stats::setNames(vapply(r$tests, function(l) l$detail, character(1)),
                                     vapply(r$tests, function(l) l$test, character(1)))
              lu <- function(test, rep) as.numeric(sub(sprintf(".*%s = ([0-9.]+).*", rep), "\\1",
@@ -1544,7 +1550,7 @@ verifier("mw_influence() : dfbetas = stats::dfbetas() (1e-10) pour n_j >= 3, NA 
          })
 verifier("plots_data$influence (reserve2) : colonnes de mw_influence() puis plus_influente (#396), repere_levier = REPERE_LEVIER / n_j = 2/n_j et fort_levier lu sur cette colonne (#209), repere_dfbetas = REPERE_DFBETAS_MW / sqrt(n_j), fort_dfbetas sans NA ; mw_influence() = cette table sans plus_influente",
          {
-           d <- appels_run$reserve2()$plots_data$influence
+           d <- r_def_run$reserve2$plots_data$influence
            d2 <- mw_influence(mw_ajuster(tri_mw))
            nj <- as.vector(table(d$j)[as.character(d$j)])
            identical(names(d), c("i", "j", "C", "F", "levier", "repere_levier", "f_chapeau",

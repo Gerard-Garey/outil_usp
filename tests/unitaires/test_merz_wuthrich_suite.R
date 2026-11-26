@@ -672,9 +672,15 @@ verifier("p_min non finie : NA et motif explicite dans effectifs (#115, C2)",
              is.na(s1$p_min) && identical(s1$effectifs,
                "t = 3, 2, p_min non calculable sur ces effectifs, p_min non attribuee")
          })
+# Mise en memoire (#561, #471) : run_mw(tri_ref) (B = 99, alpha par defaut,
+# graine par defaut) n'est calcule qu'une fois ; res_tri_ref est lu, jamais
+# modifie, par les six sites concernes (p_min, #275, #308, #311, #404 a
+# alpha = 0,10, #447). Le cas alpha = 0,05 (r05) et tout site sous
+# substitution, avertissements ou generateur appellent run_engine() neuf.
+res_tri_ref <- run_mw(tri_ref)
 verifier("reserve2 : p_min des six lignes discretes, les 19 autres NA (#115, critere 1 ; 21 lignes depuis #308, 25 avec les quatre lignes de lecture conjointe de #297)",
          {
-           d <- engine_table_tests(run_mw(tri_ref))
+           d <- engine_table_tests(res_tri_ref)
            att <- c("Homogeneite de f_j entre annees de survenance" = 16 / prod(factorial(7:4)),
                     "Adequation de l'exposant de variance, colonne par colonne" = 16 / prod(factorial(7:4)),
                     "Effets d'annee calendaire (test de Mack)" = 2^-18,
@@ -1354,7 +1360,7 @@ verifier("mw_calendrier_diagonales() : k, n_k et Z_k = ceux de la statistique gl
          }, logical(1))))
 verifier("reserve2 (#275) : une seule diagonale reperee, k = 5, n = 6, Z = 0, P = 0,03125 ; ligne diagnostic INFO apres le test calendaire",
          {
-           r <- run_mw(tri_ref)
+           r <- res_tri_ref
            d <- mw_calendrier_diagonales(mw_test_annees_calendaires(r$ajustement))
            # designation par le nom, non par la position (l'insertion de la
            # ligne de #308 en fin de M1 a decale M2 a M6 d'un cran)
@@ -1440,7 +1446,7 @@ verifier("Identifiabilite intra-colonne (#308) : reserve2, colonnes j = 0..4, n_
          })
 verifier("Identifiabilite intra-colonne (#308) : reserve2, ligne de diagnostic juste apres la famille alpha (fin de M1), INFO, fonction, estim, p-values NA ; champs T-3 a la lettre",
          {
-           r <- run_mw(tri_ref); noms <- vapply(r$tests, `[[`, "", "test")
+           r <- res_tri_ref; noms <- vapply(r$tests, `[[`, "", "test")
            k <- match(NOM308, noms); x <- r$tests[[k]]
            identical(noms[k - 1L], "Stabilite du facteur selon la ponderation (famille alpha)") &&
              identical(x$famille, r$tests[[k - 1L]]$famille) && startsWith(x$famille, "M1") &&
@@ -2066,7 +2072,7 @@ verifier("Famille alpha (#307) : statistique NA (aucune colonne n_j >= 3, triang
 # qqline = c(0, 1) en fin de plots_data ; borne r~^2 <= n_j - 1 ; vivier du
 # bootstrap inchange au bit pres ; lignes M5 sur les residus bruts.
 local({
-  r311 <- run_mw(tri_ref); aj311 <- r311$ajustement; pd <- r311$plots_data
+  r311 <- res_tri_ref; aj311 <- r311$ajustement; pd <- r311$plots_data
   res <- pd$residus; rt <- mw_residus_redresses(aj311, res)
   nj <- as.vector(table(res$j)[as.character(res$j)])
   verifier("#311 : qqnorm$empirique tries = sort(mw_residus_redresses()) ; theorique = quantiles N(0,1) (ppoints) aux rangs de r~",
@@ -2138,7 +2144,7 @@ local({
 local({
   COLS_404 <- c("j", "n", "a", "se_a", "t", "p", "b", "f_cl",
                 "niveau", "quantile_t", "bas", "haut", "exclut_zero", "plus_petite_p")
-  r10 <- run_mw(tri_ref)
+  r10 <- res_tri_ref
   r05 <- run_engine(methode = "reserve2", triangle = tri_ref, segment = 1, annexe = "II",
                     B = 99, alpha = 0.05, date_reference = DATE_REFERENCE_TESTS)
   for (r in list(r10, r05)) {
@@ -2204,7 +2210,7 @@ local({
 # deux lignes ; la ligne de l'homogeneite de f_j garde le sien.
 local({
   LOI_447 <- "chi2(2K) approx. (t_j de Student independants sous erreurs gaussiennes seulement) -> Monte-Carlo"
-  L <- run_mw(tri_ref)$tests
+  L <- res_tri_ref$tests
   lig <- function(nom) L[[which(vapply(L, `[[`, "", "test") == nom)]]
   verifier("#447 (reserve2) : loi de l'ordonnee a l'origine et de la courbure = texte decide, homogeneite de f_j inchangee",
            identical(lig("Nullite de l'ordonnee a l'origine, colonne par colonne")$loi, LOI_447) &&
