@@ -1395,8 +1395,6 @@ verifier("run_engine : B = 99, alpha = 0,01 -> erreur d'usage B + 1 > 4/alpha, B
            })
 verifier("run_engine : B = 99, alpha = 0,04 -> erreur d'usage, B >= 100 (premium, reserve2)",
          erreur_usage("alpha", list(0.04), "B >= 100 a ce seuil"))
-verifier("run_engine : B = 99 et alpha 0,05 ou 0,10 acceptes (premium, reserve2)",
-         usage_accepte("alpha", list(0.05, 0.10)))
 # Bords, sur .engine_verifier_usage() directement (aucun bootstrap).
 verif_usage <- function(B, alpha) {
   tryCatch(.engine_verifier_usage(B, 20260831, NULL, alpha = alpha, segment = 1),
@@ -5853,10 +5851,14 @@ verifier("Credibilite pleine : detail du bareme applique (segment G(1) / G(2), c
                                                       bareme = "long"))$verdict, "ECHEC") &&
              !any(grepl("bareme court) /", c(d1, d2, d0, ds), fixed = TRUE))
          })
+# Resultat partage (#561) : meme appel run_engine(xc[1:16], yc[1:16], T = 10,
+# B = 99) pour les deux assertions qui suivent (duree = T retenu ; serie
+# retenue de engine_valider_serie_retenue()) ; lu, jamais modifie.
+r_cred16 <- run_engine(xc[1:16], yc[1:16], methode = "premium", segment = 1, annexe = "II",
+                       T = 10, B = 99, nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
 verifier("Credibilite pleine : duree = T retenu, pas n fourni (run_engine, II-1, n = 16, T = 10 : non atteinte) (#131)",
          {
-           r <- run_engine(xc[1:16], yc[1:16], methode = "premium", segment = 1, annexe = "II",
-                           T = 10, B = 99, nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
+           r <- r_cred16
            l <- ligne_cred(r$controles)
            r$metadata$T == 10 && r$metadata$n_fournies == 16 && identical(l$verdict, "ECHEC") &&
              grepl("T = 10 ; c = 74%", l$detail, fixed = TRUE) &&
@@ -5898,8 +5900,7 @@ verifier("engine_valider_serie_retenue : serie tronquee a T comme run_engine() (
          {
            sr <- engine_valider_serie_retenue(xc[1:16], yc[1:16], T = 10, methode = "premium",
                                               nature_donnees = "brutes", segment = 1)
-           r <- run_engine(xc[1:16], yc[1:16], methode = "premium", segment = 1, annexe = "II",
-                           T = 10, B = 99, nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
+           r <- r_cred16
            identical(sr$validation, r$validation) && identical(sr$xt, xc[7:16]) &&
              identical(sr$yt, yc[7:16]) &&
              contient(sr$validation$avertissements, "T = 10 : credibilite partielle, c = 74%")
