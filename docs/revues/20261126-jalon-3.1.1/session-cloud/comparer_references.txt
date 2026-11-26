@@ -1,0 +1,35 @@
+=== premium : derive numerique seule
+--- Part non numerique (doit etre vide) : 0 feuille(s)
+--- Part numerique (ecart decroissant) : 0 feuille(s)
+Synthese : 57022 feuille(s) ; part numerique 0, ecart maximal 0.000e+00, 0 au-dela du seuil 1e-06 de la CI ; part non numerique 0 feuille(s), 0 noeud(s) de structure
+
+=== reserve1 : derive numerique seule
+--- Part non numerique (doit etre vide) : 0 feuille(s)
+--- Part numerique (ecart decroissant) : 0 feuille(s)
+Synthese : 57021 feuille(s) ; part numerique 0, ecart maximal 0.000e+00, 0 au-dela du seuil 1e-06 de la CI ; part non numerique 0 feuille(s), 0 noeud(s) de structure
+
+=== reserve2 : derive numerique seule
+--- Part non numerique (doit etre vide) : 0 feuille(s)
+--- Part numerique (ecart decroissant) : 0 feuille(s)
+Synthese : 18746 feuille(s) ; part numerique 0, ecart maximal 0.000e+00, 0 au-dela du seuil 1e-06 de la CI ; part non numerique 0 feuille(s), 0 noeud(s) de structure
+
+=== premium_ii6 : derive numerique seule
+--- Part non numerique (doit etre vide) : 0 feuille(s)
+--- Part numerique (ecart decroissant) : 0 feuille(s)
+Synthese : 57022 feuille(s) ; part numerique 0, ecart maximal 0.000e+00, 0 au-dela du seuil 1e-06 de la CI ; part non numerique 0 feuille(s), 0 noeud(s) de structure
+
+=== premium_net : derive numerique seule
+--- Part non numerique (doit etre vide) : 0 feuille(s)
+--- Part numerique (ecart decroissant) : 0 feuille(s)
+Synthese : 57022 feuille(s) ; part numerique 0, ecart maximal 0.000e+00, 0 au-dela du seuil 1e-06 de la CI ; part non numerique 0 feuille(s), 0 noeud(s) de structure
+
+=== premium_interieur : derive numerique seule
+--- Part non numerique (doit etre vide) : 0 feuille(s)
+--- Part numerique (ecart decroissant) : 0 feuille(s)
+Synthese : 57022 feuille(s) ; part numerique 0, ecart maximal 0.000e+00, 0 au-dela du seuil 1e-06 de la CI ; part non numerique 0 feuille(s), 0 noeud(s) de structure
+
+=== reserve2_trapeze : derive numerique seule
+--- Part non numerique (doit etre vide) : 0 feuille(s)
+--- Part numerique (ecart decroissant) : 0 feuille(s)
+Synthese : 18573 feuille(s) ; part numerique 0, ecart maximal 0.000e+00, 0 au-dela du seuil 1e-06 de la CI ; part non numerique 0 feuille(s), 0 noeud(s) de structure
+
