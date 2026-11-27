@@ -8049,7 +8049,18 @@ $\alpha = 0{,}10$ et deux à $\alpha/2$~: Grubbs sur \code{premium\_interieur} (
 \code{ALERTE}, fiche~\ref{mw:m1}) sur \code{reserve2}~; sur \code{reserve2\_trapeze}, nullité de
 l'ordonnée à l'origine ($0{,}083$, $0{,}0087$, \code{ALERTE}) au seuil $0{,}10$, pente
 intra-colonne relative ($0{,}058$, $0{,}0106$) et homogénéité de $f_j$ ($0{,}065$, $0{,}0078$),
-toutes deux \code{ALERTE}, au seuil $\alpha/2$. Les diagnostics par décision ne la portent
+toutes deux \code{ALERTE}, au seuil $\alpha/2$. Pour Grubbs sur \code{premium\_interieur}
+(fiche~\ref{fiche:grubbs}), une mesure à $B = 9\,999$ sous quatre graines distinctes de celle des
+références (\code{tests/mesure\_b\_dossier\_t8.R}, option \code{-{}-grubbs-interieur},
+\code{docs/tableaux/}\allowbreak\code{20261127-}\allowbreak\code{issue367-grubbs-interieur.md}) donne
+deux \code{OK} et deux \code{ALERTE}~; la p-value à $B$ infini, estimée à $0{,}1005$ sur $39\,996$
+tirages retenus, a pour intervalle de Clopper--Pearson à 99~\% $[0{,}0967~;~0{,}1044]$, qui contient
+$\alpha$~: le verdict à $B$ infini est indécidable entre \code{ALERTE} et \code{OK}, et \code{ECHEC}
+est exclu. Si elle valait $0{,}1005$, la situer par rapport à $\alpha$ à 99~\% demanderait de
+l'ordre de $2{,}4\cdot 10^{6}$ tirages retenus (approximation normale). C'est une estimation de
+Monte-Carlo d'une quantité définie par les données, les flux des graines étant tenus pour
+indépendants~; elle réduit l'erreur de Monte-Carlo, non l'erreur d'approximation du bootstrap à
+$T = 8$, et ne dit ni que le verdict \code{OK} des références est faux, ni qu'il est confirmé. Les diagnostics par décision ne la portent
 pas, la phrase étant exclue des diagnostics~: Breusch--Pagan original ($p = 0{,}090$,
 \code{err\_mc} $= 0{,}0091$) et homogénéité des dispersions par la médiane ($0{,}104$, $0{,}0097$),
 sur chacun des cas \code{premium}, \code{premium\_ii6}, \code{premium\_net} et \code{reserve1},
