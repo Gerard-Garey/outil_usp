@@ -81,3 +81,9 @@ Le calcul est déterministe (quadrature, puis graines fixes) : l'exécution offi
   - #421 : Q10, exemple du point 2 de `actuary-questions-421.md` corrigé par note (8,0e-4 et 1, valeurs bilatérales ; classement inchangé) ; deux non-rejets à Imhof tronqué donnent un désaccord, à lire « simulation ou quadrature ».
 - **Trace M42** : les écarts au protocole écrit de l'étape 1 (Q1, Q2 de #420 ; Q7, Q8 de #367) sont décidés avant toute exécution complète de ces deux mesures, sur les seules sorties `--essai` à B = 299 et 199 (non représentatives) ; la session les trace ici, dans le périmètre de la réserve M42 acceptée à l'étape 1, et les signale au mainteneur au compte rendu.
 - **Suite** : reprise unique de `coder-approfondi` (`high`) regroupant ces corrections, l'enregistrement de `mesure_correlation_cvm_ad_t8.R` dans `test_garde_ecrasement.R`, les mineurs des trois audits et les trois mineurs restants de l'audit de `ff7673f` (#494) ; audit léger du diff.
+
+### Reprise unique (27/11/2026)
+
+- Commits `db53649` (#420, et second cas `--grubbs-interieur --ecrire` de #367 dans `test_garde_ecrasement.R`), `c8e2eec` (#367), `945b21e` (#421), `9b730fb` (#494, trois mineurs de l'audit de `ff7673f`) ; `coder-approfondi` (`high`) ; seules des sorties `--essai` vues.
+- Quatre questions du coder tranchées par `actuary` (annexe de `actuary-questions-420-367.md`) : IC contenant α/2 et α signalé ECHEC/ALERTE ; seuil OK `borne basse ≥ α` (écart de cohérence au § 3.4, ajouté à la trace M42 avec Q8) ; T3 de #420 inchangé ; p du χ² d'homogénéité qualifiée d'asymptotique (une ligne).
+- Durées extrapolées des `--essai` : #421 environ 1 min ; #420 environ 6 min ; #367 17 à 21 min ; #494 `--familles` 3,3 à 3,7 h sans P2, 4,8 à 5,2 h avec P2 (PM-2).

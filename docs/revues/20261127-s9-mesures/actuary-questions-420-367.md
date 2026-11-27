@@ -92,3 +92,14 @@
 - **Critères déclenchés** : écart au protocole écrit (Q1, Q7, Q8), décidé avant toute exécution complète, dans le périmètre de la réserve M42. Aucun résultat du moteur n'est changé.
 - **Constats hors périmètre** : erreur d'exemple de mon avis 421, point 2 (valeurs unilatérales) : aucun critère G ni E1 à E6 (classement inchangé), donc mineur au sens de l'ADR 0018, corrigé ici ; omission du cas résiduel dans mon § 2.4 : aucun critère, donc mineur, corrigé par Q1.
 - **Prochaine action recommandée** : `coder-approfondi` applique Q1, Q2, Q4, Q7, Q8 et Q9 (et le χ² de Q6 s'il est retenu), puis relance les essais. `audit` léger sur le diff. La session verse cet avis et complète la trace M42 avant l'exécution complète de l'étape 6.
+
+## Annexe — réponse d'actuary aux quatre questions du coder après la reprise (27/11/2026, tête `9b730fb`)
+
+> *Fiche `actuary`, a priori, sans exécution ; versée intégralement par la session (Q-54-10). Lu : `tests/mesure_b_dossier_t8.R` l. 151-186, 452-460 (`gr_classe()`), 465-470 (`gr_khi2()`), 567-574, 648-650 ; `tests/mesure_correlation_cvm_ad_t8.R` l. 495-524.*
+
+1. **#367, IC contenant à la fois α/2 et α → d'accord, sans changement.** Oubli de ma Q8 (les cinq issues supposaient un intervalle plus étroit que α/2). Le signaler comme ECHEC/ALERTE retient le pire niveau plausible, lecture prudente ; `gr_classe()` teste ce cas avant « ECHEC/ALERTE » et « ALERTE/OK ». À N_tot ≈ 40 000, la largeur de l'IC à 99 % vaut environ 0,0074 (2,576 × √(0,09 × 0,91/40 000) × 2), bien en deçà de α/2 : le cas n'est possible qu'à N petit.
+2. **#367, seuil OK `borne basse ≥ α` au lieu de `> 0,10` → d'accord, sans changement.** Lettre de ma Q8, qui remplace le § 3.4 ; frontière de `add()` (OK si p ≥ α), α lu dans `meta$alpha`. Les deux règles ne diffèrent que si la borne vaut exactement 0,10 : changement de cohérence, sans effet pratique. À tracer dans la trace M42 avec Q8.
+3. **#420, T3 quand un seul jeu a des ex aequo → d'accord, sans changement.** Pour le jeu sans ex aequo, les deux conditionnelles imprimées sont égales, et leur minimum aussi, ce que contrôle (c5) ; ma Q2 s'applique au tableau entier. Le commentaire l. 495-498 suffit.
+4. **#367, p du χ² d'homogénéité → la qualifier d'« asymptotique » ; le code change (une ligne).** Libellé l. 648 de `tests/mesure_b_dossier_t8.R` : « p asymptotique (loi du χ² à s − 1 ddl) » ; l'effectif attendu minimal reste imprimé. Avec environ 900 attendus par cellule, l'approximation de Pearson est de très bonne qualité (constat d'usage, sans référence vérifiée ici). **Correction de ma Q6** : lire « l'approximation du χ² ne soulève pas de difficulté » au lieu de « est sans objet » ; la p reste asymptotique.
+
+**Critères** : un écart de plus au protocole écrit (seuil OK), décidé avant exécution, dans le périmètre de la réserve M42 ; aucun résultat du moteur changé. Constat hors périmètre : phrase mal écrite de ma Q6, corrigée ici (ADR 0018 : aucun critère).
