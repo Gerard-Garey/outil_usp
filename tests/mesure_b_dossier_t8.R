@@ -150,11 +150,11 @@
 #    3.2).
 #    Constat sans effet sur la lecture (Q6) : khi-2 d'homogeneite des K_s/N_s
 #    entre graines (tableau 2 x graines, (K_s, N_s - K_s) ; statistique de
-#    Pearson, p par la loi du khi-2 a (graines - 1) ddl, effectif attendu
-#    minimal imprime), sur les quatre secondaires et, a titre d'information,
-#    sur les cinq ; peu puissant contre une correlation entre flux, il
-#    detecte une anomalie grossiere (loi differente d'une graine a l'autre,
-#    erreur de comptage).
+#    Pearson, p asymptotique par la loi du khi-2 a (graines - 1) ddl,
+#    effectif attendu minimal imprime), sur les quatre secondaires et, a
+#    titre d'information, sur les cinq ; peu puissant contre une
+#    correlation entre flux, il detecte une anomalie grossiere (loi
+#    differente d'une graine a l'autre, erreur de comptage).
 #    Controles (code de sortie 1, --ecrire refuse) : (g0) ci-dessus ; (g1)
 #    sens de rejet au catalogue, puis par graine (1 + K_s) / (N_s + 1)
 #    identique a bootstrap$p_mc du moteur et a la p Monte-Carlo de la ligne,
@@ -460,8 +460,8 @@ gr_classe <- function(cp, alpha) {
 }
 
 # Khi-2 d'homogeneite des K_s / N_s entre graines (Q6) : tableau 2 x graines
-# (K_s, N_s - K_s), statistique de Pearson, p par la loi du khi-2 a
-# (graines - 1) ddl ; constat sans effet sur la lecture.
+# (K_s, N_s - K_s), statistique de Pearson, p asymptotique par la loi du
+# khi-2 a (graines - 1) ddl ; constat sans effet sur la lecture.
 gr_khi2 <- function(K, N) {
   O <- rbind(K, N - K)
   E <- outer(rowSums(O), colSums(O)) / sum(O)
@@ -645,7 +645,7 @@ mesure_grubbs_interieur <- function() {
           sprintf("| Intervalle de Clopper\u2013Pearson bilat\u00e9ral \u00e0 99 %% | [%s ; %s] | [%s ; %s] |", f5(AG4$cp[1]), f5(AG4$cp[2]), f5(AG5$cp[1]), f5(AG5$cp[2])),
           sprintf("| Classification de l'intervalle (seuils \u03b1/2 = %s et \u03b1 = %s de `add()`, sens \u00ab ne pas rejeter \u00bb) | %s | %s (sans lecture) |",
                   a2_txt, a_txt, AG4$classe, AG5$classe),
-          sprintf("| Khi-2 d'homog\u00e9n\u00e9it\u00e9 des K_s / N_s entre graines (constat, sans effet sur la lecture) : X\u00b2 (ddl) ; p ; effectif attendu minimal | %s | %s |",
+          sprintf("| Khi-2 d'homog\u00e9n\u00e9it\u00e9 des K_s / N_s entre graines (constat, sans effet sur la lecture) : X\u00b2 (ddl) ; p asymptotique (loi du khi-2 \u00e0 s \u2212 1 ddl, s graines) ; effectif attendu minimal | %s | %s |",
                   sprintf("%s (%d) ; %s ; %s", f4(AG4$khi2$x2), AG4$khi2$ddl, f4(AG4$khi2$p), fs1(AG4$khi2$emin)),
                   sprintf("%s (%d) ; %s ; %s", f4(AG5$khi2$x2), AG5$khi2$ddl, f4(AG5$khi2$p), fs1(AG5$khi2$emin))),
           sprintf("| \u03b1 du cas (`res$metadata$alpha`, contr\u00f4le (g3)) | %s | %s |", a_txt, a_txt),
