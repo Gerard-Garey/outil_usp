@@ -1,0 +1,168 @@
+Controle ND de C:/Users/jerem/AppData/Local/Temp/claude/e862dd6e76ae4124/4d2644fb-de7a-453c-ae02-1a68180617a9/scratchpad/wtmain/tests/../docs/latex/doc_tests_usp.tex (23220 lignes). Mode : avertissement (code de sortie 0).
+
+== (a) Motifs de vie du depot ==
+Liste A (interdits) :
+ motif occurrences lignes Preambule Partie I Partie II Partie III Partie IV Annexe
+    A1           0      0         0        0         0          0         0      0
+    A2           0      0         0        0         0          0         0      0
+    A3           0      0         0        0         0          0         0      0
+    A4           0      0         0        0         0          0         0      0
+    A5           0      0         0        0         0          0         0      0
+    A6           0      0         0        0         0          0         0      0
+    A7           0      0         0        0         0          0         0      0
+    A8           0      0         0        0         0          0         0      0
+    A9           0      0         0        0         0          0         0      0
+   A10           0      0         0        0         0          0         0      0
+   A11           0      0         0        0         0          0         0      0
+   A12           0      0         0        0         0          0         0      0
+   A13           0      0         0        0         0          0         0      0
+   A14           0      0         0        0         0          0         0      0
+TOTAL liste A : 0 occurrences sur 0 lignes (3 occurrences exemptees).
+
+Liste B (a surveiller, jamais bloquante) :
+ motif occurrences lignes Preambule Partie I Partie II Partie III Partie IV Annexe
+    B1           0      0         0        0         0          0         0      0
+    B2           0      0         0        0         0          0         0      0
+    B3           0      0         0        0         0          0         0      0
+    B4           0      0         0        0         0          0         0      0
+    B5           0      0         0        0         0          0         0      0
+    B6           2      2         0        2         0          0         0      0
+    B7           0      0         0        0         0          0         0      0
+    B8           7      7         0        0         3          4         0      0
+    B9          26     26         0        8         5         11         2      0
+   B10           1      1         0        1         0          0         0      0
+   B11           0      0         0        0         0          0         0      0
+   B12           2      2         0        2         0          0         0      0
+TOTAL liste B : 38 occurrences sur 38 lignes.
+
+Exceptions :
+  E3 : appliquee (1 occurrence(s) exemptee(s)) -- regle permanente : dossier de suivi cite comme piece de tracabilite, en partie IV seulement
+  E10 : appliquee (1 occurrence(s) exemptee(s)) -- regle permanente : date d'etablissement figee, ligne de definition de \datedoc
+  E11 : appliquee (1 occurrence(s) exemptee(s)) -- regle permanente : date de consultation des sources, ligne de definition de \dateconsultation (decision du mainteneur du 19/11/2026, #607)
+
+-- B6 (avant / apres) : 2 occurrence(s), 2 ligne(s) ; 2 premiere(s) :
+  l.3173 [Partie I] avant / après | tableau avant / après, et aucune valeur numérique de référence n'est produite sur un
+  l.3183 [Partie I] avant / après | \code{tests/test\_reproductibilite.R}, le tableau avant / après
+
+-- B8 (n'est plus) : 7 occurrence(s), 7 ligne(s) ; 5 premiere(s) :
+  l.6522 [Partie II] n'est plus | ce plancher n'est plus sous $\alpha/2$~: \code{run\_engine()} exige en outre $B + 1 > 4/\alpha$
+  l.7028 [Partie II] n'est plus |   marge relative $\Delta = \theta\bar y$, la marge dépend des $y_t$ et la loi n'est plus
+  l.8826 [Partie II] n'est plus | la méthode Merz--Wüthrich, où la profondeur pertinente n'est plus $T$ mais le
+  l.12954 [Partie III] n'est plus | $P = M$, n'est plus qu'une approximation de la loi de $\mathrm{DW}$, sans borne d'erreur connue
+  l.15204 [Partie III] n'est plus | résidus sont à paramètres fixes et l'enveloppe n'est plus celle d'Atkinson.
+
+-- B9 (ne ... plus) : 26 occurrence(s), 26 ligne(s) ; 5 premiere(s) :
+  l.1202 [Partie I] ne restituent ni $1/3$ ni le plus | que les 15~chiffres de \code{write.csv()} ne restituent ni $1/3$ ni le plus grand double fini
+  l.2747 [Partie I] ne sont plus | années fournies mais écartées de l'estimation, au motif qu'elles ne sont plus représentatives du
+  l.3077 [Partie I] ne tirent rien non plus | ne tirent rien non plus~: elles comptent des rangs dans la matrice des réplications du bootstrap
+  l.4795 [Partie I] ne suivrait plus |   \code{ALERTE} des tests en sens «~rejeter~» disparaîtrait et le verdict ne suivrait plus la
+  l.5075 [Partie I] ne le sont pas non plus | \code{TOL\_DELTA\_BORD} fois leur moyenne), ne le sont pas non plus~: \code{engine\_valider\_donnees()} émet l'avertissement
+
+-- B10 (non versionne) : 1 occurrence(s), 1 ligne(s) ; 1 premiere(s) :
+  l.1331 [Partie I] non versionné | (mesure non versionnée~; son versionnement est un travail postérieur à la remise), et sur la
+
+-- B12 (commit) : 2 occurrence(s), 2 ligne(s) ; 2 premiere(s) :
+  l.3171 [Partie I] commit | consignées dans le message de chaque commit de référence, et le modèle de processeur est consigné. Le workflow ne fait
+  l.3172 [Partie I] commit | que calculer et publier les références~; leur commit reste un geste distinct, après contrôle du
+
+== (b) Plafond de pages des fiches de la partie III ==
+AVERTISSEMENT : aucun fichier .aux : controle (b) sur les caracteres seuls (avertissement). 
+Regle : violation si etendue >= 3 pages ET source > 10500 caracteres ; a verifier si etendue >= 3 pages, source plus courte ; fiche sous exception, non conforme sans elle : conforme (exception) si etendue <= plafond accorde ET source <= budget accorde en caracteres, sinon verdict sans exception.
+ id                                    fiche debut fin pages caracteres budget                 verdict
+  2                  fiche:student-constante    NA  NA    NA      10176     NA   conforme (sans pages)
+  3                     fiche:tost-constante    NA  NA    NA      10489     NA   conforme (sans pages)
+  4                      fiche:student-pente    NA  NA    NA      12927  13000 a verifier (sans pages)
+  5    fiche:student-pente-modele-auxiliaire    NA  NA    NA       5621     NA   conforme (sans pages)
+  6                      fiche:fisher-global    NA  NA    NA       5041     NA   conforme (sans pages)
+  7                                 fiche:r2    NA  NA    NA       4538     NA   conforme (sans pages)
+  8                              fiche:reset    NA  NA    NA       7315     NA   conforme (sans pages)
+  9                           fiche:spearman    NA  NA    NA      10489     NA   conforme (sans pages)
+ 10                       fiche:mann-kendall    NA  NA    NA       7577     NA   conforme (sans pages)
+ 11                         fiche:cox-stuart    NA  NA    NA      10473     NA   conforme (sans pages)
+ 12              fiche:breusch-pagan-koenker    NA  NA    NA      10420     NA   conforme (sans pages)
+ 13                 fiche:breusch-pagan-1979    NA  NA    NA       4616     NA   conforme (sans pages)
+ 14                              fiche:white    NA  NA    NA       4161     NA   conforme (sans pages)
+ 15                    fiche:goldfeld-quandt    NA  NA    NA       5364     NA   conforme (sans pages)
+ 16                     fiche:brown-forsythe    NA  NA    NA       3603     NA   conforme (sans pages)
+ 17                            fiche:smirnov    NA  NA    NA       6832     NA   conforme (sans pages)
+ 18                     fiche:position-delta    NA  NA    NA       5720     NA   conforme (sans pages)
+ 19                       fiche:shapiro-wilk    NA  NA    NA       6637     NA   conforme (sans pages)
+ 20                    fiche:shapiro-francia    NA  NA    NA       7211     NA   conforme (sans pages)
+ 21                   fiche:anderson-darling    NA  NA    NA       7711     NA   conforme (sans pages)
+ 22                   fiche:cramer-von-mises    NA  NA    NA       4843     NA   conforme (sans pages)
+ 23                 fiche:kolmogorov-smirnov    NA  NA    NA       5090     NA   conforme (sans pages)
+ 24                         fiche:lilliefors    NA  NA    NA       6307     NA   conforme (sans pages)
+ 25                        fiche:jarque-bera    NA  NA    NA       6519     NA   conforme (sans pages)
+ 26                fiche:dagostino-asymetrie    NA  NA    NA       6643     NA   conforme (sans pages)
+ 27       fiche:anscombe-glynn-aplatissement    NA  NA    NA       5733     NA   conforme (sans pages)
+ 28                      fiche:durbin-watson    NA  NA    NA      10154     NA   conforme (sans pages)
+ 29                          fiche:ljung-box    NA  NA    NA       5992     NA   conforme (sans pages)
+ 30              fiche:suites-wald-wolfowitz    NA  NA    NA      10390     NA   conforme (sans pages)
+ 31                                fiche:foc    NA  NA    NA      14990  15000 a verifier (sans pages)
+ 32                           fiche:centrage    NA  NA    NA       8367     NA   conforme (sans pages)
+ 33                  fiche:variance-unitaire    NA  NA    NA       7451     NA   conforme (sans pages)
+ 34         fiche:durbin-watson-ratios-bruts    NA  NA    NA       8772     NA   conforme (sans pages)
+ 35                fiche:suites-ratios-bruts    NA  NA    NA      10485     NA   conforme (sans pages)
+ 36                              fiche:sup-f    NA  NA    NA       7754     NA   conforme (sans pages)
+ 37                          fiche:ols-cusum    NA  NA    NA       7253     NA   conforme (sans pages)
+ 38                             fiche:grubbs    NA  NA    NA       8808     NA   conforme (sans pages)
+ 39                         fiche:rosner-esd    NA  NA    NA      11944  13000 a verifier (sans pages)
+ 40                               fiche:cook    NA  NA    NA       6100     NA   conforme (sans pages)
+ 41                            fiche:leviers    NA  NA    NA       3708     NA   conforme (sans pages)
+ 42                 fiche:sup-f-ratios-bruts    NA  NA    NA       7395     NA   conforme (sans pages)
+ 43             fiche:ols-cusum-ratios-bruts    NA  NA    NA       6899     NA   conforme (sans pages)
+ 44                fiche:grubbs-ratios-bruts    NA  NA    NA       7794     NA   conforme (sans pages)
+ 45                           fiche:rv-delta    NA  NA    NA      10472     NA   conforme (sans pages)
+ 46                          fiche:jackknife    NA  NA    NA      10456     NA   conforme (sans pages)
+ 47                       fiche:ic-bootstrap    NA  NA    NA      14013  15000 a verifier (sans pages)
+ 48                   fiche:multi-demarrages    NA  NA    NA       6507     NA   conforme (sans pages)
+ 49                             fiche:qqnorm    NA  NA    NA      10495     NA   conforme (sans pages)
+ 50           fiche:qqplot-deux-echantillons    NA  NA    NA       1471     NA   conforme (sans pages)
+ 51             fiche:graph-influence-levier    NA  NA    NA       5138     NA   conforme (sans pages)
+ 52                    fiche:spread-location    NA  NA    NA      10080     NA   conforme (sans pages)
+ 53 Visualisation de la régression chain-lad    NA  NA    NA       5635     NA   conforme (sans pages)
+ 54                             mw:influence    NA  NA    NA      10499     NA   conforme (sans pages)
+ 55                                    mw:m1    NA  NA    NA      13805  14000 a verifier (sans pages)
+ 56                                   mw:m1a    NA  NA    NA      14962  15000 a verifier (sans pages)
+ 57                                   mw:m1b    NA  NA    NA      10496     NA   conforme (sans pages)
+ 58                                   mw:m1c    NA  NA    NA      13714  14000 a verifier (sans pages)
+ 59                                   mw:m1d    NA  NA    NA      12479  12800 a verifier (sans pages)
+ 60                                  mw:m1id    NA  NA    NA      10886  12000 a verifier (sans pages)
+ 61                                  mw:m2bp    NA  NA    NA      11936  12000 a verifier (sans pages)
+ 62                                   mw:m2b    NA  NA    NA      14403  14500 a verifier (sans pages)
+ 63                                 mw:m2var    NA  NA    NA       8521     NA   conforme (sans pages)
+ 64                                 mw:m3cal    NA  NA    NA      11175  13000 a verifier (sans pages)
+ 65                             mw:m3caldiag    NA  NA    NA       9564     NA   conforme (sans pages)
+ 66                                 mw:m3acc    NA  NA    NA      10229     NA   conforme (sans pages)
+ 67                                 mw:m3cor    NA  NA    NA       7152     NA   conforme (sans pages)
+ 68                                  mw:m3dw    NA  NA    NA       5749     NA   conforme (sans pages)
+ 69                                mw:m3runs    NA  NA    NA       9284     NA   conforme (sans pages)
+ 70                                  mw:m4gr    NA  NA    NA      13993  15500 a verifier (sans pages)
+ 71                                 mw:m4ros    NA  NA    NA       5263     NA   conforme (sans pages)
+ 72                                  mw:m5sw    NA  NA    NA       5901     NA   conforme (sans pages)
+ 73                                  mw:m5li    NA  NA    NA       3489     NA   conforme (sans pages)
+ 74                                 mw:m6sig    NA  NA    NA      10480     NA   conforme (sans pages)
+ 75                                mw:m6conc    NA  NA    NA       3161     NA   conforme (sans pages)
+ 76                          fiche:p-famille    NA  NA    NA      10444     NA   conforme (sans pages)
+ 77                          fiche:p-globale    NA  NA    NA       5820     NA   conforme (sans pages)
+
+Exceptions au plafond :
+  fiche:student-pente : appliquee (plafond accorde 3 pages, budget 13000 caracteres) -- second fondement d'exactitude (loi de permutation exacte sous l'echangeabilite), reserve d'echangeabilite et constat C6 gardes integralement ; source au plus 13 000 caracteres
+  fiche:foc : appliquee (plafond accorde 3 pages, budget 15000 caracteres) -- controle numerique qui fonde la validite de l'estimation : derivation, regle au moins un demarrage et sa reserve, identite FOC, lecture a T = 8, libelle courbure ; source au plus 15 000 caracteres
+  fiche:rosner-esd : appliquee (plafond accorde 3 pages, budget 13000 caracteres) -- source valable pour n >= 25 seulement : lecture critique de l'article, niveau exact de la premiere etape et son domaine, constat C7, raisons de l'absence de verdict ; source au plus 13 000 caracteres
+  fiche:ic-bootstrap : appliquee (plafond accorde 3 pages, budget 15000 caracteres) -- seule mesure de la validite du bootstrap parametrique pour sigma_USP a T = 8 : couverture a cinq intervalles, biais, Andrews (2000), intervalle basic logarithmique, dependance de L a la table ; source au plus 15 000 caracteres
+  mw:m1 : appliquee (plafond accorde 3 pages, budget 14000 caracteres) -- seule ligne de M1 qui agrege les colonnes, construction de l'outil : pente relative a effets fixes et ponderation MCG avec la justification chiffree de l'effet fixe, forme close de Frisch et Waugh et sa verification, loi de Student approchee, critere de recevabilite a posteriori et sa reserve, puissance appariee, nature de l'alternative, non-specificite ; source au plus 14 000 caracteres
+  mw:m1a : appliquee (plafond accorde 3 pages, budget 15000 caracteres) -- test central de M1 apres transfert des regles communes et des phrases de B effectif : argument de la loi chi2(2K) exacte sous erreurs gaussiennes et ses deux reserves, colonnes non identifiables propres a la ligne, p-value conditionnelle a la definition de la statistique et sa mesure, puissance et dispersion intra-colonne ; source au plus 15 000 caracteres
+  mw:m1c : appliquee (plafond accorde 3 pages, budget 14000 caracteres) -- statistique definie par sa forme close (Cauchy-Binet, Cramer, Schur) et verifiee en precision etendue, colonnes non identifiables et ensemble fige propres a la ligne, loi chi2(2K) exacte sous erreurs gaussiennes et sa reserve, cout de la forme close, arbitrage de la colonne a un degre de liberte ; source au plus 14 000 caracteres
+  mw:m1d : appliquee (plafond accorde 3 pages, budget 12800 caracteres) -- construction de l'outil sans test publie : sources de la famille alpha (Mack 1994 et 1999), lecture des deux branches de H1 au regard de D(2)(h)(iii), absence de loi analytique, colonnes degenerees, puissance, exposants de variance sous H0 vraie, profils compares a la pente relative ; source au plus 12 800 caracteres
+  mw:m1id : appliquee (plafond accorde 3 pages, budget 12000 caracteres) -- diagnostic qui conditionne la lecture de la puissance de M1 et M2 : identite exacte de la variance de l'ordonnee, proprietes algebriques de e_a (Jensen, sigma2 gonfle sous H1), multiplicateurs de Student decentree et variante dementie par la mesure, lectures de R_j et CV_j ; source au plus 12 000 caracteres
+  mw:m2bp : appliquee (plafond accorde 3 pages, budget 12000 caracteres) -- construction de l'outil (nR2 de Koenker partialise par Frisch et Waugh) : artefacts ecartes et justification, loi chi2(1) asymptotique non adossee, statistique sans effet de colonne non retenue, lecture de l'exposant 1, absence de puissance mesurable, non-specificite ; source au plus 12 000 caracteres
+  mw:m2b : appliquee (plafond accorde 3 pages, budget 14500 caracteres) -- H0 ne traduit l'hypothese reglementaire qu'a l'effet de levier pres : variance exacte 1 - h, trois causes d'un rejet lues au regard de D(2)(h)(iv), mecanisme sous un ecart regulier, troisieme reserve de la loi chi2(2K), portee d'un rejet (art. 219 et 220), absence de puissance et non-specificite ; source au plus 14 500 caracteres
+  mw:m3cal : appliquee (plafond accorde 3 pages, budget 13000 caracteres) -- procedure de l'annexe H de Mack et ses trois ecarts, moments exacts et exemple publie, regle de decision de Mack et niveau des p asymptotiques, puissance en queue basse contre bilaterale, sous-triangle 5x5 ; source au plus 13 000 caracteres
+  mw:m4gr : appliquee (plafond accorde 3 pages, budget 15500 caracteres) -- test central de M4, construction de l'outil : loi de Student conditionnelle et borne de Bonferroni mesuree non utilisable, cellule a influence non bornee et sa frontiere numerique, choix du minimum et exclusion des colonnes de trois facteurs, trois limites, remplacement de Grubbs ; source au plus 15 500 caracteres
+TOTAL (b) : 76 fiche(s) en partie III, 0 violation(s), 13 a verifier, 63 conforme(s).
+
+== (c) Debordements (journal LaTeX) ==
+AVERTISSEMENT : aucun journal LaTeX (.log) : debordements non lus (avertissement). 
+
+BILAN : 0 occurrence(s) de la liste A, 0 fiche(s) en violation du plafond, 0 debordement(s) en violation, 0 avertissement(s) de remplissage.

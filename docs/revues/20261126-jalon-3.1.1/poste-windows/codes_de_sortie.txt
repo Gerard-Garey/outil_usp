@@ -1,0 +1,6 @@
+﻿git rev-parse HEAD : 7ad4e2f7b9875c0692d5b7d3f32dae26173da8e4
+git status --porcelain (avant) : []
+Rscript tests/comparer_references.R --deux-parts | debut 2026-11-27T08:32:12Z | fin 2026-11-27T08:33:08Z | code de sortie 1
+Rscript tests/test_reproductibilite.R | debut 2026-11-27T08:33:08Z | fin 2026-11-27T08:34:46Z | code de sortie 1
+Rscript tests/unitaires/test_merz_wuthrich_trapeze.R | debut 2026-11-27T08:34:46Z | fin 2026-11-27T08:35:24Z | code de sortie 0
+git status --porcelain (apres) : []

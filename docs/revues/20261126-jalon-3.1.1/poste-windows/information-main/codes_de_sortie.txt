@@ -1,0 +1,4 @@
+﻿git rev-parse HEAD : 5c52a2d3695516e4b2f121cbcbdd3bcab0f29e97
+Rscript tests/test_unitaires.R | debut 2026-11-27T08:32:13Z | fin 2026-11-27T09:03:19Z | code de sortie 0
+Rscript tests/controle_doc_nd.R | debut 2026-11-27T09:03:19Z | fin 2026-11-27T09:03:24Z | code de sortie 0
+git status --porcelain (apres) : []
