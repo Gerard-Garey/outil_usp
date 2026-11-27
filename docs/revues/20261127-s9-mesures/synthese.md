@@ -108,3 +108,11 @@ Le calcul est déterministe (quadrature, puis graines fixes) : l'exécution offi
   - #367 : agrégat des quatre graines secondaires 4 019 / 39 996, p̂ = 0,10049, IC de Clopper–Pearson à 99 % [0,09665 ; 0,10442], contenant α : **indécidable ALERTE / OK**, aucun signal au mainteneur ; graine du dossier 0,0975 (ALERTE), rapportée à part ; χ² d'homogénéité, p asymptotique 0,686.
   - #379, lognormale : un seul signal PM-3 évalué mécaniquement (J1, point A, famille D., α = 0,10 : π̂ 0,070 contre π̂(N) 0,110, McNemar unilatéral 0,0403).
   - #494 et #379, Merz-Wüthrich : aucun signal PM-3 ; recoupement avec le brut de #309 identique triangle par triangle (P1.H0, P2.H0 : 500 / 500, p_mc de CorrDev = p:CorrDev) ; F4, taux de CorrDev compatibles avec ρ dans les quatre cellules H0 ; second cas de PM-3 : n01 = n10 = 0, p = 1, résultat mécanique attendu (avis de l'étape 5 bis, Q3).
+
+## Étape 7 — lecture des tableaux (27/11/2026)
+
+- **Avis** : `actuary-lecture-etape-7.md` (`actuary-approfondi`), à la tête `0c04d7a`.
+- **Verdicts** : #421, K421-1 à K421-5 satisfaits ; #420, quasi-redondance sous H0 établie ; #367, indécidable ALERTE / OK, ECHEC exclu, **aucun signal au mainteneur** ; #379, classes établies, le signal nominal lognormal (J1, A, D., 0,10) **non retenu** (multiplicité de 60 comparaisons, non reproduit, hors de l'objet du critère), second cas de PM-3 non déclenché ; #494, classes établies, PM-3 non déclenché (le second cas ne pouvait pas l'être).
+- **PM-3 : non ouvert.** Aucune mesure ne contredit une phrase du `.tex` au-delà de son incertitude, aucune ne révèle de défaut du moteur. Phrases périmées listées par issue pour `docwriter` (étape 8).
+- **Écart de méthode tracé** : le second cas de PM-3 de #379 (niveau contre T-F1 de #297) n'était porté par aucun tableau ; `actuary` l'a calculé à l'étape 7 (test exact de Fisher, commande et sortie dans l'avis, § 4.3).
+- **Constats mineurs écartés (ADR 0018)** : la fiche S9 cite pour #494 la l. 9768 du `.tex`, qui concerne le volet lognormal (passages CorrDev : l. 9991, 10528, 18540 ; corrigé dans la consigne de `docwriter`) ; la colonne « classe (par. 4.5) » du tableau lognormal de #379 renvoie au § 4.5 alors que le critère est au § 5.6, qui reprend ces classes.
