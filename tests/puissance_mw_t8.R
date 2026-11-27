@@ -3017,7 +3017,13 @@ if (MODE == "familles") {
   # Graines des cellules (b = 1..R, triangle et bootstrap) : (1) dans les
   # plages declarees de #309 (PLAGES_B, litteraux du plan) ; (2) cellule AR :
   # memes graines que la cellule H0 du plan (nombres aleatoires communs),
-  # cellule H0 relue dans CELLULES par plan et code ; (3) cellule a graines
+  # cellule H0 relue dans CELLULES par plan et code ; ce lien est vrai par
+  # construction : le rang d'une cellule AR est lu dans CELLULES_FAM sur la
+  # ligne de sa reference (plan.H0), celle-la meme que relit le controle, et
+  # les deux graines sont calculees par les memes graine_tri_B() /
+  # graine_boot_B() ; cette branche ne peut echouer que si la cellule H0 du
+  # plan est absente ou non unique dans CELLULES (R <= R_max etant impose a
+  # l'analyse de --cellules) ; (3) cellule a graines
   # distinctes (hors H0 et hors AR : CST20, DCAL) : graines disjointes de
   # celles de la cellule H0 du plan sur tout son R de #309 (echantillons
   # independants, test exact de Fisher de F1). Les comparaisons de la version
@@ -3046,7 +3052,7 @@ if (MODE == "familles") {
       CF$id[i], graine_tri_B(CF$plan[i], CF$rang[i], 1L), graine_tri_B(CF$plan[i], CF$rang[i], CF$R[i]),
       graine_boot_B(CF$plan[i], CF$rang[i], 1L), graine_boot_B(CF$plan[i], CF$rang[i], CF$R[i]), CF$rang[i], CF$plan[i], CF$R_max[i],
       if (is.finite(CF$rho[i])) "graines de la cellule H0 du plan" else if (CF$code[i] == "H0") "cellule H0" else "disjointes de la cellule H0 du plan"), "")
-    controle(all(ok), sprintf(paste0("Familles, graines des cellules dans les plages d\u00e9clar\u00e9es de #309 (PLAGES_B) ; cellules AR : graines de la cellule H0 du plan, aucune graine nouvelle ;",
+    controle(all(ok), sprintf(paste0("Familles, graines des cellules dans les plages d\u00e9clar\u00e9es de #309 (PLAGES_B) ; cellules AR : graines de la cellule H0 du plan par construction (rang lu sur la m\u00eame ligne de CELLULES), aucune graine nouvelle ;",
                                      " cellules \u00e0 graines distinctes : disjointes de celles de la cellule H0 du plan : %s%s"),
                               paste(txt, collapse = " ; "), if (all(ok)) "" else paste0(" ; EN D\u00c9FAUT : ", paste(CF$id[!ok], collapse = ", "))))
   })
