@@ -259,6 +259,7 @@ Entrée qui couvre aussi les sous-sections sans `\label` « Hiérarchie de lectu
 - Encadré « Rappel final » : fréquences de 38,35 % (J1) et 42,7 % (J2) mesurées au commit `836b55d` par #274, moteur antérieur à #299, #302 et #303, p-value conditionnelle au régime à δ̂ intérieur retenue depuis #240 ; fréquences de 36,55 % et 40,95 % mesurées au commit `7ff4725` par #297.
 
 - S6, #610, 22/11/2026, passage de fin de branche de `docwriter` : hiérarchie de lecture, ligne du jackknife et de l'intervalle bootstrap, complétée (aucun intervalle calibré par bootstrap imbriqué mesuré ne rétablit le niveau).
+- Hiérarchie de lecture, point « Lecture conjointe », texte retiré (S9, #379, 27/11/2026, passage de fin de branche de `docwriter`) : « (puissance non mesurée~; sa mesure est un travail postérieur à la remise) » ; remplacé par « (puissance mesurée sous plans, le plus souvent faible~; familles non spécifiques~: une p de famille faible ne désigne pas l'hypothèse en défaut~; section~\ref{sec:lecture-conjointe}) ».
 **Décisions.** Seule une ligne de type test porte un verdict : ADR 0001, amendement du 23/09/2026 (M7), annoté le 28/10/2026 ; repères sans verdict : M7 (#24) ; repères du jackknife et de l'intervalle bootstrap dans les fiches seulement : M27 (#76) ; ESD et suites diagnostics par décision du mainteneur (#304, #300, #312).
 
 **Mesures retirées du guide.**

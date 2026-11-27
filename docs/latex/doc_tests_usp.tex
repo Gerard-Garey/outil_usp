@@ -8322,7 +8322,9 @@ de l'ordre de la granularité.
   n'est connue ni employée, et la p-value de Monte-Carlo, calculée et restituée, n'est pas retenue par décision
   (section~\ref{sec:nature}, diagnostics par décision). Leur niveau à $T = 8$ n'est établi par aucun résultat publié~; mesuré sous quatre
   plans, il est compatible avec la référence ou en écart mineur du côté conservateur~; leur
-  puissance n'est pas mesurée (travail postérieur à la remise).
+  puissance, mesurée sous plans pour une partie des familles et des alternatives, est le plus
+  souvent faible, les familles ne sont pas spécifiques, et celle de D., M2, C., G. et M4 n'est pas
+  mesurée (tête de la section~\ref{sec:lecture-conjointe}).
   \item \textbf{Ce qu'aucune méthode ne restitue.} Ni le bootstrap ni les lois
   exactes n'augmentent la \emph{puissance}. À $T = 8$, l'ensemble du dispositif
   reste très peu puissant~: une p-value élevée n'est pas une validation
@@ -8829,7 +8831,8 @@ membres & Non & Non & Oui (mêmes réplications, rangs symétriques) & \textbf{D
 p-value retenue (p de Monte-Carlo plug-in restituée) & Sans objet : aucune loi limite employée &
 Lire comme aide à la lecture conjointe d'une famille~: contrôle au sens faible, sous le modèle
 ajusté~; niveau compatible ou en écart mineur conservateur sous les quatre plans mesurés~; une p
-élevée n'atteste pas l'adéquation, puissance non mesurée (travail postérieur à la remise~; fiche~\ref{fiche:p-famille}) \\
+élevée n'atteste pas l'adéquation~; puissance mesurée sous plans pour une partie des familles, le
+plus souvent faible, familles non spécifiques (fiche~\ref{fiche:p-famille}) \\
 
 p globale (minP, lecture conjointe de la batterie) & Les deux & $m_{\mathrm{obs}}$ de la
 batterie & Non & Non & Oui (idem) & \textbf{Diagnostic}, aucune p-value retenue & Sans objet :
@@ -19554,6 +19557,52 @@ restant des diagnostics. \emph{Statut}~: constats de simulation sous ces quatre 
 l'incertitude de Clopper--Pearson (fonction de $R$) et l'erreur de Monte-Carlo de chaque p
 (fonction de $n$) sont distinctes de l'erreur d'approximation en $T$, que la mesure ne borne pas.
 
+\emph{Puissance mesurée des lignes de lecture conjointe à $T = 8$} (fiches~\ref{fiche:p-famille}
+et~\ref{fiche:p-globale}~; classes et critères fixés avant toute exécution). Constat de simulation
+sous plan, jamais un résultat général~: taux de $p < \alpha$ de la ligne que restitue le moteur,
+procédure complète à $B = 999$, dont l'erreur de Monte-Carlo de chaque p fait partie~; la puissance
+à $B$ infini n'est pas mesurée. Le taux est rapporté aux jeux ou triangles où la ligne est
+présente, comme au tableau T-F1 de la mesure du niveau. Méthode lognormale~: \code{run\_engine()}
+complet, 300 réplications par point, sous les modèles ajustés à J1 et J2 et les alternatives du
+volet~B (tableau~\ref{tab:tracabilite-puissance}), AR(1) à $\rho = 0{,}5$ (A), tendance de 2
+écarts-types (T), rupture de 2 écarts-types après l'année~4 (R), en nombres aléatoires communs avec
+le point nul (\code{tests/puissance\_t8.R}, mode \code{-{}-familles},
+\code{docs/tableaux/}\allowbreak\code{20261127-}\allowbreak\code{issue379-familles-ln.md}). Méthode
+Merz--Wüthrich~: modèle de Mack gaussien ajusté au triangle de contrôle, géométrie $8 \times 8$,
+première colonne fixée, plans P1 et P2 de la mesure de puissance de la section~\ref{sec:calib-mc-mw},
+300 ou 500 triangles par cellule, ordonnée à l'origine ($\delta = 0{,}20$), dérive calendaire de
+$5~\%$ par exercice et persistance AR(1) des erreurs des facteurs d'une même année de survenance
+($\rho = 0{,}3$ et $0{,}5$) (\code{tests/puissance\_mw\_t8.R}, mode \code{-{}-familles},
+\code{docs/tableaux/}\allowbreak\code{20261127-}\allowbreak\code{issue379-issue494-}\allowbreak\code{puissance-mw.md}).
+Classes~: \emph{non distinguée} du niveau si le test exact de McNemar apparié contre le point nul
+n'est pas significatif à $0{,}05$~; sinon \emph{faible} (borne haute de l'intervalle de
+Clopper--Pearson à 95~\% sous $0{,}5$), \emph{substantielle} (borne basse au moins $0{,}5$) ou
+\emph{intermédiaire}~; le seuil $0{,}5$ est une convention déclarée. \emph{Résultat} (seuil
+$0{,}10$, J1~/ J2 en lognormal)~: famille que vise l'alternative, E. sous A, $0{,}227$
+$[0{,}181~;~0{,}278]$~/ $0{,}180$, et B. sous T, $0{,}377$ $[0{,}322~;~0{,}434]$~/ $0{,}177$,
+faibles~; F. sous R, $0{,}520$ $[0{,}462~;~0{,}578]$~/ $0{,}500$ $[0{,}442~;~0{,}558]$,
+intermédiaire~; ligne globale de $0{,}130$ (T sur J2, non distinguée du niveau) à $0{,}397$ (R sur
+J1). En Merz--Wüthrich, sous P1, M1 sous l'ordonnée à l'origine, $0{,}757$ $[0{,}704~;~0{,}804]$,
+et sous la dérive calendaire, $0{,}560$, substantielles, de même que la ligne globale sous
+l'ordonnée à l'origine, $0{,}583$~; M3 sous la dérive calendaire, $0{,}267$, et sous la persistance
+AR(1), de $0{,}200$ ($\rho = 0{,}3$) à $0{,}432$ ($\rho = 0{,}5$~; $0{,}418$ sous P2), faibles. Dans
+toutes les autres cellules mesurées à ce seuil, le taux est inférieur à $0{,}5$, la seule autre classe
+intermédiaire étant B. sous R sur J1 ($0{,}503$)~: hors de ces six cellules, une p de famille ou une
+p globale élevée n'atteste pas l'adéquation, et elle ne l'établit dans aucune. \emph{Les familles
+ne sont pas spécifiques}~: sous A sur J1, B. ($0{,}337$) réagit plus que E., famille visée~; sous R
+sur J1, B. presque autant que F.~; sous la dérive calendaire, M1 plus que M3~: une p de famille
+faible ne désigne pas l'hypothèse en défaut. Le contrôle de l'erreur a un prix en puissance~: lu en
+excès sur le niveau, le gain de la ligne approche ou dépasse celui de l'événement «~au moins un
+membre a une p-value de Monte-Carlo sous $\alpha$~» sous une alternative forte (M1 sous l'ordonnée
+à l'origine, $+0{,}667$ contre $+0{,}632$) et reste en deçà ailleurs (F. sous R sur J1, $+0{,}393$
+contre $+0{,}520$). \emph{Non mesurées}~: la puissance de D. et de M2 contre les écarts qu'elles
+visent (aucun scénario de non-normalité ni d'hétéroscédasticité dans ces plans~; M2 n'est
+distinguée du niveau dans aucune cellule de P1), et celle de C., G. et M4, sans ligne (au plus un
+membre). \emph{Statut}~: constats de simulation sous ces plans, sans transposition à un autre
+jeu, triangle, géométrie ou alternative~; p de famille plug-in, non exactes~; les intervalles de
+Clopper--Pearson (fonction de $R$) sont distincts de l'erreur de Monte-Carlo (fonction de $B$) et
+de l'erreur d'approximation en $T$, non bornée.
+
 \begin{fiche}{p de famille (minP, lecture conjointe)}
 \label{fiche:p-famille}%
 \refl{Ajustement minP en une étape par rééchantillonnage~: P.\,H. Westfall, S.\,S. Young,
@@ -19667,14 +19716,14 @@ l'affiche comme valeur non retenue, sans p retenue ni nature, la granularité de
 $1/(n+1)$. \emph{Pourquoi aucun verdict.} Donner un verdict à la ligne ferait coexister
 deux niveaux de décision sur les mêmes hypothèses~: une famille \code{OK} pourrait contenir une
 ligne en \code{ECHEC}, et le dossier deviendrait ambigu sur ce qui fait foi. La mesure du niveau
-est nécessaire mais non suffisante pour en faire un test~: la puissance n'en est pas mesurée.
+est nécessaire mais non suffisante pour en faire un test~: la puissance n'en est mesurée qu'en partie.
 
 \emph{Niveau à $T = 8$} (mesure en tête de section)~: pour les lignes de famille et la ligne
 globale mesurées sous quatre plans, tous les taux sont compatibles ou en écart
 mineur, aux deux seuils, et \emph{tous} les écarts mineurs sont du côté conservateur~; une p de
 famille se lit avec son \code{erreur\_MC} (environ $0{,}0095$ à $p = 0{,}10$ et $n = 999$), et la
 ligne ne porte pas la phrase du verdict proche d'un seuil qui le rappelle sur les lignes de type
-test. \emph{Puissance}~: non mesurée à $T = 8$ (travail postérieur à la remise)~; \textbf{une p de famille élevée n'atteste pas
+test. \emph{Puissance}~: en tête de section, partielle, le plus souvent faible~; \textbf{une p de famille élevée n'atteste pas
 l'adéquation des hypothèses de la famille}. \emph{Statut}~: constats de simulation sous ces quatre
 plans, qui ne se transposent ni à un autre jeu, ni à une autre géométrie de triangle, ni à une
 autre profondeur~; aucun théorème ne couvre la p de famille à $T = 8$, et la littérature citée ne
@@ -19735,7 +19784,7 @@ faible que celle de Breusch--Pagan studentisé ($0{,}018$, seul \code{ECHEC} du 
 environ 13~\% des jeux simulés sous le modèle ajusté, compte tenu des dix-sept membres et de leur
 dépendance. Elle ne dit pas que cet \code{ECHEC} est une fausse alerte~: le verdict reste celui de
 la ligne (famille C. d'un seul test, sans ligne de famille), et une p globale élevée n'atteste pas
-l'adéquation (puissance non mesurée).
+l'adéquation (puissance le plus souvent faible sous les plans mesurés).
 Mêmes limites que la fiche précédente~: contrôle au sens faible, sous le modèle
 ajusté~; aucune p-value ajustée par ligne~; aucun verdict de ligne modifié~; affichage «~p globale
 (Monte-Carlo) = \dots{} --- diagnostic, aucune p retenue~» dans la vue Synthèse~; mêmes raisons
@@ -19749,8 +19798,9 @@ $0{,}0990$, $0{,}0715$ et $0{,}0860$~: sous ces plans, la part des jeux conforme
 au moins un membre a une p-value de Monte-Carlo sous $0{,}10$, de 55 à 64~\%, se compare à celle
 dont la p globale est sous $0{,}10$, de 7 à 11~\%. Le détail des verdicts sous le
 modèle, sur tous les tests et sur les seuls tests de sens «~ne pas rejeter~», est aux
-sections~\ref{sec:calibration-mc} et~\ref{sec:calib-mc-mw}. \emph{Puissance}~: non mesurée à
-$T = 8$ (travail postérieur à la remise)~; une p globale élevée n'atteste pas l'adéquation du modèle. \emph{Statut}~:
+sections~\ref{sec:calibration-mc} et~\ref{sec:calib-mc-mw}. \emph{Puissance} à
+$T = 8$ (tête de section)~: de $0{,}130$ à $0{,}397$ sous les alternatives lognormales, de $0{,}164$ à
+$0{,}583$ en Merz--Wüthrich~; une p globale élevée n'atteste pas l'adéquation du modèle. \emph{Statut}~:
 constats de simulation sous les plans J1, J2, N et E ($R = 2\,000$, $B = 999$, fichiers de la
 tête de section)~; aucun résultat général.
 \end{fiche}
@@ -22495,8 +22545,9 @@ modèle de Mack ajusté au triangle de contrôle (option \code{--seulement mw} d
         p de famille et la p globale situent la plus petite p-value de Monte-Carlo d'une famille,
         ou de la batterie, dans sa loi sous le modèle ajusté, compte tenu du nombre de tests et de
         leur dépendance. Elles ne modifient aucun verdict, se lisent avec leur erreur de
-        Monte-Carlo, et une valeur élevée n'atteste pas l'adéquation (puissance non mesurée~; sa
-        mesure est un travail postérieur à la remise).
+        Monte-Carlo, et une valeur élevée n'atteste pas l'adéquation (puissance mesurée sous plans,
+        le plus souvent faible~; familles non spécifiques~: une p de famille faible ne désigne pas
+        l'hypothèse en défaut~; section~\ref{sec:lecture-conjointe}).
 \end{enumerate}
 
 \subsection*{Tests structurellement inopérants à faible $T$}
