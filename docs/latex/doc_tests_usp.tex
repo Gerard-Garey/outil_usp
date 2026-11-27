@@ -1336,7 +1336,8 @@ le domaine gardé, à $T = 8$, le déficit (un moins la puissance) est proportio
 $(1-|\rho|)^{1/2}$ de $10^{-4}$ à $10^{-6}$ (constat numérique sur les points $10^{-4}$, $10^{-5}$ et $10^{-6}$ de la grille), de coefficient $1{,}219$ ($\alpha = 0{,}10$) et
 $1{,}815$ ($0{,}05$), soit $1{,}2\cdot 10^{-3}$ à la garde pour $\alpha = 0{,}10$ (déficit~: quantité
 exacte évaluée par quadrature numérique, intégrale d'Imhof~; tableau~1~bis de la sortie)~;
-cette loi, non démontrée, est stable sur 19 des 26 couples $(T, \alpha)$ mesurés, n'est pas
+rapportée à l'écart à la limite $|\mathrm{puissance} - L_-|$ (le déficit quand $L_- = 1$), cette loi,
+non démontrée, est stable sur 19 des 26 couples $(T, \alpha)$ mesurés, n'est pas
 atteinte dans le domaine gardé à $T = 5$ (deux seuils) et à $T = 6$ ($\alpha = 0{,}05$), et n'est
 pas lisible à $T = 50$ et $100$ (déficit inférieur à $10^{-6}$). Au-delà de
 la garde, le comportement du calcul n'est pas évalué par une mesure versionnée~; la limite
@@ -9938,12 +9939,13 @@ et désaccord sous $6{,}3\cdot 10^{-5}$ (trois et quatre erreurs-types en loi no
 130 comparaisons n'est signalée, et à $T = 8$ les écarts vont de $-1{,}73$ à $+0{,}34$ erreur-type.
 67 des 130 écarts simulé moins Imhof sont négatifs~; les comparaisons d'un même $T$ sont
 corrélées (innovations communes, mêmes séries pour les deux seuils) et ne se lisent pas comme
-des indications indépendantes. Les valeurs à $\rho = -0{,}999$ et $-0{,}99999$ ne sont pas
-recoupées. Déficit de puissance (un moins la puissance) rapporté à $(1 - |\rho|)^{1/2}$ sur la
+des indications indépendantes. Dans la zone $\rho \le -0{,}999$, les valeurs à $-0{,}999$ et
+$-0{,}99999$ ne sont pas recoupées. Déficit de puissance (un moins la puissance) rapporté à $(1 - |\rho|)^{1/2}$ sur la
 grille (tableau~1~bis de la sortie)~: à $T = 8$, à $1 - |\rho| = 10^{-4}$ et à la garde $10^{-6}$,
 les deux coefficients diffèrent de moins de $10^{-3}$ en relatif ($1{,}218795$ contre $1{,}218566$
 à $\alpha = 0{,}10$, $1{,}815254$ contre $1{,}814512$ à $0{,}05$)~; sur les 26 couples $(T, \alpha)$,
-19 tiennent ce critère, 3 n'atteignent pas ce régime dans le domaine gardé et 4 sont sans objet
+l'écart à la limite $|\mathrm{puissance} - L_-|$ rapporté de même (le déficit quand $L_- = 1$, la
+puissance quand $L_- = 0$), 19 tiennent ce critère, 3 n'atteignent pas ce régime dans le domaine gardé et 4 sont sans objet
 (déficit inférieur à $10^{-6}$). Limites $L_-$ ($\rho \to -1$) et $L_+$ ($\rho \to 1$) et constats
 de forme de la grille~: inventaire des fonctions (section~\ref{sec:inventaire},
 \code{dw\_puissance\_ar1()}). 115 contrôles,
