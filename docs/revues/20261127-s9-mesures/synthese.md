@@ -40,4 +40,22 @@
 - **Q1** : rejet lu sur `p_mc` pour CorrDev et DW, confirmé (même grandeur que la p retenue, par construction de `add()`). La colonne « p retenue ≠ p_mc » de F3 doit rester à 0 ; un écart revient à actuary avant toute lecture.
 - **Q2** : statut d'admission différent de #309 compté en INTEGRITE ECHEC, accepté. Un tel échec revient à actuary pour en établir la cause, puis au mainteneur.
 - **Q3** : classe du niveau de CorrDev sous H0 jugée contre la taille ρ de #309, acceptée. Elle ne vaut qu'à B = 999.
-- **Q4** : « ligne présente = p_mc finie » accepté sous condition : si n < admis pour CorrDev ou DW dans une cellule, la lecture du § 4.5 se fait sur le dénominateur des admis, p absente comptée comme non-rejet, et le fait est signalé. Précision de la note de F3 recommandée (texte seul).
+- **Q4 (#494)** : « ligne présente = p_mc finie » accepté sous condition : si n < admis pour CorrDev ou DW dans une cellule, la lecture du § 4.5 se fait sur le dénominateur des admis, p absente comptée comme non-rejet, et le fait est signalé. Précision de la note de F3 recommandée (texte seul).
+
+## Étape 2 — questions de précision sur #421 (27/11/2026)
+
+- **Avis** : `actuary-questions-421.md` (`actuary`), sur les commits `4a2f6bf` et `4e0a829`.
+- **Validés tels quels** : schéma de graines (20261031 à T = 8, flux du 31/10 identique au bit ; 421 000 000 + T ailleurs, plage nouvelle sans collision) ; contrôles M, B et C bloquants à T = 8 seul (à T = 4, les paires non croissantes découlent de la limite L₋ = 0 démontrée) ; seuil de K421-3 maintenu à 1e-3.
+- **Corrections du code demandées** (écarts au protocole écrit, dans le périmètre de la réserve M42) :
+  - K421-3 : lecture « sans objet » dès que le **minimum** des deux déficits est inférieur à **1e-6** (fondé a priori sur la tolérance de `integrate()`, et non sur les valeurs vues) ;
+  - K421-2 : p bilatérale **binomiale exacte**, p bornée à [1e-9, 1 − 1e-9], seuils 2,700e-3 (signalé) et 6,334e-5 (désaccord), traduction exacte de 3 et 4 ET ; dénombrement corrigé à **130** comparaisons.
+- **Nom du tableau de `mesure_lb1_dw_t8.R`** : la session suit la recommandation d'actuary. Aucun tableau n'est versé à l'étape 6, puisque la sortie est identique au tableau du 20/10 hors T0 (Q-78-4 (a) satisfaite par la réexécution du commit `4a2f6bf`). Nom daté gardé, `CAS_A` inchangé.
+
+### Trace M42 (réserve acceptée par le mainteneur à l'étape 1)
+
+Avant l'exécution officielle de #421, les essais du coder et un contrôle ciblé du flux de T = 8 ont affiché les valeurs suivantes :
+- T = 8, fréquences des lignes ajoutées : 0,9877625 et 0,981855 à ρ = −0,9999 ; 0,9988 et 0,998165 à la garde ;
+- T = 5, α = 0,10 : écart relatif de K421-3 égal à 1,09e-3, juste au-dessus du seuil de 1e-3 ;
+- T = 5, α = 0,05 : marge m = 6,042e-4, donc L₋ = 0 décidée.
+
+Les deux corrections du 27/11 (K421-3 et K421-2) visent la lisibilité des lectures. Elles sont fondées a priori (tolérance de quadrature, loi exacte) et ne déplacent aucun verdict à T = 4, 5 ou 8. Le seuil de 1e-3 de K421-3 n'est pas modifié au vu de la valeur 1,09e-3 : la lecture « régime non atteint, écart relatif 1,09e-3 » paraîtra avec sa valeur.
