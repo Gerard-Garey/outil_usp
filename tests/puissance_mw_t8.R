@@ -253,7 +253,11 @@
 #    Controles d'integrite (un echec met INTEGRITE a ECHEC) : catalogue du
 #    moteur non injecte ; copie des fonctions fk_*() identique a celle de
 #    tests/calibration_mc_mw_t8.R ; (graines) de la mesure #309 ; graines des
-#    cellules dans les plages declarees ; (ar0), (ar1) ; taille de reference
+#    cellules (b = 1..R) dans les plages declarees de #309 (PLAGES_B),
+#    communes a celles de la cellule H0 du plan pour une cellule AR,
+#    disjointes de celles-ci pour une cellule a graines distinctes (CST20,
+#    DCAL : echantillons independants du test de Fisher) ; (ar0), (ar1) ;
+#    taille de reference
 #    de CorrDev relue au tableau de #309 ; etats des lignes de famille
 #    coherents ; K-F3 (fk_recalcul()) a CHAQUE triangle admis ; p_f < alpha
 #    => U_f = 1 hors texte T-3a (par. 5.2 de l'avis) ; (i2) ; aucun triangle
@@ -279,9 +283,13 @@
 #    Reprise (M42 (b)) : tranches de TAILLE_TRANCHE_MW_FAM triangles
 #    consecutifs d'une cellule dans le dossier de travail (--travail, hors du
 #    depot ; defaut <parent de la racine>/issue379-issue494-mw-travail-B999),
-#    ecrites des qu'elles sont completes ; reprise aux tranches absentes
-#    (une execution avec P2 apres le jeu par defaut, meme --travail, reprend
-#    les tranches de P1) ; contexte different : arret. --arret-apres MIN :
+#    ecrites des qu'elles sont completes ; reprise aux tranches absentes,
+#    a contexte identique seulement (premiere ligne #CONTEXTE de la tranche,
+#    CTX_FAM : B, graines, generateur, commit, empreintes du code, empreinte
+#    sans commentaires du moteur, plateforme, essai) : une execution avec P2
+#    apres le jeu par defaut, meme --travail, reprend les tranches de P1 si
+#    elle est lancee au meme commit, avec le meme code, sur la meme
+#    plateforme et au meme B ; contexte different : arret. --arret-apres MIN :
 #    "SEGMENT INCOMPLET", code 3.
 #    --essai [--n 1] : n triangles par cellule, dossier temporaire, rien
 #    d'ecrit ; synthese marquee ESSAI, duree par triangle et duree extrapolee
@@ -3006,19 +3014,41 @@ if (MODE == "familles") {
                                   if (length(ko)) paste0(" ; DIFF\u00c9RENTES OU ABSENTES : ", paste(ko, collapse = ", ")) else ""))
   })
   local({ g <- controle_graines(); controle(g$ok, paste("Familles, (graines) de la mesure #309 :", g$txt)) })
-  # Graines des cellules : rang de la cellule dans #309, ou rang de la cellule
-  # H0 du plan pour une cellule AR (nombres aleatoires communs) ; b <= R_max.
+  # Graines des cellules (b = 1..R, triangle et bootstrap) : (1) dans les
+  # plages declarees de #309 (PLAGES_B, litteraux du plan) ; (2) cellule AR :
+  # memes graines que la cellule H0 du plan (nombres aleatoires communs),
+  # cellule H0 relue dans CELLULES par plan et code ; (3) cellule a graines
+  # distinctes (hors H0 et hors AR : CST20, DCAL) : graines disjointes de
+  # celles de la cellule H0 du plan sur tout son R de #309 (echantillons
+  # independants, test exact de Fisher de F1). Les comparaisons de la version
+  # precedente (rang et plan de la cellule egaux a ceux de CELLULES, R <= R
+  # de #309) etaient vraies par construction : rang et R_max sont lus dans
+  # CELLULES par la meme correspondance (CELLULES_FAM), et R <= R_max est
+  # impose a l'analyse de --cellules (stop()) ; elles sont retirees (m de
+  # l'audit leger de ff7673f).
   local({
+    plage <- function(pl, quoi) PLAGES_B[if (pl == "P3") paste("P3", quoi) else paste("B", quoi), ]
+    dans <- function(g, P) all(g >= P[1] & g <= P[2])
     ok <- vapply(seq_len(nrow(CF)), function(i) {
-      src <- if (is.finite(CF$rho[i])) CF$ref[i] else CF$id[i]
-      k <- match(src, CELLULES$id)
-      !is.na(k) && CF$rang[i] == CELLULES$rang[k] && CF$plan[i] == CELLULES$plan[k] && CF$R[i] <= CELLULES$R[k]
+      pl <- CF$plan[i]; b <- seq_len(CF$R[i])
+      gt <- graine_tri_B(pl, CF$rang[i], b); gb <- graine_boot_B(pl, CF$rang[i], b)
+      k0 <- which(CELLULES$plan == pl & CELLULES$code == "H0")
+      if (length(k0) != 1L) return(FALSE)
+      b0 <- seq_len(CELLULES$R[k0])
+      gt0 <- graine_tri_B(pl, CELLULES$rang[k0], b0); gb0 <- graine_boot_B(pl, CELLULES$rang[k0], b0)
+      ok_plage <- dans(gt, plage(pl, "triangles")) && dans(gb, plage(pl, "bootstrap"))
+      ok_lien <- if (is.finite(CF$rho[i])) identical(gt, gt0[b]) && identical(gb, gb0[b])
+                 else if (CF$code[i] == "H0") identical(gt, gt0[b]) && identical(gb, gb0[b])
+                 else !length(intersect(gt, gt0)) && !length(intersect(gb, gb0))
+      ok_plage && ok_lien
     }, logical(1))
-    txt <- vapply(seq_len(nrow(CF)), function(i) sprintf("%s : triangle %.0f..%.0f, bootstrap %.0f..%.0f (rang %d de %s, b <= %d)",
+    txt <- vapply(seq_len(nrow(CF)), function(i) sprintf("%s : triangle %.0f..%.0f, bootstrap %.0f..%.0f (rang %d de %s, b <= %d ; %s)",
       CF$id[i], graine_tri_B(CF$plan[i], CF$rang[i], 1L), graine_tri_B(CF$plan[i], CF$rang[i], CF$R[i]),
-      graine_boot_B(CF$plan[i], CF$rang[i], 1L), graine_boot_B(CF$plan[i], CF$rang[i], CF$R[i]), CF$rang[i], CF$plan[i], CF$R_max[i]), "")
-    controle(all(ok), sprintf("Familles, graines des cellules dans les plages d\u00e9clar\u00e9es de #309 (cellules AR : graines de la cellule H0 du plan, aucune graine nouvelle) : %s%s",
-                              paste(txt, collapse = " ; "), if (all(ok)) "" else paste0(" ; HORS PLAGE : ", paste(CF$id[!ok], collapse = ", "))))
+      graine_boot_B(CF$plan[i], CF$rang[i], 1L), graine_boot_B(CF$plan[i], CF$rang[i], CF$R[i]), CF$rang[i], CF$plan[i], CF$R_max[i],
+      if (is.finite(CF$rho[i])) "graines de la cellule H0 du plan" else if (CF$code[i] == "H0") "cellule H0" else "disjointes de la cellule H0 du plan"), "")
+    controle(all(ok), sprintf(paste0("Familles, graines des cellules dans les plages d\u00e9clar\u00e9es de #309 (PLAGES_B) ; cellules AR : graines de la cellule H0 du plan, aucune graine nouvelle ;",
+                                     " cellules \u00e0 graines distinctes : disjointes de celles de la cellule H0 du plan : %s%s"),
+                              paste(txt, collapse = " ; "), if (all(ok)) "" else paste0(" ; EN D\u00c9FAUT : ", paste(CF$id[!ok], collapse = ", "))))
   })
   # (ar0) : a rho = 0, gen_triangle_ar1() par triangle_familles() rend le
   # triangle de H0 du plan au bit pres (identical()), sur 100 graines de la
@@ -3076,7 +3106,7 @@ if (MODE == "familles") {
   tranches_de_fam <- function(R) lapply(seq(1L, R, by = TAILLE_TRANCHE_MW_FAM), function(a) c(a, min(a + TAILLE_TRANCHE_MW_FAM - 1L, R)))
   fichier_tranche_fam <- function(id, tr) file.path(TRAVAIL, sprintf("mw-%s-b%04d-%04d.tsv", id, tr[1], tr[2]))
   refus_tranche <- function(f, quoi) {
-    message("tranche ", basename(f), " : ", quoi, " -- pas de melange (autre --travail, ou relancer au meme commit)")
+    message("tranche ", basename(f), " : ", quoi, " -- pas de melange (autre --travail, ou relancer dans le meme contexte : commit, code, plateforme, B)")
     quit(status = 1L)
   }
   lire_tranche_fam <- function(f, id, tr) {
@@ -3328,7 +3358,7 @@ if (MODE == "familles") {
                            fmt_p(mc[["p"]]), if (id == id_ref) "niveau (r\u00e9f\u00e9rence)" else classe_puissance(mc[["p"]], ci), nret))
     }
     F3 <- c(F3, "", paste("Constat de simulation sous plan (DGP du plan, sc\u00e9nario AR(1) de gen_triangle_ar1(), m\u00eames graines que la cellule H0 du plan :",
-                          "nombres al\u00e9atoires communs). Rejet : p Monte-Carlo de la ligne (p_mc, champ du moteur, B = 999 ; m\u00eame grandeur que p: de #309) < \u03b1 ;",
+                          sprintf("nombres al\u00e9atoires communs). Rejet : p Monte-Carlo de la ligne (p_mc, champ du moteur, B = %d ; m\u00eame grandeur que p: de #309) < \u03b1 ;", as.integer(B_BOOT)),
                           "pour M3 et la ligne globale, p de la ligne de lecture conjointe (comme F1). Refus d'admission : par cellule (motifs en F2) ; une paire",
                           "exige le triangle admis dans les deux cellules et la ligne pr\u00e9sente des deux c\u00f4t\u00e9s. McNemar exact appari\u00e9 bilat\u00e9ral (n01 : la cellule",
                           "AR rejette et H0 non). Classe (par. 4.5 de l'avis ; seuils 0,5 : convention d\u00e9clar\u00e9e) : non distingu\u00e9e du niveau si p \u2265 0,05,",
