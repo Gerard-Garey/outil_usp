@@ -23,3 +23,13 @@
 - **#420** : le point 1 est déjà soldé (`tests/unitaires/test_mk_spearman.R`) ; seul le point 2 est mesuré.
 - **#367** : la prémisse n'a pas à être tranchée. La quantité visée est p_∞ (B = 9 999, graine du dossier et quatre graines secondaires). Si p_∞ < 0,10 est établi, la session le signale au mainteneur, en lien avec Q-Ff-5, hors S9.
 - **Constat mineur écarté (ADR 0018)** : les graines de flux V3b de J2 au volet B lognormal recoupent des graines de triangle de #206. Sans conséquence statistique, car les objets ne sont jamais combinés. Aucun critère.
+
+## Étape 5 — questions de précision du mode `--familles` (27/11/2026)
+
+- **Avis** : `actuary-questions-etape-5.md` (`actuary-approfondi`), sur le commit `c92b1bb` (#379). Il est rendu **avant toute campagne** : aucun taux de l'étape 6 n'a été vu.
+- **Corrections de l'avis de l'étape 1** (choix des tests seulement ; périmètre, graines, R et enveloppe inchangés) :
+  - § 5.6, lognormal : le **McNemar exact apparié** contre le point N fonde la classe, à la place de Fisher, car les points partagent la matrice e et les graines de bootstrap ;
+  - § 5.6, P1.CST20 et P1.DCAL : le **Fisher exact** contre P1.H0 fonde la classe, car leurs graines (#309) sont indépendantes de celles de P1.H0. Les graines de #309 sont gardées ;
+  - § 4.5, second cas de PM-3 (#494) : le niveau de CorrDev sous P1.H0 se compare à #309 par un **McNemar apparié** sur b = 1..500, contre le TSV brut de #309 (avec contrôle `obs:CorrDev` identique), et non par Fisher, car les graines sont communes.
+- **Confirmé sans changement** : graine de la matrice e 20260931 (Q1) ; dénominateur n = lignes présentes, comme T-F1 de #297 (Q4) ; comparaison du niveau à #297 laissée à l'étape 7, sous trois conditions (Q5 : m de Bonferroni fixé par méthode, commande versionnée, DGP de P1 à confirmer).
+- **Suite** : reprise de `coder-approfondi` pour Q2 et Q3, regroupée avec les constats de l'audit léger de `c92b1bb`.
