@@ -108,36 +108,83 @@
 #      - quatre graines secondaires, plage NOUVELLE 36 100 001 - 36 100 004,
 #        flux V3b usp_graine_flux_regime() = graine + 539 169, soit
 #        36 639 170 - 36 639 173 (enveloppe 36 100 001 - 36 639 173).
+#    Reponses d'actuary du 27/11/2026, rendues avant toute execution
+#    complete (docs/revues/20261127-s9-mesures/actuary-questions-420-367.md,
+#    Q6 a Q9 ; ecarts au par. 3.2 et 3.4 traces dans la trace M42 de
+#    synthese.md) : LECTURE SUR L'AGREGAT DES QUATRE GRAINES SECONDAIRES
+#    (Q7). La graine du dossier reprend a B = 9 999 le tirage principal dont
+#    les 999 et 4 999 premiers tirages ont fait naitre #367 (effet de
+#    selection, non borne) : elle est executee et rapportee a part (role
+#    "contexte" en T1), hors de la lecture ; l'agregat a cinq graines est
+#    imprime a titre d'information, sans lecture ; si sa classification
+#    differe de celle des quatre secondaires, la discordance est signalee
+#    telle quelle, la lecture des secondaires fait foi.
 #    Controle de collision (g0), avant tout calcul : aucun litteral entier
 #    de 8 a 10 chiffres L de R/*.R, app.R, tests/*.R et tests/unitaires/*.R
 #    (ce script excepte ; ecriture scientifique non recherchee, meme lecture
 #    que le controle 10 de tests/couverture_ic_sigma_mw_t8.R) tel que
 #    [L ; L + 539 169] touche l'enveloppe : couvre une graine du depot egale
 #    a une graine nouvelle ou a son flux, et le flux d'une graine du depot
-#    tombant dans l'enveloppe. Plages declarees les plus proches, relevees le
-#    27/11/2026 : 32 000 001 - 34 420 000 (tests/puissance_mw_t8.R, #309,
-#    sans flux V3b) en dessous ; 305 000 000 (#305) au-dessus.
+#    tombant dans l'enveloppe. Portee : des LITTERAUX ISOLES seulement ; ni
+#    une plage declaree par la paire de ses bornes (seules les bornes sont
+#    vues, pas l'intervalle qu'elles delimitent), ni une graine calculee
+#    (base + pas x rang, par exemple) ne sont reconstituees. Une suite de
+#    chiffres precedee d'un chiffre et d'une virgule (virgule decimale d'un
+#    libelle, par exemple les decimales de tests/unitaires/
+#    test_merz_wuthrich.R, l. 1163) n'est pas un litteral : exclue. Plages
+#    declarees les plus proches, relevees le 27/11/2026 : 32 000 001 -
+#    34 420 000 (tests/puissance_mw_t8.R, #309, sans flux V3b) en dessous ;
+#    305 000 000 (#305) au-dessus.
 #    Grandeurs, par graine s : N_s = valeurs finies de la colonne Grubbs de
 #    bootstrap$stats_boot (tirages retenus de V3b), K_s = #{G* >= g_obs} ;
 #    p_mc, err_mc, verdict et mention de #244 de la ligne (extraire_lignes(),
-#    ecart au seuil compris) ; tirages, retenus et arret de V3b. Agregat :
+#    ecart au seuil compris) ; tirages, retenus et arret de V3b. Agregat
+#    (quatre secondaires pour la lecture ; cinq graines pour information) :
 #    K_tot / N_tot, intervalle de Clopper-Pearson bilateral a 99 % (qbeta()),
-#    ET binomiale sqrt(p (1 - p) / N_tot). Les cinq flux sont TENUS POUR
-#    INDEPENDANTS (graines Mersenne-Twister distinctes : hypothese d'usage,
-#    non verifiee) ; sous la graine du dossier, B = 9 999 prolonge le tirage
+#    ET binomiale sqrt(p (1 - p) / N_tot). Conditionnellement a N_s,
+#    K_s ~ Bin(N_s, p_inf) (tirages retenus i.i.d. par acceptation-rejet,
+#    arret a B retenus ou au plafond) ; les flux sont TENUS POUR INDEPENDANTS
+#    (graines Mersenne-Twister distinctes : hypothese d'usage, non
+#    verifiee ; Q6) ; sous la graine du dossier, B = 9 999 prolonge le tirage
 #    principal sans que le flux V3b soit strictement emboite (avis, par.
 #    3.2).
+#    Constat sans effet sur la lecture (Q6) : khi-2 d'homogeneite des K_s/N_s
+#    entre graines (tableau 2 x graines, (K_s, N_s - K_s) ; statistique de
+#    Pearson, p par la loi du khi-2 a (graines - 1) ddl, effectif attendu
+#    minimal imprime), sur les quatre secondaires et, a titre d'information,
+#    sur les cinq ; peu puissant contre une correlation entre flux, il
+#    detecte une anomalie grossiere (loi differente d'une graine a l'autre,
+#    erreur de comptage).
 #    Controles (code de sortie 1, --ecrire refuse) : (g0) ci-dessus ; (g1)
-#    par graine, (1 + K_s) / (N_s + 1) identique a bootstrap$p_mc du moteur
-#    et a la p Monte-Carlo de la ligne, N_s identique a B_effectif ; (g2)
-#    g_obs identique entre les graines ; (g3) metadata : seed, B et graine
-#    du flux conformes au plan ; (c) de #244 sur la ligne Grubbs.
-#    Lecture automatique du critere (avis, par. 3.4) sur l'intervalle a 99 %
-#    de p_inf : borne haute < 0,10 : ALERTE a B infini (OK du dossier a
-#    B = 999 = effet de l'erreur Monte-Carlo ; phrase #244 justifiee ; non
-#    PM-3, a SIGNALER au mainteneur, lien avec Q-Ff-5, decision hors S9) ;
-#    borne basse > 0,10 : OK confirme ; sinon (0,10 dans l'intervalle) :
-#    indecidable a N_tot pres.
+#    sens de rejet au catalogue, puis par graine (1 + K_s) / (N_s + 1)
+#    identique a bootstrap$p_mc du moteur et a la p Monte-Carlo de la ligne,
+#    N_s identique a B_effectif, sans motif, et sens de la ligne
+#    (sens_du_test de engine_table_tests()) egal a "ne pas rejeter" (Q8) ;
+#    (g2) identiques (identical()) entre les graines : g_obs, delta, gamma
+#    et sigma ajustes (res$ajustement$delta, $gamma, $sigma) et sigma_USP
+#    (res$parametre_final$sigma_usp), fonctions deterministes des donnees
+#    (Q9 ; un ecart rendrait l'agregat illegitime) ; (g3) metadata : seed,
+#    B, graine du flux et alpha conformes au plan ; (c) de #244 sur la ligne
+#    Grubbs.
+#    Lecture automatique (avis, par. 3.4, complete par Q8) sur l'intervalle
+#    a 99 % de p_inf de l'agregat des quatre secondaires, alpha lu dans
+#    res$metadata$alpha (controle par (g3)), seuils de la regle des verdicts
+#    de add() en sens "ne pas rejeter" (ECHEC si p < alpha/2, ALERTE si
+#    alpha/2 <= p < alpha, OK si p >= alpha) :
+#      borne haute < alpha/2 : ECHEC a B infini ;
+#      intervalle dans [alpha/2 ; alpha[ : ALERTE a B infini ;
+#      borne basse >= alpha : OK confirme ;
+#      intervalle contenant alpha/2 : indecidable ECHEC/ALERTE ;
+#      intervalle contenant alpha : indecidable ALERTE/OK ;
+#      (intervalle contenant alpha/2 et alpha, hors des cinq issues de
+#      l'avis, possible seulement a N petit : indecidable ECHEC/ALERTE/OK,
+#      signale comme ECHEC/ALERTE).
+#    Suites : ALERTE : OK du dossier a B = 999 = effet de l'erreur
+#    Monte-Carlo, phrase #244 justifiee, non PM-3, a SIGNALER au mainteneur
+#    (lien avec Q-Ff-5, decision hors S9) ; ECHEC ou indecidable
+#    ECHEC/ALERTE : a SIGNALER au mainteneur avec mention expresse que le
+#    verdict a B infini s'ecarte de deux niveaux de l'OK du dossier (que la
+#    phrase du .tex change ou non : decision hors S9).
 #    Portee : erreur Monte-Carlo seule (fonction de B) ; ni l'erreur de
 #    l'approximation bootstrap (plug-in, T = 8), ni la justesse de Grubbs a
 #    T = 8, ni la suffisance de B = 999 ailleurs.
@@ -347,7 +394,7 @@ GR_SEED_DOSSIER <- 20260831
 GR_SEEDS_SEC <- 36100001 + 0:3            # plage nouvelle declaree (en-tete, controle (g0))
 GR_SEEDS <- c(GR_SEED_DOSSIER, GR_SEEDS_SEC)
 GR_NIVEAU_CP <- 0.99
-GR_SEUIL <- 0.10                         # seuil du critere (avis, par. 3.4) = alpha du cas (controle (g3))
+GR_SEUIL <- 0.10                         # alpha attendu du cas (controle (g3)) ; la lecture lit meta$alpha (Q8)
 GR_MC_NOM <- "Grubbs"
 # Contexte (non recalcule) : tableau du 22/10/2026,
 # docs/tableaux/20261022-issue325-b-dossier.md, cas premium_interieur,
@@ -368,7 +415,9 @@ gr_collisions <- function() {
   fs <- fs[file.exists(fs) & np(fs) != np(file.path(RACINE, SCRIPT))]
   lit <- sort(unique(unlist(lapply(fs, function(f) {
     l <- readLines(f, warn = FALSE, encoding = "UTF-8")
-    as.numeric(unlist(regmatches(l, gregexpr("(?<![0-9A-Za-z._])[0-9]{8,10}(?=L?(?![0-9A-Za-z._]))", l, perl = TRUE))))
+    # litteraux isoles ; (?<![0-9],) : decimales d'un nombre a virgule
+    # decimale (libelle) exclues (m3 de l'audit leger de b994b7d)
+    as.numeric(unlist(regmatches(l, gregexpr("(?<![0-9A-Za-z._])(?<![0-9],)[0-9]{8,10}(?=L?(?![0-9A-Za-z._]))", l, perl = TRUE))))
   }))))
   coll <- lit[lit <= env[2] & lit + D >= env[1]]
   dossier <- c(GR_SEED_DOSSIER, OT$usp_graine_flux_regime(GR_SEED_DOSSIER))
@@ -377,7 +426,7 @@ gr_collisions <- function() {
   dessous <- lit[lit < env[1]]; dessus <- lit[lit > env[2]]
   list(ok = ok, env = env, flux = flux,
        detail = sprintf(paste("graines secondaires %s, flux V3b %s (graine + %.0f), enveloppe %.0f - %.0f ;",
-                              "%d litt\u00e9raux entiers de 8 \u00e0 10 chiffres dans %d fichiers (R/*.R, app.R, tests/*.R hors ce script, tests/unitaires/*.R ; \u00e9criture scientifique non recherch\u00e9e) ;",
+                              "%d litt\u00e9raux entiers isol\u00e9s de 8 \u00e0 10 chiffres dans %d fichiers (R/*.R, app.R, tests/*.R hors ce script, tests/unitaires/*.R ; \u00e9criture scientifique non recherch\u00e9e, d\u00e9cimales apr\u00e8s une virgule exclues ; ni paires de bornes ni graines calcul\u00e9es) ;",
                               "litt\u00e9raux L dont [L ; L + %.0f] touche l'enveloppe : %s ; plus proches : %s en dessous, %s au-dessus ;",
                               "graine du dossier et son flux (%s) hors de l'enveloppe : %s"),
                         paste(sprintf("%.0f", GR_SEEDS_SEC), collapse = ", "), paste(sprintf("%.0f", flux), collapse = ", "), D,
@@ -396,6 +445,31 @@ gr_cp <- function(K, N, niv = GR_NIVEAU_CP) {
     if (K == N) 1 else stats::qbeta(1 - a / 2, K + 1, N - K))
 }
 
+# Classement de l'intervalle cp de p_inf selon la regle des verdicts de add()
+# en sens "ne pas rejeter" (ECHEC si p < alpha/2, ALERTE si alpha/2 <= p <
+# alpha, OK si p >= alpha) : cinq issues de l'avis (Q8), plus le cas d'un
+# intervalle contenant alpha/2 et alpha (hors de l'avis, N petit).
+gr_classe <- function(cp, alpha) {
+  a2 <- alpha / 2
+  if (cp[2] < a2) "ECHEC"
+  else if (cp[1] >= alpha) "OK"
+  else if (cp[1] >= a2 && cp[2] < alpha) "ALERTE"
+  else if (cp[1] < a2 && cp[2] >= alpha) "ECHEC/ALERTE/OK"
+  else if (cp[1] < a2) "ECHEC/ALERTE"
+  else "ALERTE/OK"
+}
+
+# Khi-2 d'homogeneite des K_s / N_s entre graines (Q6) : tableau 2 x graines
+# (K_s, N_s - K_s), statistique de Pearson, p par la loi du khi-2 a
+# (graines - 1) ddl ; constat sans effet sur la lecture.
+gr_khi2 <- function(K, N) {
+  O <- rbind(K, N - K)
+  E <- outer(rowSums(O), colSums(O)) / sum(O)
+  if (any(E <= 0)) return(list(x2 = NA_real_, ddl = ncol(O) - 1L, p = NA_real_, emin = min(E)))
+  x2 <- sum((O - E)^2 / E)
+  list(x2 = x2, ddl = ncol(O) - 1L, p = stats::pchisq(x2, ncol(O) - 1L, lower.tail = FALSE), emin = min(E))
+}
+
 mesure_grubbs_interieur <- function() {
   # Aides locales (leurs homologues du plan par defaut sont definies plus
   # bas dans le script, apres ce bloc) : memes definitions.
@@ -403,6 +477,8 @@ mesure_grubbs_interieur <- function() {
   avance <- function(...) cat(sprintf(...), "\n", sep = "", file = stderr())
   fb <- function(B) formatC(B, format = "d", big.mark = "\u00a0")
   ech <- function(x) OT$echapper(OT$une_ligne(ifelse(is.na(x), "\u2014", x)))
+  # nombre au format decimal francais, deux decimales (0,05 ; 0,10)
+  fa <- function(x) sub(".", ",", formatC(x, format = "f", digits = 2), fixed = TRUE)
   CTRL_G <- list()
   ctl <- function(code, ok, detail) CTRL_G[[length(CTRL_G) + 1L]] <<- list(code = code, ok = isTRUE(ok), detail = detail)
   g0 <- gr_collisions()
@@ -439,14 +515,18 @@ mesure_grubbs_interieur <- function() {
       p_mc = unname(bt$p_mc[[GR_MC_NOM]]), err = unname(bt$err_mc[[GR_MC_NOM]]), ligne = L,
       variante = bt$p_mc_regime$variante, tirages = bt$p_mc_regime$tirages, retenus = bt$p_mc_regime$retenus,
       arret = bt$p_mc_regime$arret, sigma_usp = res$parametre_final$sigma_usp, graines = graines_txt(meta),
+      delta = res$ajustement$delta, gamma = res$ajustement$gamma, sigma = res$ajustement$sigma, alpha = meta$alpha,
+      secondaire = s %in% GR_SEEDS_SEC,
       g1 = identical(p_re, unname(bt$p_mc[[GR_MC_NOM]])) && identical(p_re, tt$p_monte_carlo[k]) &&
-        identical(as.numeric(N), unname(as.numeric(bt$B_effectif[[GR_MC_NOM]]))) && is.na(bt$motif_mc[[GR_MC_NOM]]),
+        identical(as.numeric(N), unname(as.numeric(bt$B_effectif[[GR_MC_NOM]]))) && is.na(bt$motif_mc[[GR_MC_NOM]]) &&
+        identical(L$sens, "ne pas rejeter"),
       g3 = identical(as.numeric(meta$seed), as.numeric(s)) && identical(as.numeric(meta$B), as.numeric(GR_B)) &&
         identical(as.numeric(meta$seed_flux_regime), flux_att) && identical(as.numeric(meta$alpha), GR_SEUIL),
       p_re = p_re)
     r <- R[[length(R)]]
-    ctl(sprintf("(g1) %.0f", s), r$g1, sprintf("(1 + K) / (N + 1) = %s ; p_mc du moteur %s ; B effectif %.0f", format(p_re, digits = 17),
-                                               format(r$p_mc, digits = 17), as.numeric(bt$B_effectif[[GR_MC_NOM]])))
+    ctl(sprintf("(g1) %.0f", s), r$g1, sprintf("(1 + K) / (N + 1) = %s ; p_mc du moteur %s ; B effectif %.0f ; sens de la ligne : %s",
+                                               format(p_re, digits = 17), format(r$p_mc, digits = 17),
+                                               as.numeric(bt$B_effectif[[GR_MC_NOM]]), L$sens))
     ctl(sprintf("(g3) %.0f", s), r$g3, sprintf("seed %.0f, B %.0f, graine du flux %.0f (attendue %.0f), \u03b1 %s", meta$seed, meta$B,
                                                meta$seed_flux_regime, flux_att, format(meta$alpha)))
     ctl(sprintf("(c) %.0f", s), identical(L$c244, L$s244), sprintf("condition de #244 recalcul\u00e9e %s, mention du moteur %s",
@@ -456,22 +536,47 @@ mesure_grubbs_interieur <- function() {
            format(Sys.time(), "%H:%M:%S"), GR_CAS, s, GR_B, r$ecoule, r$cpu, K, N, r$p_mc, L$verdict, if (L$s244) " (#244)" else "")
   }
   gobs_tous <- vapply(R, `[[`, 0, "gobs")
-  ctl("(g2)", length(unique(gobs_tous)) == 1L, sprintf("g_obs identique entre les %d graines : %s (%s)", length(R),
-                                                       if (length(unique(gobs_tous)) == 1L) "oui" else "NON",
-                                                       paste(unique(format(gobs_tous, digits = 17)), collapse = ", ")))
+  # (g2) grandeurs deterministes des donnees, identiques entre graines (Q9)
+  CH_G2 <- c(g_obs = "gobs", "\u03b4\u0302" = "delta", "\u03b3\u0302" = "gamma", "\u03c3\u0302" = "sigma", "\u03c3_USP" = "sigma_usp")
+  g2_par <- vapply(CH_G2, function(ch) all(vapply(R, function(r) identical(r[[ch]], R[[1L]][[ch]]), TRUE)), TRUE)
+  ctl("(g2)", all(g2_par), sprintf("identiques (identical()) entre les %d graines : %s", length(R),
+                                   paste(sprintf("%s %s (%s)", names(CH_G2), ifelse(g2_par, "oui", "NON"),
+                                                 vapply(CH_G2, function(ch) paste(unique(format(vapply(R, `[[`, 0, ch), digits = 17)), collapse = ", "), "")),
+                                         collapse = " ; ")))
   ok <- all(vapply(CTRL_G, `[[`, TRUE, "ok"))
   if (ECRIRE && !ok) {
     message("--ecrire refuse : controle en echec -- aucun fichier ecrit")
     for (k in CTRL_G) if (!k$ok) message("  ", k$code, " : ", k$detail)
     return(1L)
   }
-  Ktot <- sum(vapply(R, `[[`, 0, "K")); Ntot <- sum(vapply(R, `[[`, 0, "N"))
-  ph <- Ktot / Ntot; cp <- gr_cp(Ktot, Ntot); et_b <- sqrt(ph * (1 - ph) / Ntot)
-  lecture <- if (cp[2] < GR_SEUIL)
-    paste0("**ALERTE \u00e0 B infini** : intervalle \u00e0 99 % de p_\u221e inclus dans ]0 ; 0,10[. Le OK du dossier \u00e0 B = 999 est un effet de l'erreur Monte-Carlo sur cette ligne ;",
-           " la phrase de #244 est justifi\u00e9e et se chiffre. Pas de PM-3 (aucune phrase contredite) ; \u00e0 **signaler au mainteneur**, en lien avec Q-Ff-5 (B du dossier), d\u00e9cision hors S9.")
-  else if (cp[1] > GR_SEUIL) "**OK confirm\u00e9** : intervalle \u00e0 99 % de p_\u221e inclus dans ]0,10 ; 1[."
-  else "**Ind\u00e9cidable \u00e0 N_tot pr\u00e8s** : l'intervalle \u00e0 99 % de p_\u221e contient 0,10."
+  # alpha du cas (meta$alpha, controle par (g3)) et seuils de add() (Q8)
+  ALPHA_G <- R[[1L]]$alpha
+  sec <- vapply(R, `[[`, TRUE, "secondaire")
+  agreger <- function(ii) {
+    K <- sum(vapply(R[ii], `[[`, 0, "K")); N <- sum(vapply(R[ii], `[[`, 0, "N"))
+    ph <- K / N; cp <- gr_cp(K, N)
+    list(K = K, N = N, ph = ph, cp = cp, et = sqrt(ph * (1 - ph) / N), classe = gr_classe(cp, ALPHA_G),
+         khi2 = gr_khi2(vapply(R[ii], `[[`, 0, "K"), vapply(R[ii], `[[`, 0, "N")))
+  }
+  AG4 <- agreger(which(sec))           # lecture (Q7)
+  AG5 <- agreger(seq_along(R))         # information, sans lecture
+  a_txt <- fa(ALPHA_G); a2_txt <- fa(ALPHA_G / 2)
+  signal_deux <- paste0(" \u00c0 **signaler au mainteneur**, avec mention expresse que le verdict \u00e0 B infini s'\u00e9carte de **deux niveaux** de l'OK du dossier \u00e0 B = 999 ;",
+                        " que la phrase du `.tex` doive changer ou non est une d\u00e9cision hors S9.")
+  lecture <- switch(AG4$classe,
+    "ECHEC" = paste0(sprintf("**ECHEC \u00e0 B infini** : borne haute de l'intervalle \u00e0 99 %% de p_\u221e < \u03b1/2 = %s.", a2_txt), signal_deux),
+    "ECHEC/ALERTE" = paste0(sprintf("**Ind\u00e9cidable ECHEC/ALERTE** : l'intervalle \u00e0 99 %% de p_\u221e contient \u03b1/2 = %s.", a2_txt), signal_deux),
+    "ECHEC/ALERTE/OK" = paste0(sprintf(paste0("**Ind\u00e9cidable ECHEC/ALERTE/OK** : l'intervalle \u00e0 99 %% de p_\u221e contient \u03b1/2 = %s et \u03b1 = %s",
+                                              " (cas hors des cinq issues de l'avis, possible seulement \u00e0 N petit ; signal\u00e9 comme ECHEC/ALERTE)."), a2_txt, a_txt), signal_deux),
+    "ALERTE" = paste0(sprintf("**ALERTE \u00e0 B infini** : intervalle \u00e0 99 %% de p_\u221e inclus dans [\u03b1/2 ; \u03b1[ = [%s ; %s[.", a2_txt, a_txt),
+                      " Le OK du dossier \u00e0 B = 999 est un effet de l'erreur Monte-Carlo sur cette ligne ; la phrase de #244 est justifi\u00e9e et se chiffre.",
+                      " Pas de PM-3 (aucune phrase contredite) ; \u00e0 **signaler au mainteneur**, en lien avec Q-Ff-5 (B du dossier), d\u00e9cision hors S9."),
+    "ALERTE/OK" = sprintf("**Ind\u00e9cidable ALERTE/OK \u00e0 N_tot pr\u00e8s** : l'intervalle \u00e0 99 %% de p_\u221e contient \u03b1 = %s.", a_txt),
+    "OK" = sprintf("**OK confirm\u00e9** : borne basse de l'intervalle \u00e0 99 %% de p_\u221e \u2265 \u03b1 = %s.", a_txt))
+  discordance <- if (!identical(AG4$classe, AG5$classe))
+    sprintf(paste0("**Discordance de classification** : l'agr\u00e9gat \u00e0 cinq graines (information) se classe %s, celui des quatre graines secondaires %s ;",
+                   " la lecture des graines secondaires fait foi (avis, Q7)."), AG5$classe, AG4$classe) else
+    sprintf("Agr\u00e9gat \u00e0 cinq graines (information, sans lecture) : m\u00eame classification (%s) que celui des quatre graines secondaires.", AG5$classe)
 
   if (ECRIRE) REMPLACES <- gardes_ecrire("de l'ex\u00e9cution")
   DUREE <- as.numeric(difftime(Sys.time(), t_debut, units = "secs"))
@@ -511,14 +616,18 @@ mesure_grubbs_interieur <- function() {
     "les cinq flux sont tenus pour ind\u00e9pendants (graines distinctes : hypoth\u00e8se d'usage, non v\u00e9rifi\u00e9e). La mesure ne r\u00e9duit pas l'erreur de l'approximation bootstrap (plug-in, T = 8)",
     "et ne dit ni si Grubbs est juste \u00e0 T = 8, ni si B = 999 suffit ailleurs.",
     "",
+    "Lecture sur l'agr\u00e9gat des quatre graines secondaires (avis d'actuary, Q7) : la graine du dossier, dont les 999 et 4\u00a0999 premiers tirages ont fait na\u00eetre #367 (effet de s\u00e9lection),",
+    "est rapport\u00e9e \u00e0 part, comme contexte, hors de la lecture ; l'agr\u00e9gat \u00e0 cinq graines est imprim\u00e9 \u00e0 titre d'information.",
+    "",
     "### T1 \u2014 Par graine",
     "",
-    "| Graine | Graine du flux V3b | Variante | Tirages / retenus (arr\u00eat) | N | K | K / N [Clopper\u2013Pearson 99 %] | p_mc \u00b1 err_mc (moteur) | Verdict | Mention #244 | \u00c9cart au seuil le plus proche (err_mc) | \u03c3_USP | Temps \u00e9coul\u00e9 (s) | Temps CPU (s) |",
-    "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
-  for (r in R) {
+    "| Graine | R\u00f4le | Graine du flux V3b | Variante | Tirages / retenus (arr\u00eat) | N | K | K / N [Clopper\u2013Pearson 99 %] | p_mc \u00b1 err_mc (moteur) | Verdict | Mention #244 | \u00c9cart au seuil le plus proche (err_mc) | \u03c3_USP | Temps \u00e9coul\u00e9 (s) | Temps CPU (s) |",
+    "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+  # graines secondaires d'abord (lecture), graine du dossier ensuite (contexte)
+  for (r in R[order(!sec)]) {
     ci <- gr_cp(r$K, r$N)
-    md <- c(md, sprintf("| %.0f | %.0f | %s | %.0f / %.0f (%s) | %d | %d | %s [%s ; %s] | %s \u00b1 %s | %s | %s | %s | %.10f | %s | %s |",
-                        r$seed, r$flux, r$variante, r$tirages, r$retenus, r$arret, r$N, r$K, f5(r$K / r$N), f5(ci[1]), f5(ci[2]),
+    md <- c(md, sprintf("| %.0f | %s | %.0f | %s | %.0f / %.0f (%s) | %d | %d | %s [%s ; %s] | %s \u00b1 %s | %s | %s | %s | %.10f | %s | %s |",
+                        r$seed, if (r$secondaire) "secondaire (lecture)" else "dossier (contexte, hors lecture)", r$flux, r$variante, r$tirages, r$retenus, r$arret, r$N, r$K, f5(r$K / r$N), f5(ci[1]), f5(ci[2]),
                         f4(r$p_mc), f4(r$err), ech(r$ligne$verdict), if (r$ligne$s244) "oui" else "non",
                         if (is.na(r$ligne$d_seuil)) "\u2014" else sprintf("%s (s = %s)", formatC(r$ligne$d_seuil, format = "f", digits = 2),
                                                                          format(r$ligne$seuil)),
@@ -527,17 +636,28 @@ mesure_grubbs_interieur <- function() {
   md <- c(md, "",
           sprintf("g_obs (statistique de Grubbs observ\u00e9e) : %s.", format(gobs_tous[1], digits = 10)),
           "",
-          "### T2 \u2014 Agr\u00e9gat et lecture du crit\u00e8re (avis d'actuary, par. 3.4)",
+          "### T2 \u2014 Agr\u00e9gats et lecture du crit\u00e8re (avis d'actuary, par. 3.4, compl\u00e9t\u00e9 par Q6 \u00e0 Q8)",
           "",
-          "| Grandeur | Valeur |", "|---|---|",
-          sprintf("| K_tot / N_tot | %.0f / %.0f |", Ktot, Ntot),
-          sprintf("| Estimation de p_\u221e (K_tot / N_tot) | %s |", f5(ph)),
-          sprintf("| ET binomiale | %s |", f5(et_b)),
-          sprintf("| Intervalle de Clopper\u2013Pearson bilat\u00e9ral \u00e0 99 %% | [%s ; %s] |", f5(cp[1]), f5(cp[2])),
-          sprintf("| Seuil du crit\u00e8re (\u03b1 du cas) | %s |", format(GR_SEUIL)),
+          "| Grandeur | Quatre graines secondaires (lecture) | Cinq graines (information, sans lecture) |", "|---|---|---|",
+          sprintf("| K_tot / N_tot | %.0f / %.0f | %.0f / %.0f |", AG4$K, AG4$N, AG5$K, AG5$N),
+          sprintf("| Estimation de p_\u221e (K_tot / N_tot) | %s | %s |", f5(AG4$ph), f5(AG5$ph)),
+          sprintf("| ET binomiale | %s | %s |", f5(AG4$et), f5(AG5$et)),
+          sprintf("| Intervalle de Clopper\u2013Pearson bilat\u00e9ral \u00e0 99 %% | [%s ; %s] | [%s ; %s] |", f5(AG4$cp[1]), f5(AG4$cp[2]), f5(AG5$cp[1]), f5(AG5$cp[2])),
+          sprintf("| Classification de l'intervalle (seuils \u03b1/2 = %s et \u03b1 = %s de `add()`, sens \u00ab ne pas rejeter \u00bb) | %s | %s (sans lecture) |",
+                  a2_txt, a_txt, AG4$classe, AG5$classe),
+          sprintf("| Khi-2 d'homog\u00e9n\u00e9it\u00e9 des K_s / N_s entre graines (constat, sans effet sur la lecture) : X\u00b2 (ddl) ; p ; effectif attendu minimal | %s | %s |",
+                  sprintf("%s (%d) ; %s ; %s", f4(AG4$khi2$x2), AG4$khi2$ddl, f4(AG4$khi2$p), fs1(AG4$khi2$emin)),
+                  sprintf("%s (%d) ; %s ; %s", f4(AG5$khi2$x2), AG5$khi2$ddl, f4(AG5$khi2$p), fs1(AG5$khi2$emin))),
+          sprintf("| \u03b1 du cas (`res$metadata$alpha`, contr\u00f4le (g3)) | %s | %s |", a_txt, a_txt),
           "",
           if (ESSAI) "*--essai : lecture m\u00e9canique sur un plan r\u00e9duit, sans valeur.*" else NULL,
           lecture,
+          "",
+          discordance,
+          "",
+          paste("Khi-2 : tableau 2 \u00d7 graines (K_s, N_s \u2212 K_s), statistique de Pearson, p par la loi du \u03c7\u00b2 \u00e0 (graines \u2212 1) ddl ; peu puissant contre une corr\u00e9lation entre flux,",
+                "il d\u00e9tecte une anomalie grossi\u00e8re (loi diff\u00e9rente d'une graine \u00e0 l'autre, erreur de comptage). Conditionnellement \u00e0 N_s, K_s ~ Bin(N_s, p_\u221e) ;",
+                "Clopper\u2013Pearson sur l'agr\u00e9gat suppose des flux ind\u00e9pendants (hypoth\u00e8se d'usage, non v\u00e9rifi\u00e9e)."),
           "",
           "Verdict et mention #244 de chaque graine \u00e0 B = 9\u00a0999 : T1. Contexte (tableau du 22/10/2026, `docs/tableaux/20261022-issue325-b-dossier.md`, graine du dossier, non recalcul\u00e9) :",
           paste0("- ", GR_CONTEXTE),
@@ -546,8 +666,9 @@ mesure_grubbs_interieur <- function() {
           "| Contr\u00f4le | R\u00e9sultat | D\u00e9tail |", "|---|---|---|",
           vapply(CTRL_G, function(k) sprintf("| %s | %s | %s |", k$code, if (k$ok) "conforme" else "**\u00c9CHEC**", ech(k$detail)), ""),
           "",
-          "(g0) collision de la plage nouvelle avec les litt\u00e9raux du d\u00e9p\u00f4t ; (g1) sens de rejet au catalogue, puis par graine (1 + K) / (N + 1) identique \u00e0 `bootstrap$p_mc` et \u00e0 la ligne, N = B effectif, sans motif ;",
-          "(g2) g_obs identique entre les graines ; (g3) graine, B, graine du flux V3b et \u03b1 conformes au plan ; (c) condition de #244 recalcul\u00e9e = mention pos\u00e9e par le moteur.")
+          paste("(g0) collision de la plage nouvelle avec les litt\u00e9raux entiers isol\u00e9s du d\u00e9p\u00f4t (ni paires de bornes d'une plage, ni graines calcul\u00e9es ; d\u00e9cimales apr\u00e8s une virgule exclues) ;",
+                "(g1) sens de rejet au catalogue, puis par graine (1 + K) / (N + 1) identique \u00e0 `bootstrap$p_mc` et \u00e0 la ligne, N = B effectif, sans motif, sens de la ligne \u00ab ne pas rejeter \u00bb ;"),
+          "(g2) g_obs, \u03b4\u0302, \u03b3\u0302, \u03c3\u0302 et \u03c3_USP identiques entre les graines ; (g3) graine, B, graine du flux V3b et \u03b1 conformes au plan ; (c) condition de #244 recalcul\u00e9e = mention pos\u00e9e par le moteur.")
   writeLines(enc2utf8(md), con = stdout(), useBytes = TRUE)
   if (ESSAI)
     avance("duree extrapolee de l'execution complete (B = %.0f, cinq graines, proportionnelle a B) : %.0f s (%.1f min)",
