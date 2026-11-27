@@ -90,8 +90,64 @@
 #  distincte de l'erreur de l'approximation bootstrap (simulation sous le
 #  modele ajuste, a T = 8), que B ne reduit pas.
 #
+#  Option --grubbs-interieur (issue #367 ; S9, etape 4 ; protocole de l'avis
+#  d'actuary de l'etape 1, docs/revues/20261127-s9-mesures/
+#  actuary-protocoles-etape-1.md, par. 3, ecrit avant toute execution) :
+#  REMPLACE le plan ci-dessus (aucune des executions par defaut n'est faite,
+#  la sortie par defaut est inchangee quand l'option est absente).
+#    Quantite visee : p_inf, p bootstrap a B infini de la ligne Grubbs
+#    (mc_nom "Grubbs", variante principale) du cas premium_interieur, sous le
+#    modele ajuste et conditionnelle au regime interieur de delta** (V3b,
+#    ADR 0014) ; quantite exacte definie par les donnees, approchee par
+#    Monte-Carlo. La premisse de #367 (B = 999 du dossier ou 4 999 de #325)
+#    n'a pas a etre tranchee (avis, par. 3.1) : les deux lectures du tableau
+#    du 22/10 sont rappelees comme contexte, non recalculees.
+#    Plan (avis, par. 3.2) : premium_interieur a B = 9 999 sous cinq
+#    graines, appel du cas avec les seuls arguments B et seed poses :
+#      - graine du dossier 20 260 831 (flux V3b 20 800 000) ;
+#      - quatre graines secondaires, plage NOUVELLE 36 100 001 - 36 100 004,
+#        flux V3b usp_graine_flux_regime() = graine + 539 169, soit
+#        36 639 170 - 36 639 173 (enveloppe 36 100 001 - 36 639 173).
+#    Controle de collision (g0), avant tout calcul : aucun litteral entier
+#    de 8 a 10 chiffres L de R/*.R, app.R, tests/*.R et tests/unitaires/*.R
+#    (ce script excepte ; ecriture scientifique non recherchee, meme lecture
+#    que le controle 10 de tests/couverture_ic_sigma_mw_t8.R) tel que
+#    [L ; L + 539 169] touche l'enveloppe : couvre une graine du depot egale
+#    a une graine nouvelle ou a son flux, et le flux d'une graine du depot
+#    tombant dans l'enveloppe. Plages declarees les plus proches, relevees le
+#    27/11/2026 : 32 000 001 - 34 420 000 (tests/puissance_mw_t8.R, #309,
+#    sans flux V3b) en dessous ; 305 000 000 (#305) au-dessus.
+#    Grandeurs, par graine s : N_s = valeurs finies de la colonne Grubbs de
+#    bootstrap$stats_boot (tirages retenus de V3b), K_s = #{G* >= g_obs} ;
+#    p_mc, err_mc, verdict et mention de #244 de la ligne (extraire_lignes(),
+#    ecart au seuil compris) ; tirages, retenus et arret de V3b. Agregat :
+#    K_tot / N_tot, intervalle de Clopper-Pearson bilateral a 99 % (qbeta()),
+#    ET binomiale sqrt(p (1 - p) / N_tot). Les cinq flux sont TENUS POUR
+#    INDEPENDANTS (graines Mersenne-Twister distinctes : hypothese d'usage,
+#    non verifiee) ; sous la graine du dossier, B = 9 999 prolonge le tirage
+#    principal sans que le flux V3b soit strictement emboite (avis, par.
+#    3.2).
+#    Controles (code de sortie 1, --ecrire refuse) : (g0) ci-dessus ; (g1)
+#    par graine, (1 + K_s) / (N_s + 1) identique a bootstrap$p_mc du moteur
+#    et a la p Monte-Carlo de la ligne, N_s identique a B_effectif ; (g2)
+#    g_obs identique entre les graines ; (g3) metadata : seed, B et graine
+#    du flux conformes au plan ; (c) de #244 sur la ligne Grubbs.
+#    Lecture automatique du critere (avis, par. 3.4) sur l'intervalle a 99 %
+#    de p_inf : borne haute < 0,10 : ALERTE a B infini (OK du dossier a
+#    B = 999 = effet de l'erreur Monte-Carlo ; phrase #244 justifiee ; non
+#    PM-3, a SIGNALER au mainteneur, lien avec Q-Ff-5, decision hors S9) ;
+#    borne basse > 0,10 : OK confirme ; sinon (0,10 dans l'intervalle) :
+#    indecidable a N_tot pres.
+#    Portee : erreur Monte-Carlo seule (fonction de B) ; ni l'erreur de
+#    l'approximation bootstrap (plug-in, T = 8), ni la justesse de Grubbs a
+#    T = 8, ni la suffisance de B = 999 ailleurs.
+#    Sortie : docs/tableaux/<AAAAMMJJ>-issue367-grubbs-interieur.md sous
+#    --ecrire (memes gardes) ; --essai : B = 199 sous les cinq graines,
+#    NON representatif, avec la duree extrapolee de l'execution complete
+#    (proportionnelle a B, majorant).
+#
 #  Usage (depuis la racine du depot ; LC_ALL=C.UTF-8 sous Linux, #113) :
-#      Rscript tests/mesure_b_dossier_t8.R [--ecrire [--remplacer]] [--essai]
+#      Rscript tests/mesure_b_dossier_t8.R [--grubbs-interieur] [--ecrire [--remplacer]] [--essai]
 #  --remplacer sans --ecrire : refus d'usage (code 1), avant tout autre
 #    controle.
 #  --ecrire : ecrit docs/tableaux/<AAAAMMJJ>-issue325-b-dossier.md (date
@@ -120,11 +176,12 @@ if (!isTRUE(l10n_info()[["UTF-8"]]))
 
 # --- Options -----------------------------------------------------------------
 ARGS <- commandArgs(trailingOnly = TRUE)
-OPTIONS_DRAPEAU <- c("--ecrire", "--remplacer", "--essai")
+OPTIONS_DRAPEAU <- c("--ecrire", "--remplacer", "--essai", "--grubbs-interieur")
 for (a in ARGS) if (!a %in% OPTIONS_DRAPEAU) stop("option inconnue : ", a)
 ECRIRE    <- "--ecrire" %in% ARGS
 REMPLACER <- "--remplacer" %in% ARGS
 ESSAI     <- "--essai" %in% ARGS
+GRUBBS    <- "--grubbs-interieur" %in% ARGS   # issue #367 (voir l'en-tete)
 # Refus d'usage avant tout autre controle et tout chargement (#173).
 if (REMPLACER && !ECRIRE) {
   message("--remplacer : reserve a --ecrire")
@@ -153,7 +210,8 @@ FICHIER_MOTEUR <- file.path(RACINE, "R", "engine.R")
 # gardes FINALES avant d'ecrire (l'etat du depot peut changer pendant le
 # calcul). Fonctions et ordre de tests/enumeration_spearman_ex_aequo.R.
 DATE <- format(Sys.Date(), "%Y%m%d")
-CIBLE_MD <- file.path(RACINE, "docs", "tableaux", paste0(DATE, "-issue325-b-dossier.md"))
+CIBLE_MD <- file.path(RACINE, "docs", "tableaux",
+                      paste0(DATE, if (GRUBBS) "-issue367-grubbs-interieur.md" else "-issue325-b-dossier.md"))
 # Empreintes du code execute : md5 de ce script et de tests/outils_tests.R ;
 # "hors depot" si le script execute n'est pas celui du depot.
 empreintes_code <- function() {
@@ -191,12 +249,19 @@ rownames(PLAN) <- NULL
 
 # Appel du cas avec le seul argument B pose : le corps de la fonction du cas
 # doit etre un appel direct de run_engine() sans argument B (verifie).
-appel_cas <- function(nom, B) {
+# seed (option --grubbs-interieur seulement, #367) : argument seed pose en
+# plus, le corps ne devant pas en porter (verifie) ; NULL (plan par defaut) :
+# appel inchange.
+appel_cas <- function(nom, B, seed = NULL) {
   f <- OT$CAS[[nom]]
   corps <- body(f)
   if (!is.call(corps) || !identical(corps[[1L]], quote(run_engine)) || !is.null(corps$B))
     stop("cas ", nom, " : corps inattendu (appel direct de run_engine() sans argument B attendu)")
   corps$B <- B
+  if (!is.null(seed)) {
+    if (!is.null(corps$seed)) stop("cas ", nom, " : corps inattendu (argument seed deja pose)")
+    corps$seed <- seed
+  }
   body(f) <- corps
   f()
 }
@@ -270,6 +335,231 @@ graines_txt <- function(m) {
     x <- c(x, sprintf("g\u00e9n\u00e9rateur %s", paste(unlist(m$generateur), collapse = "/")))
   paste(x, collapse = ", ")
 }
+
+# --- Option --grubbs-interieur (issue #367) -------------------------------------
+# Plan, controles, critere et sortie : voir l'en-tete. Executee A LA PLACE
+# du plan par defaut, puis fin du script (quit()) ; sans l'option, rien de
+# ce bloc n'est execute hors des definitions.
+GR_CAS <- "premium_interieur"
+GR_B_COMPLET <- 9999
+GR_B <- if (ESSAI) 199 else GR_B_COMPLET
+GR_SEED_DOSSIER <- 20260831
+GR_SEEDS_SEC <- 36100001 + 0:3            # plage nouvelle declaree (en-tete, controle (g0))
+GR_SEEDS <- c(GR_SEED_DOSSIER, GR_SEEDS_SEC)
+GR_NIVEAU_CP <- 0.99
+GR_SEUIL <- 0.10                         # seuil du critere (avis, par. 3.4) = alpha du cas (controle (g3))
+GR_MC_NOM <- "Grubbs"
+# Contexte (non recalcule) : tableau du 22/10/2026,
+# docs/tableaux/20261022-issue325-b-dossier.md, cas premium_interieur,
+# ligne 34 (moteur de l'epoque, graine du dossier).
+GR_CONTEXTE <- c("B = 999 (dossier) : p = 0,1050 \u00b1 0,0097, OK, mention #244",
+                 "B = 4\u00a0999 (#325) : p = 0,0926 \u00b1 0,0041, ALERTE, mention #244")
+
+# Controle (g0) : collision de la plage nouvelle avec les litteraux du depot.
+gr_collisions <- function() {
+  D <- OT$DECALAGE_GRAINE_FLUX_REGIME
+  flux <- vapply(GR_SEEDS_SEC, OT$usp_graine_flux_regime, 0)
+  env <- c(min(GR_SEEDS_SEC, flux), max(GR_SEEDS_SEC, flux))
+  fs <- c(list.files(file.path(RACINE, "R"), pattern = "\\.R$", full.names = TRUE, recursive = TRUE),
+          file.path(RACINE, "app.R"),
+          list.files(file.path(RACINE, "tests"), pattern = "\\.R$", full.names = TRUE),
+          list.files(file.path(RACINE, "tests", "unitaires"), pattern = "\\.R$", full.names = TRUE))
+  np <- function(x) normalizePath(x, winslash = "/", mustWork = FALSE)
+  fs <- fs[file.exists(fs) & np(fs) != np(file.path(RACINE, SCRIPT))]
+  lit <- sort(unique(unlist(lapply(fs, function(f) {
+    l <- readLines(f, warn = FALSE, encoding = "UTF-8")
+    as.numeric(unlist(regmatches(l, gregexpr("(?<![0-9A-Za-z._])[0-9]{8,10}(?=L?(?![0-9A-Za-z._]))", l, perl = TRUE))))
+  }))))
+  coll <- lit[lit <= env[2] & lit + D >= env[1]]
+  dossier <- c(GR_SEED_DOSSIER, OT$usp_graine_flux_regime(GR_SEED_DOSSIER))
+  ok <- !length(coll) && identical(flux, GR_SEEDS_SEC + D) && env[2] <= .Machine$integer.max &&
+    !any(dossier >= env[1] & dossier <= env[2])
+  dessous <- lit[lit < env[1]]; dessus <- lit[lit > env[2]]
+  list(ok = ok, env = env, flux = flux,
+       detail = sprintf(paste("graines secondaires %s, flux V3b %s (graine + %.0f), enveloppe %.0f - %.0f ;",
+                              "%d litt\u00e9raux entiers de 8 \u00e0 10 chiffres dans %d fichiers (R/*.R, app.R, tests/*.R hors ce script, tests/unitaires/*.R ; \u00e9criture scientifique non recherch\u00e9e) ;",
+                              "litt\u00e9raux L dont [L ; L + %.0f] touche l'enveloppe : %s ; plus proches : %s en dessous, %s au-dessus ;",
+                              "graine du dossier et son flux (%s) hors de l'enveloppe : %s"),
+                        paste(sprintf("%.0f", GR_SEEDS_SEC), collapse = ", "), paste(sprintf("%.0f", flux), collapse = ", "), D,
+                        env[1], env[2], length(lit), length(fs), D,
+                        if (length(coll)) paste(sprintf("%.0f", coll), collapse = ", ") else "aucun",
+                        if (length(dessous)) sprintf("%.0f", max(dessous)) else "aucun",
+                        if (length(dessus)) sprintf("%.0f", min(dessus)) else "aucun",
+                        paste(sprintf("%.0f", dossier), collapse = ", "),
+                        if (!any(dossier >= env[1] & dossier <= env[2])) "oui" else "NON"))
+}
+
+# Intervalle de Clopper-Pearson bilateral de niveau niv pour K succes sur N.
+gr_cp <- function(K, N, niv = GR_NIVEAU_CP) {
+  a <- 1 - niv
+  c(if (K == 0) 0 else stats::qbeta(a / 2, K, N - K + 1),
+    if (K == N) 1 else stats::qbeta(1 - a / 2, K + 1, N - K))
+}
+
+mesure_grubbs_interieur <- function() {
+  # Aides locales (leurs homologues du plan par defaut sont definies plus
+  # bas dans le script, apres ce bloc) : memes definitions.
+  B_PRECHAUFFAGE <- OT$B_MIN_USAGE
+  avance <- function(...) cat(sprintf(...), "\n", sep = "", file = stderr())
+  fb <- function(B) formatC(B, format = "d", big.mark = "\u00a0")
+  ech <- function(x) OT$echapper(OT$une_ligne(ifelse(is.na(x), "\u2014", x)))
+  CTRL_G <- list()
+  ctl <- function(code, ok, detail) CTRL_G[[length(CTRL_G) + 1L]] <<- list(code = code, ok = isTRUE(ok), detail = detail)
+  g0 <- gr_collisions()
+  ctl("(g0)", g0$ok, g0$detail)
+  if (!g0$ok) {
+    message("controle (g0) en echec, aucun calcul : ", g0$detail)
+    return(1L)
+  }
+  ctl("(g1) sens", identical(OT$USP_CATALOGUE_MC[[GR_MC_NOM]]$queue, "haut"),
+      sprintf("sens de rejet de %s au catalogue : %s", GR_MC_NOM, paste(OT$USP_CATALOGUE_MC[[GR_MC_NOM]]$queue, collapse = "/")))
+  # Prechauffage (non chronometre, non restitue), comme le plan par defaut.
+  invisible(appel_cas(GR_CAS, B_PRECHAUFFAGE))
+  R <- list()
+  for (s in GR_SEEDS) {
+    t0 <- Sys.time(); cpu0 <- proc.time()
+    res <- appel_cas(GR_CAS, GR_B, seed = s)
+    t1 <- Sys.time(); cpu1 <- proc.time()
+    if (!isTRUE(res$ok)) stop("cas ", GR_CAS, ", seed = ", s, " : run_engine() a renvoye ok = FALSE\n", OT$decrire_refus(res))
+    bt <- res$bootstrap
+    tt <- OT$engine_table_tests(res)
+    k <- which(tt$mc_nom %in% GR_MC_NOM & tt$variante %in% "principale")
+    if (length(k) != 1L) stop("ligne ", GR_MC_NOM, " (variante principale) introuvable ou multiple")
+    L <- extraire_lignes(res)[k, ]
+    g <- bt$stats_boot[, GR_MC_NOM]; g <- g[is.finite(g)]
+    gobs <- bt$stats_obs[[GR_MC_NOM]]
+    K <- sum(g >= gobs); N <- length(g)
+    p_re <- (1 + K) / (N + 1)
+    flux_att <- OT$usp_graine_flux_regime(s)
+    meta <- res$metadata
+    cpu <- cpu1 - cpu0
+    R[[length(R) + 1L]] <- list(
+      seed = s, flux = meta$seed_flux_regime, ecoule = as.numeric(difftime(t1, t0, units = "secs")),
+      cpu = unname(cpu[["user.self"]] + cpu[["sys.self"]]), K = K, N = N, gobs = gobs,
+      p_mc = unname(bt$p_mc[[GR_MC_NOM]]), err = unname(bt$err_mc[[GR_MC_NOM]]), ligne = L,
+      variante = bt$p_mc_regime$variante, tirages = bt$p_mc_regime$tirages, retenus = bt$p_mc_regime$retenus,
+      arret = bt$p_mc_regime$arret, sigma_usp = res$parametre_final$sigma_usp, graines = graines_txt(meta),
+      g1 = identical(p_re, unname(bt$p_mc[[GR_MC_NOM]])) && identical(p_re, tt$p_monte_carlo[k]) &&
+        identical(as.numeric(N), unname(as.numeric(bt$B_effectif[[GR_MC_NOM]]))) && is.na(bt$motif_mc[[GR_MC_NOM]]),
+      g3 = identical(as.numeric(meta$seed), as.numeric(s)) && identical(as.numeric(meta$B), as.numeric(GR_B)) &&
+        identical(as.numeric(meta$seed_flux_regime), flux_att) && identical(as.numeric(meta$alpha), GR_SEUIL),
+      p_re = p_re)
+    r <- R[[length(R)]]
+    ctl(sprintf("(g1) %.0f", s), r$g1, sprintf("(1 + K) / (N + 1) = %s ; p_mc du moteur %s ; B effectif %.0f", format(p_re, digits = 17),
+                                               format(r$p_mc, digits = 17), as.numeric(bt$B_effectif[[GR_MC_NOM]])))
+    ctl(sprintf("(g3) %.0f", s), r$g3, sprintf("seed %.0f, B %.0f, graine du flux %.0f (attendue %.0f), \u03b1 %s", meta$seed, meta$B,
+                                               meta$seed_flux_regime, flux_att, format(meta$alpha)))
+    ctl(sprintf("(c) %.0f", s), identical(L$c244, L$s244), sprintf("condition de #244 recalcul\u00e9e %s, mention du moteur %s",
+                                                                  if (L$c244) "vraie" else "fausse", if (L$s244) "pos\u00e9e" else "absente"))
+    rm(res); invisible(gc(verbose = FALSE))
+    avance("[%s] %s seed = %.0f B = %.0f : %.1f s ecoules, %.1f s CPU ; K/N = %d/%d ; p_mc = %.4f ; %s%s",
+           format(Sys.time(), "%H:%M:%S"), GR_CAS, s, GR_B, r$ecoule, r$cpu, K, N, r$p_mc, L$verdict, if (L$s244) " (#244)" else "")
+  }
+  gobs_tous <- vapply(R, `[[`, 0, "gobs")
+  ctl("(g2)", length(unique(gobs_tous)) == 1L, sprintf("g_obs identique entre les %d graines : %s (%s)", length(R),
+                                                       if (length(unique(gobs_tous)) == 1L) "oui" else "NON",
+                                                       paste(unique(format(gobs_tous, digits = 17)), collapse = ", ")))
+  ok <- all(vapply(CTRL_G, `[[`, TRUE, "ok"))
+  if (ECRIRE && !ok) {
+    message("--ecrire refuse : controle en echec -- aucun fichier ecrit")
+    for (k in CTRL_G) if (!k$ok) message("  ", k$code, " : ", k$detail)
+    return(1L)
+  }
+  Ktot <- sum(vapply(R, `[[`, 0, "K")); Ntot <- sum(vapply(R, `[[`, 0, "N"))
+  ph <- Ktot / Ntot; cp <- gr_cp(Ktot, Ntot); et_b <- sqrt(ph * (1 - ph) / Ntot)
+  lecture <- if (cp[2] < GR_SEUIL)
+    paste0("**ALERTE \u00e0 B infini** : intervalle \u00e0 99 % de p_\u221e inclus dans ]0 ; 0,10[. Le OK du dossier \u00e0 B = 999 est un effet de l'erreur Monte-Carlo sur cette ligne ;",
+           " la phrase de #244 est justifi\u00e9e et se chiffre. Pas de PM-3 (aucune phrase contredite) ; \u00e0 **signaler au mainteneur**, en lien avec Q-Ff-5 (B du dossier), d\u00e9cision hors S9.")
+  else if (cp[1] > GR_SEUIL) "**OK confirm\u00e9** : intervalle \u00e0 99 % de p_\u221e inclus dans ]0,10 ; 1[."
+  else "**Ind\u00e9cidable \u00e0 N_tot pr\u00e8s** : l'intervalle \u00e0 99 % de p_\u221e contient 0,10."
+
+  if (ECRIRE) REMPLACES <- gardes_ecrire("de l'ex\u00e9cution")
+  DUREE <- as.numeric(difftime(Sys.time(), t_debut, units = "secs"))
+  EXTRAP <- sum(vapply(R, `[[`, 0, "ecoule")) * GR_B_COMPLET / GR_B
+  si <- Sys.info()
+  f4 <- function(x) ifelse(is.na(x), "\u2014", formatC(x, format = "f", digits = 4))
+  f5 <- function(x) ifelse(is.na(x), "\u2014", formatC(x, format = "f", digits = 5))
+  fs1 <- function(x) ifelse(is.na(x), "\u2014", formatC(x, format = "f", digits = 1))
+  md <- c(
+    "# Rejeu de `premium_interieur` \u00e0 B = 9\u00a0999 sous cinq graines : ligne Grubbs et p bootstrap \u00e0 B infini (issue #367)",
+    "",
+    if (ESSAI) c(sprintf("> **--essai : plan r\u00e9duit (B = %s), valeurs NON repr\u00e9sentatives, NON versionnables.**", fb(GR_B)), "") else NULL,
+    "### T0 \u2014 Ex\u00e9cution",
+    "",
+    "| Grandeur | Valeur |", "|---|---|",
+    sprintf("| Date | %s |", format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z")),
+    sprintf("| Script | `%s` --grubbs-interieur%s |", SCRIPT, if (ESSAI) " --essai (plan r\u00e9duit, NON repr\u00e9sentatif, NON versionnable)" else ""),
+    sprintf("| Commit | `%s` |", COMMIT),
+    sprintf("| Empreintes du code | %s |", empreintes_code()),
+    sprintf("| Moteur | `R/engine.R`, md5 `%s`, empreinte sans commentaires `%s` |", MD5_MOTEUR,
+            OT$empreinte_sans_commentaires(FICHIER_MOTEUR)),
+    sprintf("| R | %s, %s, %s, %s ; c\u0153urs (`parallel::detectCores()`) : %s |", R.version.string,
+            utils::sessionInfo()$running, si[["sysname"]], si[["machine"]], COEURS),
+    sprintf("| BLAS / LAPACK | %s / %s |", ech(utils::sessionInfo()$BLAS), ech(utils::sessionInfo()$LAPACK)),
+    OT$ligne_remplacement(REMPLACES, CIBLE_MD),
+    sprintf("| Plan | cas `%s` de `CAS` (`tests/outils_tests.R`) \u00e0 B = %s sous %d graines ; appel du cas avec les seuls arguments B et seed pos\u00e9s ; une ex\u00e9cution \u00e0 la fois, dans un seul processus ; ligne `%s` (variante principale) |",
+            GR_CAS, fb(GR_B), length(GR_SEEDS), GR_MC_NOM),
+    sprintf("| Graines (`res$metadata`) | %s |", paste(vapply(R, function(r) r$graines, ""), collapse = " ; ")),
+    sprintf("| Plage nouvelle d\u00e9clar\u00e9e (graines secondaires et flux V3b) | %.0f \u2013 %.0f |", g0$env[1], g0$env[2]),
+    sprintf("| Contr\u00f4les | %s |", if (ok) "tous conformes (T3)" else "**\u00c9CHEC** (T3)"),
+    sprintf("| Dur\u00e9e totale du script | %s s |", fs1(DUREE)),
+    if (ESSAI) sprintf("| Dur\u00e9e extrapol\u00e9e de l'ex\u00e9cution compl\u00e8te (B = %s, cinq graines, proportionnelle \u00e0 B, majorant) | %s s (%s min) |",
+                       fb(GR_B_COMPLET), fs1(EXTRAP), fs1(EXTRAP / 60)) else NULL,
+    "",
+    "Quantit\u00e9 vis\u00e9e : p_\u221e, p bootstrap \u00e0 B infini de la ligne Grubbs sur ces donn\u00e9es, sous le mod\u00e8le ajust\u00e9 et conditionnelle au r\u00e9gime int\u00e9rieur de \u03b4** (V3b) ;",
+    "quantit\u00e9 exacte d\u00e9finie par les donn\u00e9es, approch\u00e9e par Monte-Carlo. Erreur purement Monte-Carlo (fonction de B), binomiale : K = #{G* \u2265 g_obs} sur N tirages retenus ;",
+    "les cinq flux sont tenus pour ind\u00e9pendants (graines distinctes : hypoth\u00e8se d'usage, non v\u00e9rifi\u00e9e). La mesure ne r\u00e9duit pas l'erreur de l'approximation bootstrap (plug-in, T = 8)",
+    "et ne dit ni si Grubbs est juste \u00e0 T = 8, ni si B = 999 suffit ailleurs.",
+    "",
+    "### T1 \u2014 Par graine",
+    "",
+    "| Graine | Graine du flux V3b | Variante | Tirages / retenus (arr\u00eat) | N | K | K / N [Clopper\u2013Pearson 99 %] | p_mc \u00b1 err_mc (moteur) | Verdict | Mention #244 | \u00c9cart au seuil le plus proche (err_mc) | \u03c3_USP | Temps \u00e9coul\u00e9 (s) | Temps CPU (s) |",
+    "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+  for (r in R) {
+    ci <- gr_cp(r$K, r$N)
+    md <- c(md, sprintf("| %.0f | %.0f | %s | %.0f / %.0f (%s) | %d | %d | %s [%s ; %s] | %s \u00b1 %s | %s | %s | %s | %.10f | %s | %s |",
+                        r$seed, r$flux, r$variante, r$tirages, r$retenus, r$arret, r$N, r$K, f5(r$K / r$N), f5(ci[1]), f5(ci[2]),
+                        f4(r$p_mc), f4(r$err), ech(r$ligne$verdict), if (r$ligne$s244) "oui" else "non",
+                        if (is.na(r$ligne$d_seuil)) "\u2014" else sprintf("%s (s = %s)", formatC(r$ligne$d_seuil, format = "f", digits = 2),
+                                                                         format(r$ligne$seuil)),
+                        r$sigma_usp, fs1(r$ecoule), fs1(r$cpu)))
+  }
+  md <- c(md, "",
+          sprintf("g_obs (statistique de Grubbs observ\u00e9e) : %s.", format(gobs_tous[1], digits = 10)),
+          "",
+          "### T2 \u2014 Agr\u00e9gat et lecture du crit\u00e8re (avis d'actuary, par. 3.4)",
+          "",
+          "| Grandeur | Valeur |", "|---|---|",
+          sprintf("| K_tot / N_tot | %.0f / %.0f |", Ktot, Ntot),
+          sprintf("| Estimation de p_\u221e (K_tot / N_tot) | %s |", f5(ph)),
+          sprintf("| ET binomiale | %s |", f5(et_b)),
+          sprintf("| Intervalle de Clopper\u2013Pearson bilat\u00e9ral \u00e0 99 %% | [%s ; %s] |", f5(cp[1]), f5(cp[2])),
+          sprintf("| Seuil du crit\u00e8re (\u03b1 du cas) | %s |", format(GR_SEUIL)),
+          "",
+          if (ESSAI) "*--essai : lecture m\u00e9canique sur un plan r\u00e9duit, sans valeur.*" else NULL,
+          lecture,
+          "",
+          "Verdict et mention #244 de chaque graine \u00e0 B = 9\u00a0999 : T1. Contexte (tableau du 22/10/2026, `docs/tableaux/20261022-issue325-b-dossier.md`, graine du dossier, non recalcul\u00e9) :",
+          paste0("- ", GR_CONTEXTE),
+          "",
+          "### T3 \u2014 Contr\u00f4les", "",
+          "| Contr\u00f4le | R\u00e9sultat | D\u00e9tail |", "|---|---|---|",
+          vapply(CTRL_G, function(k) sprintf("| %s | %s | %s |", k$code, if (k$ok) "conforme" else "**\u00c9CHEC**", ech(k$detail)), ""),
+          "",
+          "(g0) collision de la plage nouvelle avec les litt\u00e9raux du d\u00e9p\u00f4t ; (g1) sens de rejet au catalogue, puis par graine (1 + K) / (N + 1) identique \u00e0 `bootstrap$p_mc` et \u00e0 la ligne, N = B effectif, sans motif ;",
+          "(g2) g_obs identique entre les graines ; (g3) graine, B, graine du flux V3b et \u03b1 conformes au plan ; (c) condition de #244 recalcul\u00e9e = mention pos\u00e9e par le moteur.")
+  writeLines(enc2utf8(md), con = stdout(), useBytes = TRUE)
+  if (ESSAI)
+    avance("duree extrapolee de l'execution complete (B = %.0f, cinq graines, proportionnelle a B) : %.0f s (%.1f min)",
+           GR_B_COMPLET, EXTRAP, EXTRAP / 60)
+  if (ECRIRE) {
+    con <- file(CIBLE_MD, open = "wb"); writeLines(enc2utf8(md), con, useBytes = TRUE); close(con)
+    cat(sprintf("\nEcrit : %s\n", CIBLE_MD), file = stderr())
+  }
+  for (k in CTRL_G) if (!k$ok) message("controle ", k$code, " en echec : ", k$detail)
+  if (ok) 0L else 1L
+}
+if (GRUBBS) quit(status = mesure_grubbs_interieur())
 
 # --- Prechauffage ---------------------------------------------------------------
 # Chaque cas une fois a B = B_PRECHAUFFAGE, non chronometre et non restitue :
