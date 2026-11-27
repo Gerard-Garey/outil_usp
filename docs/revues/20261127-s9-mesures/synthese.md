@@ -59,3 +59,12 @@ Avant l'exécution officielle de #421, les essais du coder et un contrôle cibl�
 - T = 5, α = 0,05 : marge m = 6,042e-4, donc L₋ = 0 décidée.
 
 Les deux corrections du 27/11 (K421-3 et K421-2) visent la lisibilité des lectures. Elles sont fondées a priori (tolérance de quadrature, loi exacte) et ne déplacent aucun verdict à T = 4, 5 ou 8. Le seuil de 1e-3 de K421-3 n'est pas modifié au vu de la valeur 1,09e-3 : la lecture « régime non atteint, écart relatif 1,09e-3 » paraîtra avec sa valeur.
+
+**Complément du 27/11 (audit léger de `4a2f6bf` et `4e0a829`).** Pour vérifier le commit 2, l'audit a fait une exécution complète de `mesure_dw_rho_negatif_t8.R`, sans `--ecrire`, sur une extraction hors dépôt. Lectures qu'il a vues avant l'exécution officielle :
+- K421-1 : 26 couples décidés sur 26, avec L₋(4 ; 0,10) = 0 et L₋(5 ; 0,05) = 0 ;
+- K421-2 : 0 comparaison signalée sur 130 ;
+- K421-3 : 19 couples stables, 5 en régime non atteint, 2 sans objet (T = 100, ancienne garde) ; à T = 5, écarts relatifs 1,754 (α = 0,05) et 1,091e-3 (α = 0,10) ;
+- K421-4 : rang T − 1 partout, écart maximal 1,154e-6 ;
+- K421-5 : 31 lignes de T = 8 identiques au 31/10.
+
+Le calcul est déterministe (quadrature, puis graines fixes) : l'exécution officielle de l'étape 6 rendra les mêmes nombres. Les corrections de la reprise (A1 et A2 d'actuary, mineurs 1, 2, 4, 5 et 6 de l'audit) ont été décidées avant cette exécution pour A1 et A2, et portent sur la forme des lectures et des gardes pour les autres ; aucun seuil n'est déplacé au vu de ces valeurs. Décision de la session sur le mineur 1 de l'audit : K421-5 (lignes de T = 8 différentes du 31/10) refuse `--ecrire`, conformément au critère d'acceptation de la fiche S9 ; K421-2 en désaccord reste une lecture qui déclenche PM-3.
