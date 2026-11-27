@@ -10,7 +10,11 @@
 #  inchangee, pour la puissance, et, pour le recoupement par simulation (section
 #  2), .dw_valeurs_propres(), .imhof_p_sup0(), stat_dw(), dw_p_exacte() et
 #  engine_sous_graine(). La seule logique reprise est declaree (points
-#  critiques et statistique matricielle de la section 2).
+#  critiques et statistique matricielle de la section 2). Il charge
+#  tests/outils_tests.R puis tests/outils_mesure_dw.R (#421, Q-78-4 (a)),
+#  definition unique, partagee avec tests/mesure_lb1_dw_t8.R, de
+#  empreintes_code(), plateforme_calcul(), dw_mat(), ar1_mat() et
+#  points_critiques_dw().
 #  Sortie en markdown sur la console (UTF-8) ; un fichier n'est ecrit que sur
 #  --ecrire. Tous les libelles non ASCII sont ecrits en echappements \u
 #  (fichier source ASCII).
@@ -97,15 +101,24 @@
 #       innovations e pour tous les rho), tirees dans un seul flux
 #       engine_sous_graine(SEED_SIM = 20261031), generateur ENGINE_RNG_KIND.
 #       Statistique : DW = sum (zc_t - zc_{t-1})^2 / sum zc_t^2 sur la serie
-#       centree zc, formule matricielle (controle S0 : identique a stat_dw()
-#       du moteur sur 100 series, 1e-12). Points critiques bilateraux de la
+#       centree zc, formule matricielle dw_mat(). Controles S0, a chaque rho
+#       simule non nul (#421, point 4 : la serie de comparaison n'est plus
+#       la sortie de ar1_mat() des deux cotes, ni prise a rho = 0) : sur les
+#       100 premieres lignes e de la matrice des innovations, serie de
+#       reference z = R'e, R = chol(Sigma), Sigma = (rho^|i-j|), construite
+#       sans ar1_mat() ; S0-ar1 : ecart max entre ar1_mat() et z (tolerance
+#       1e-10, arrondis de deux calculs differents) ; S0-dw : ecart max entre
+#       dw_mat() et stat_dw() du moteur sur z (tolerance 1e-12, comme avant
+#       #421). Points critiques bilateraux de la
 #       loi nulle exacte, P0(DW <= d_bas) = P0(DW >= d_haut) = alpha / 2, par
 #       .imhof_p_sup0() sur .dw_valeurs_propres(8) et uniroot() (copie
-#       declaree du calcul de dw_puissance_ar1() et de mesure_lb1_dw_t8.R :
+#       declaree du calcul de dw_puissance_ar1(), points_critiques_dw() de
+#       tests/outils_mesure_dw.R :
 #       cette loi nulle est celle de dw_p_exacte(), seule l'alternative est
 #       recoupee) ; controle S1 : la region [d_bas, d_haut] equivaut a
 #       dw_p_exacte() < alpha sur 300 series simulees (desaccords, tolerance
-#       0). Controles S-rho-alpha : |frequence de rejet - valeur d'Imhof| <=
+#       0 ; dw_p_exacte() calculee une fois par serie et comparee a chaque
+#       alpha, #421, point 4). Controles S-rho-alpha : |frequence de rejet - valeur d'Imhof| <=
 #       3 erreurs-types, erreur-type binomiale sqrt(p (1 - p) / N_SIM) avec p la
 #       valeur d'Imhof (au plus 7,9e-4 a N_SIM = 4e5, donc <= 1e-3). A rho = 0,
 #       la valeur de reference est alpha (niveau exact).
@@ -127,8 +140,8 @@
 #  pour une execution complete (un script perime echoue donc a l'essai).
 #  --ecrire --issue N : ecrit, si tous les controles tiennent,
 #  docs/tableaux/<AAAAMMJJ>-issue<N>-dw-rho-negatif.md (date du jour ;
-#  plateforme, SHA de HEAD, md5 du moteur, empreintes du script et de
-#  tests/outils_tests.R) ; --issue est obligatoire avec --ecrire, refuse sans.
+#  plateforme, SHA de HEAD, md5 du moteur, empreintes du script, de
+#  tests/outils_tests.R et de tests/outils_mesure_dw.R) ; --issue est obligatoire avec --ecrire, refuse sans.
 #  Sans --ecrire, rien n'est ecrit. Gardes anticipees (avant tout calcul)
 #  puis finales (avant d'ecrire), comme les autres scripts (#205, #173) :
 #  docs/tableaux/ doit exister ; refus (code 1, rien d'ecrit) si le commit lu
@@ -176,27 +189,19 @@ DOSSIER_SCRIPT <- local({
   if (length(f) == 1L) dirname(f) else if (file.exists("tests/outils_tests.R")) "tests" else "."
 })
 source(file.path(DOSSIER_SCRIPT, "outils_tests.R"))
+# empreintes_code(), plateforme_calcul(), dw_mat(), ar1_mat(),
+# points_critiques_dw() : definition unique (#421, Q-78-4 (a)).
+source(file.path(DOSSIER_SCRIPT, "outils_mesure_dw.R"))
 
 DATE_SORTIE <- format(Sys.Date(), "%Y%m%d")
 NOM_FICHIER <- if (OPT_ECRIRE) sprintf("%s-issue%s-dw-rho-negatif.md", DATE_SORTIE, OPT_ISSUE) else NA_character_
 CHEMIN_ECRIT <- if (OPT_ECRIRE) file.path(RACINE, "docs", "tableaux", NOM_FICHIER) else NA_character_
-# Empreintes du code execute : md5 de ce script et de tests/outils_tests.R ;
-# "hors depot" si le script execute n'est pas celui du depot (copie declaree
-# de empreintes_code() de tests/mesure_lb1_dw_t8.R).
-empreintes_code <- function() {
-  f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
-  md5 <- function(x) if (!length(x) || !file.exists(x)) "absent" else unname(tools::md5sum(x))
-  dans <- length(f) == 1L && identical(normalizePath(f, winslash = "/", mustWork = FALSE),
-                                       normalizePath(file.path(RACINE, SCRIPT), winslash = "/", mustWork = FALSE))
-  sprintf("%s %s%s ; tests/outils_tests.R %s", SCRIPT, md5(f), if (dans) "" else " (hors d\u00e9p\u00f4t)",
-          md5(file.path(RACINE, "tests", "outils_tests.R")))
-}
 # Gardes de --ecrire (#205, #173), anticipees (avant tout calcul) puis
 # finales (avant d'ecrire) : dossier cible, arbre propre et script suivi,
 # fichier cible non suivi par git (ce script n'a pas d'option --remplacer).
 gardes_ecrire <- function(quand) {
   if (!dir.exists(file.path(RACINE, "docs", "tableaux"))) stop("dossier de sortie introuvable : docs/tableaux")
-  nv <- motifs_non_versionnable(commit_depot(SCRIPT), empreintes_code(), quand)
+  nv <- motifs_non_versionnable(commit_depot(SCRIPT), empreintes_code(SCRIPT), quand)
   if (length(nv)) {
     message("--ecrire refuse (tableau versionne dans docs/tableaux/) : ", paste(nv, collapse = " ; "),
             " -- aucun fichier ecrit")
@@ -215,15 +220,6 @@ if (OPT_ECRIRE) gardes_ecrire("de l'ex\u00e9cution")
 COMMIT <- commit_depot(SCRIPT)
 MD5_MOTEUR <- unname(tools::md5sum(file.path(RACINE, "R", "engine.R")))
 
-# Plateforme de calcul (copie declaree de plateforme_calcul() de
-# tests/mesure_lb1_dw_t8.R).
-plateforme_calcul <- function() {
-  txt <- function(v) if (is.null(v) || !length(v) || is.na(v[1]) || !nzchar(v[1])) "non renseign\u00e9" else unname(v[1])
-  si <- Sys.info()
-  sprintf("%s ; %s ; %s, %s ; BLAS : %s ; LAPACK : %s (version %s)",
-          R.version.string, txt(utils::sessionInfo()$running), txt(si[["sysname"]]), txt(si[["machine"]]),
-          txt(extSoftVersion()["BLAS"]), txt(La_library()), txt(La_version()))
-}
 ecrire_console <- function(x) writeLines(enc2utf8(x), useBytes = TRUE)
 
 # --- Mise en forme -------------------------------------------------------------
@@ -325,47 +321,54 @@ duree_controles <- as.numeric(difftime(Sys.time(), t_d, units = "secs"))
 ###############################################################################
 # 2. Recoupement par simulation (independant d'Imhof pour l'alternative)
 ###############################################################################
-# Statistique DW et AR(1) stationnaire sur les lignes d'une matrice (copies
-# declarees de stat_dw_mat() et ar1_mat() de tests/mesure_lb1_dw_t8.R).
-dw_mat <- function(Z) { zc <- Z - rowMeans(Z); rowSums((zc[, -1L, drop = FALSE] - zc[, -T_, drop = FALSE])^2) / rowSums(zc^2) }
-ar1_mat <- function(E, rho) {
-  Z <- E; s <- sqrt(1 - rho^2)
-  for (t in 2:T_) Z[, t] <- rho * Z[, t - 1L] + s * E[, t]
-  Z
-}
-# Points critiques de la loi nulle (copie declaree du calcul de
-# dw_puissance_ar1() et de points_critiques_dw() de mesure_lb1_dw_t8.R).
-LAM_DW <- .dw_valeurs_propres(T_)
-points_critiques_dw <- function(alpha) {
-  p0_sup <- function(d) .imhof_p_sup0(LAM_DW - d)
-  lo <- min(LAM_DW) + 1e-9; hi <- max(LAM_DW) - 1e-9
-  c(bas  = stats::uniroot(function(d) (1 - p0_sup(d)) - alpha / 2, c(lo, hi), tol = 1e-12)$root,
-    haut = stats::uniroot(function(d) p0_sup(d) - alpha / 2, c(lo, hi), tol = 1e-12)$root)
-}
+# Statistique DW (dw_mat()), AR(1) stationnaire (ar1_mat()) et points
+# critiques de la loi nulle (points_critiques_dw(), copie declaree du calcul
+# de dw_puissance_ar1()) : tests/outils_mesure_dw.R.
+# Serie de reference des controles S0 (#421, point 4) : z = R'e, R =
+# chol(Sigma), Sigma = (rho^|i-j|), sur les lignes de E (une serie par ligne :
+# E R), construite sans ar1_mat().
+ar1_chol <- function(E, rho) E %*% chol(outer(seq_len(ncol(E)), seq_len(ncol(E)), function(i, j) rho^abs(i - j)))
+N_S0 <- 100L           # series des controles S0
+TOL_S0_AR1 <- 1e-10    # ar1_mat() contre R'e : arrondis de deux calculs differents
+TOL_S0_DW <- 1e-12     # dw_mat() contre stat_dw() sur la meme serie
 t_sim <- Sys.time()
 E_SIM <- engine_sous_graine(SEED_SIM, matrix(stats::rnorm(N_SIM * T_), N_SIM, T_))
 DW_SIM <- lapply(RHOS_SIM, function(r) dw_mat(ar1_mat(E_SIM, r)))
 names(DW_SIM) <- vapply(RHOS_SIM, format, "")
 duree_tirage <- as.numeric(difftime(Sys.time(), t_sim, units = "secs"))
-# S0 : statistique matricielle contre stat_dw() du moteur.
-ctrl("S0", "statistique DW matricielle contre stat_dw() du moteur, 100 s\u00e9ries simul\u00e9es (\u00e9cart max)",
-     max(abs(DW_SIM[[1L]][1:100] - vapply(1:100, function(i) stat_dw(ar1_mat(E_SIM[i, , drop = FALSE], RHOS_SIM[1L])[1L, ]), 0))), 0, 1e-12)
+# S0 (#421, point 4) : a chaque rho simule non nul, serie de reference R'e
+# construite sans ar1_mat() ; ar1_mat() contre elle (S0-ar1), puis dw_mat()
+# contre stat_dw() du moteur sur elle (S0-dw).
+for (r in RHOS_SIM[RHOS_SIM != 0]) {
+  E0 <- E_SIM[seq_len(N_S0), , drop = FALSE]
+  Zref <- ar1_chol(E0, r)
+  ctrl(sprintf("S0-ar1-r%s", num(r, 2)),
+       sprintf("ar1_mat() contre la s\u00e9rie de r\u00e9f\u00e9rence z = R'e (R = chol(\u03a3), sans ar1_mat()), \u03c1 = %s, %d s\u00e9ries (\u00e9cart max)", num(r, 2), N_S0),
+       max(abs(ar1_mat(E0, r) - Zref)), 0, TOL_S0_AR1)
+  ctrl(sprintf("S0-dw-r%s", num(r, 2)),
+       sprintf("statistique DW matricielle dw_mat() contre stat_dw() du moteur sur z = R'e, \u03c1 = %s, %d s\u00e9ries (\u00e9cart max)", num(r, 2), N_S0),
+       max(abs(dw_mat(Zref) - apply(Zref, 1L, stat_dw))), 0, TOL_S0_DW)
+}
 t_pc <- Sys.time()
-PTS <- lapply(ALPHAS_SIM, points_critiques_dw); names(PTS) <- vapply(ALPHAS_SIM, format, "")
-# S1 : region critique [d_bas, d_haut] contre dw_p_exacte() < alpha.
+PTS <- lapply(ALPHAS_SIM, points_critiques_dw, T = T_); names(PTS) <- vapply(ALPHAS_SIM, format, "")
+# S1 : region critique [d_bas, d_haut] contre dw_p_exacte() < alpha ;
+# dw_p_exacte() calculee une fois par serie, comparee a chaque alpha (#421,
+# point 4).
 n_s1 <- N_S1 %/% length(RHOS_SIM)
-for (a in ALPHAS_SIM) {
-  d <- PTS[[format(a)]]; desacc <- 0L
-  for (k in names(DW_SIM)) {
-    r <- RHOS_SIM[match(k, names(DW_SIM))]
-    for (i in seq_len(n_s1)) {
-      z <- ar1_mat(E_SIM[i, , drop = FALSE], r)[1L, ]; ds <- DW_SIM[[k]][i]
-      if (!identical(ds <= d[["bas"]] || ds >= d[["haut"]], dw_p_exacte(z) < a)) desacc <- desacc + 1L
+desacc <- stats::setNames(integer(length(ALPHAS_SIM)), vapply(ALPHAS_SIM, format, ""))
+for (k in names(DW_SIM)) {
+  r <- RHOS_SIM[match(k, names(DW_SIM))]
+  for (i in seq_len(n_s1)) {
+    p_ex <- dw_p_exacte(ar1_mat(E_SIM[i, , drop = FALSE], r)[1L, ]); ds <- DW_SIM[[k]][i]
+    for (a in ALPHAS_SIM) {
+      d <- PTS[[format(a)]]
+      if (!identical(ds <= d[["bas"]] || ds >= d[["haut"]], p_ex < a)) desacc[[format(a)]] <- desacc[[format(a)]] + 1L
     }
   }
-  ctrl(sprintf("S1-a%s", num(a, 2)), sprintf("r\u00e9gion critique de DW contre dw_p_exacte() < \u03b1 = %s, %d s\u00e9ries \u00d7 %d \u03c1 (d\u00e9saccords)",
-                                              num(a, 2), n_s1, length(RHOS_SIM)), desacc, 0, 0)
 }
+for (a in ALPHAS_SIM)
+  ctrl(sprintf("S1-a%s", num(a, 2)), sprintf("r\u00e9gion critique de DW contre dw_p_exacte() < \u03b1 = %s, %d s\u00e9ries \u00d7 %d \u03c1 (d\u00e9saccords)",
+                                              num(a, 2), n_s1, length(RHOS_SIM)), desacc[[format(a)]], 0, 0)
 duree_pc <- as.numeric(difftime(Sys.time(), t_pc, units = "secs"))
 # S-rho-alpha : frequence de rejet simulee contre la valeur d'Imhof (grille).
 SIM <- do.call(rbind, lapply(RHOS_SIM, function(r) do.call(rbind, lapply(ALPHAS_SIM, function(a) {
@@ -457,7 +460,7 @@ T0 <- c("### T0", "",
         ligne_md("N (s\u00e9ries simul\u00e9es par \u03c1)", format(N_SIM, scientific = FALSE)),
         ligne_md("Commit (HEAD)", COMMIT),
         ligne_md("md5 de R/engine.R", MD5_MOTEUR),
-        ligne_md("Empreintes du code (script ex\u00e9cut\u00e9, outils charg\u00e9s)", empreintes_code()),
+        ligne_md("Empreintes du code (script ex\u00e9cut\u00e9, outils charg\u00e9s)", empreintes_code(SCRIPT)),
         ligne_md("Appels de dw_puissance_ar1()", sprintf("%d (grille : %d ; contr\u00f4les : %d)", n_appels,
                                                            length(RHOS) * length(ALPHAS), N_APPELS_DETERM + N_APPELS_LIENS)),
         if (OPT_ESSAI) ligne_md(LIB_DUREE, sprintf("%.0f s (part fixe %.1f s + %d appels \u00d7 %.2f s + recoupement %.1f s ; extrapolation de %d appels et de N = %s)",

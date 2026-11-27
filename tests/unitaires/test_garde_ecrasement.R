@@ -45,6 +45,9 @@
 #  comme mesure_lb1_dw_t8.R, sans option --remplacer (option inconnue) ;
 #  COUTEUSES porte dw_puissance_ar1(), premier appel couteux de ce script
 #  (la grille precede le tirage de engine_sous_graine()).
+#  #421 (Q-78-4 (a)) : mesure_lb1_dw_t8.R et mesure_dw_rho_negatif_t8.R
+#  chargent tests/outils_mesure_dw.R avant leurs gardes ; le depot git
+#  temporaire des gardes anticipees le porte donc avec tests/outils_tests.R.
 #  Les tests qui demandent git sont sautes, avec message, si git manque.
 ###############################################################################
 
@@ -629,7 +632,10 @@ for (sc in names(GARDES_ANTICIPEES)) {
 if (GIT_OK) {
   da <- file.path(tempfile("gardes_205_"), "depot avec espace")
   for (d in c("R", "tests/donnees", "docs/autres")) dir.create(file.path(da, d), recursive = TRUE)
-  copies_a <- c("R/engine.R", "R/charger_moteur.R", "tests/outils_tests.R", file.path("tests", SCRIPTS_ECRIRE),
+  # tests/outils_mesure_dw.R : aides des deux scripts Durbin-Watson, qu'ils
+  # chargent avant leurs gardes (#421, Q-78-4 (a)).
+  copies_a <- c("R/engine.R", "R/charger_moteur.R", "tests/outils_tests.R", "tests/outils_mesure_dw.R",
+                file.path("tests", SCRIPTS_ECRIRE),
                 "tests/donnees/donnees_ln.csv", "tests/donnees/triangle_mw.csv",
                 "tests/donnees/donnees_ln_interieur.csv", "tests/donnees/triangle_mw_trapeze.csv")
   file.copy(file.path(RACINE_DEPOT, copies_a), file.path(da, copies_a))
