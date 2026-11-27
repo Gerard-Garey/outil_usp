@@ -87,3 +87,24 @@ Le calcul est déterministe (quadrature, puis graines fixes) : l'exécution offi
 - Commits `db53649` (#420, et second cas `--grubbs-interieur --ecrire` de #367 dans `test_garde_ecrasement.R`), `c8e2eec` (#367), `945b21e` (#421), `9b730fb` (#494, trois mineurs de l'audit de `ff7673f`) ; `coder-approfondi` (`high`) ; seules des sorties `--essai` vues.
 - Quatre questions du coder tranchées par `actuary` (annexe de `actuary-questions-420-367.md`) : IC contenant α/2 et α signalé ECHEC/ALERTE ; seuil OK `borne basse ≥ α` (écart de cohérence au § 3.4, ajouté à la trace M42 avec Q8) ; T3 de #420 inchangé ; p du χ² d'homogénéité qualifiée d'asymptotique (une ligne).
 - Durées extrapolées des `--essai` : #421 environ 1 min ; #420 environ 6 min ; #367 17 à 21 min ; #494 `--familles` 3,3 à 3,7 h sans P2, 4,8 à 5,2 h avec P2 (PM-2).
+
+## Étape 6 — pré-vol, PM-2 et exécutions officielles (27/11/2026)
+
+- **Pré-vol** (machine au repos, quatre processus) : lognormale `--familles` 1,90 h ; Merz-Wüthrich `--familles` 2,75 h sans P2, 4,02 h avec P2 ; INTEGRITE OK dans les deux cas. Enveloppe de 10 h respectée avec P2 : aucun retrait de l'ordre Q-78-2 (a).
+- **PM-2** (27/11, vers 14 h 50 UTC, questionnaire au mainteneur) : périmètre **P1 + P2**, campagne Merz-Wüthrich en **trois segments** (option recommandée) ; M42 (c) : **pas de branche de sauvegarde**, dossier de travail hors dépôt seul (option recommandée). Aucun commit sur la branche pendant chaque campagne (M42).
+- **Exécutions** (`--ecrire`, arbre propre, tableaux versés tels que produits) :
+
+| Mesure | Commit du calcul | Segments (`--arret-apres`) | Horloge | Bilan | Tableau |
+| --- | --- | --- | --- | --- | --- |
+| #421 | `6e0c7b6` | 1 | ≈ 1 min | OK | `ac88b46` |
+| #420 | `ac88b46` | 1 | 261,8 s | OK | `c8829b7` |
+| #367 | `c8829b7` | 1 | 838,4 s | OK | `caa38f1` |
+| #379, lognormale | `caa38f1` | 2 (115 min) : 216 + 24 tranches | 6 828 + 741 s ≈ 2,1 h | OK, INTEGRITE OK | `2a2d636` |
+| #494 et #379, Merz-Wüthrich (P1 + P2, 7 cellules) | `2a2d636` | 3 (110 min) : 49 + 55 + 20 tranches | 5 784 + 6 535 + 2 311 s ≈ 4,1 h | OK, INTEGRITE OK | `f566b9d` |
+
+- **Constats mécaniques** (sans lecture : étape 7, `actuary-approfondi`, PM-3) :
+  - #421 : K421-1 26 / 26 couples décidés, L₋ = 0 pour (4 ; 0,10), (4 ; 0,05) et (5 ; 0,05) ; K421-2 0 / 130 comparaisons signalées ; K421-3 19 stables, 3 en régime non atteint, 4 sans objet ; K421-4 écart maximal 1,154e-6 ; K421-5 31 lignes de T = 8 identiques.
+  - #420 : ρ_S 0,9779 (J1) et 0,9763 (J2) ; P(CvM | AD) à 0,10 : 0,8999 et 0,8809 ; lecture mécanique « quasi-redondance sous H0 établie ».
+  - #367 : agrégat des quatre graines secondaires 4 019 / 39 996, p̂ = 0,10049, IC de Clopper–Pearson à 99 % [0,09665 ; 0,10442], contenant α : **indécidable ALERTE / OK**, aucun signal au mainteneur ; graine du dossier 0,0975 (ALERTE), rapportée à part ; χ² d'homogénéité, p asymptotique 0,686.
+  - #379, lognormale : un seul signal PM-3 évalué mécaniquement (J1, point A, famille D., α = 0,10 : π̂ 0,070 contre π̂(N) 0,110, McNemar unilatéral 0,0403).
+  - #494 et #379, Merz-Wüthrich : aucun signal PM-3 ; recoupement avec le brut de #309 identique triangle par triangle (P1.H0, P2.H0 : 500 / 500, p_mc de CorrDev = p:CorrDev) ; F4, taux de CorrDev compatibles avec ρ dans les quatre cellules H0 ; second cas de PM-3 : n01 = n10 = 0, p = 1, résultat mécanique attendu (avis de l'étape 5 bis, Q3).
