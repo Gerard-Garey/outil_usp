@@ -3,68 +3,75 @@
 # (plus longs d'abord). Format : nom du fichier, tabulation, duree ; les lignes
 # vides et les lignes commencant par # sont ignorees. Un fichier absent de cette
 # table prend 60 s ; une ligne sans fichier sur le disque est ignoree.
-# Source (issue #561, correctif rapide du 12/11/2026) : moyenne, fichier par
-# fichier, des durees lues dans les journaux des trois lots de deux executions
-# CI de ci.yml sur main (4 processus par lot) : run 43117268891 (commit
-# 35042ca) et run 43284361618 (commit 170737b, fusion de K2). Les durees d'un
-# meme fichier varient de 0,6 a 1,9 fois d'une execution a l'autre (fichiers
-# concurrents du meme lot) : la moyenne attenue ce bruit sans l'annuler.
-test_application.R	233.7
-test_merz_wuthrich_suite.R	231.2
-test_p_mc_regime.R	218.9
-test_defauts_connus.R	192.1
-test_controles_entree.R	149.5
-test_concordance_doc_moteur.R	146.7
-test_detail_deux_phrases.R	135.7
-test_incertitude_bootstrap.R	111.4
-test_enveloppe_spread.R	107.2
-test_merz_wuthrich.R	106.3
-test_rapport_html.R	105.2
-test_forme_close_m1.R	88.2
-test_retirage_mw.R	80.8
-test_outillage_mesure.R	70.0
-test_origine_non_identifiable.R	69.3
-test_calibration.R	68.5
-test_anti_bruit.R	67.8
-test_garde_ecrasement.R	66.0
-test_lr_delta.R	55.9
-test_plancher_mc.R	53.9
-test_inoperance.R	50.7
-test_ex_aequo.R	37.3
-test_constante_ponderee.R	35.7
-test_enveloppe_qq.R	34.4
-test_empreinte_moteur.R	32.5
-test_volumes_constants.R	31.6
-test_outdec.R	25.6
-test_p_famille.R	23.3
-test_textes_inconditionnels.R	23.1
-test_controle_doc_nd.R	22.9
-test_b_effectif_mw.R	20.1
-test_statistiques.R	17.8
-test_regressions_qr.R	17.0
-test_verdict_sensible_mc.R	14.9
-test_regimes_p_exactes.R	13.9
-test_tables_mw.R	13.4
-test_chargement_moteur.R	12.1
-test_ordonnee_wls.R	11.9
-test_sans_repli_p_non_simulee.R	11.1
-test_nature_p_non_simulee.R	10.0
-test_lois_exactes.R	9.3
-test_controles_numeriques.R	9.2
-test_mc_nom.R	7.5
-test_registre_add.R	7.4
-test_m5_diagnostic.R	5.4
-test_modele_lognormal.R	4.6
-test_mk_spearman.R	4.1
-test_non_applicable.R	3.5
-test_affichage_regime_t8.R	3.4
-test_regenerer_et_rendre_compte.R	2.3
-test_comparateur.R	1.9
-test_comparer_references.R	1.5
-test_patcher_reference.R	1.1
+# FICHIER ECRIT PAR tests/calculer_durees_unitaires.R (procede decrit en tete de
+# ce script, rejouable ; ne pas retoucher a la main). Une ligne par fichier
+# tests/unitaires/test_*.R.
+# Source (issue #561) : moyenne, fichier par fichier, des durees lues dans les
+# journaux des jobs Tests unitaires (lot k/n), ligne ##### [i/n] fichier : OK,
+# N assertions, X s (quatre processus par lot), de 5 executions reussies de
+# ci.yml : 45851362115, 45857953392, 45859308537, 45860635793, 45863204435.
+# Rapport de la duree d'un fichier a sa moyenne, sur ces executions : de 0,5 a 1,4 ;
+# la moyenne attenue cette variation sans l'annuler.
+test_merz_wuthrich_suite.R	199.1
+test_concordance_doc_moteur.R	184.2
+test_controles_entree_partie_2.R	177.6
+test_controles_entree.R	157.4
+test_application.R	156.4
+test_defauts_connus.R	148.6
+test_application_partie_2.R	141.2
+test_incertitude_bootstrap.R	137.3
+test_texte_2026_269.R	131.8
+test_rapport_html.R	122.7
+test_merz_wuthrich.R	117.1
+test_detail_deux_phrases.R	115.6
+test_p_mc_regime_partie_2.R	112.1
+test_p_mc_regime.R	105.1
+test_outillage_mesure.R	89.0
+test_plancher_mc.R	80.5
+test_origine_non_identifiable.R	76.4
+test_forme_close_m1.R	72.9
+test_merz_wuthrich_trapeze.R	70.4
+test_retirage_mw.R	69.6
+test_calibration.R	62.1
+test_garde_ecrasement.R	58.9
+test_anti_bruit.R	58.0
+test_constante_ponderee.R	54.4
+test_inoperance.R	53.3
+test_ex_aequo.R	52.0
+test_date_reference.R	42.9
+test_outdec.R	40.7
+test_lr_delta.R	40.4
+test_controle_doc_nd.R	39.3
+test_empreinte_moteur.R	37.8
+test_enveloppe_qq.R	37.1
+test_sans_sigma_mw.R	35.3
+test_chemins_chauds_445.R	34.9
+test_statistiques.R	33.9
+test_p_famille.R	25.6
+test_enveloppe_spread.R	24.0
+test_volumes_constants.R	22.8
+test_b_effectif_mw.R	22.3
+test_textes_inconditionnels.R	19.8
+test_regressions_qr.R	16.7
+test_tables_mw.R	15.9
+test_nature_p_non_simulee.R	15.7
+test_chargement_moteur.R	13.5
+test_verdict_sensible_mc.R	12.4
+test_ordonnee_wls.R	12.1
+test_regimes_p_exactes.R	11.4
+test_sans_repli_p_non_simulee.R	11.4
+test_registre_add.R	10.1
+test_mc_nom.R	9.2
+test_lois_exactes.R	8.2
+test_m5_diagnostic.R	7.7
+test_controles_numeriques.R	6.4
+test_non_applicable.R	5.0
+test_mk_spearman.R	3.9
+test_modele_lognormal.R	3.9
+test_affichage_regime_t8.R	2.5
+test_regenerer_et_rendre_compte.R	2.4
+test_comparer_references.R	2.3
+test_comparateur.R	1.8
+test_patcher_reference.R	1.2
 test_regle_verdicts.R	0.8
-test_jonction_detail.R	0.5
-# test_merz_wuthrich_trapeze.R : duree mesuree en session, fichier lance seul (issue #567,
-# etape 6 de S6, C4 : 42,1 s, contre 28,0 s a la tete precedente f9eaff7 ; constat M-1
-# de la revue finale : 46,9 s), non moyenne CI.
-test_merz_wuthrich_trapeze.R	46.9
+test_jonction_detail.R	0.7

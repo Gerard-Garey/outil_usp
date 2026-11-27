@@ -255,6 +255,20 @@ av_exclues <- function(av) grep(paste0("a facteurs individuels egaux a f_j a la 
                                 fixed = TRUE, value = TRUE)
 run_mw <- function(t) run_engine(methode = "reserve2", triangle = t,
                                  segment = 1, annexe = "II", B = 99, date_reference = DATE_REFERENCE_TESTS)
+# Mise en memoire sur demande (#561) : run_mw_memo(cle, t) ne calcule qu'une fois
+# le resultat de run_mw(t) pour une cle donnee, et refuse (erreur) une cle
+# reutilisee avec un triangle different. Reservee aux lectures seules : un site
+# qui compte des avertissements R, pose une substitution ou modifie le resultat
+# appelle run_mw() directement.
+run_mw_memo <- local({
+  memo <- list()
+  function(cle, t) {
+    if (is.null(memo[[cle]])) memo[[cle]] <<- list(t = t, r = run_mw(t))
+    if (!identical(memo[[cle]]$t, t))
+      stop("run_mw_memo : la cle '", cle, "' est reutilisee avec un triangle different")
+    memo[[cle]]$r
+  }
+})
 av_extrap <- function(r) grep("sigma2_(J-1) = min", r$validation$avertissements,
                               fixed = TRUE, value = TRUE)
 detail_m6 <- function(r) {
@@ -265,7 +279,7 @@ verifier("sigma2_(J-2) = 0 avec sigma2_(J-3) > 0 : sigma2_(J-1) = 0, avertisseme
          {
            a <- mw_ajuster(tri_sym)
            ex <- mw_extrapolation_sigma2(a)
-           r <- run_mw(tri_sym)
+           r <- run_mw_memo("tri_sym", tri_sym)
            av <- av_extrap(r)
            isTRUE(mw_valider_triangle(tri_sym)$ok) &&
              a$sigma2[a$J - 1] < 1e-12 && a$sigma2[a$J - 2] > 1e-3 &&
@@ -292,7 +306,7 @@ verifier("sigma2_(J-2) = 0 avec sigma2_(J-3) > 0 : sigma2_(J-1) = 0, avertisseme
 verifier("Colonne J-3 degeneree (tri_deg) : colonne J-2 non degeneree, sigma_USP inchange",
          {
            ex <- mw_extrapolation_sigma2(mw_ajuster(tri_deg))
-           r <- run_mw(tri_deg)
+           r <- run_mw_memo("tri_deg", tri_deg)
            identical(ex$degeneree_Jm2, FALSE) && isTRUE(ex$degeneree_Jm3) &&
              isTRUE(proche(r$parametre_final$sigma_usp, 0.0779834956, rel = 1e-8))
          })
@@ -300,7 +314,7 @@ verifier("Colonnes J-3 et J-2 degenerees (tri_2) : un seul avertissement, ex aeq
          {
            a <- mw_ajuster(tri_2)
            ex <- mw_extrapolation_sigma2(a)
-           r <- run_mw(tri_2)
+           r <- run_mw_memo("tri_2", tri_2)
            av <- av_extrap(r)
            l <- detail_m6(r)
            isTRUE(mw_valider_triangle(tri_2)$ok) && isTRUE(r$ok) &&
@@ -360,7 +374,7 @@ verifier("Colonne J-2 constante a 1e-14 pres : argmin litteral = quotient, cause
            t4 <- tri_sym
            t4[2, 5] <- 2193 * (1 + 1e-14)
            ex <- mw_extrapolation_sigma2(mw_ajuster(t4))
-           r <- run_mw(t4)
+           r <- run_mw_memo("t4", t4)
            av <- av_extrap(r)
            isTRUE(ex$degeneree_Jm2) &&
              identical(ex$retenu, "sigma2_(J-2)^2/sigma2_(J-3)") &&
@@ -423,7 +437,7 @@ verifier("Colonne j = 1 a sigma2 = 0 (hors J-3, J-2) : exclue, attribut renseign
            a <- mw_ajuster(tri_j1)
            rs <- mw_residus(a)
            ce <- attr(rs, "colonnes_exclues")
-           r <- run_mw(tri_j1)
+           r <- run_mw_memo("tri_j1", tri_j1)
            av <- av_exclues(r$validation$avertissements)
            ex <- mw_extrapolation_sigma2(a)
            isTRUE(mw_valider_triangle(tri_j1)$ok) && isTRUE(r$ok) &&
@@ -445,10 +459,10 @@ verifier("Colonnes exclues : une seule phrase par triangle, J-3 / J-2 compris (t
              sum(grepl("sont exclus des residus de Mack", av, fixed = TRUE)) == 1
          }, logical(1))) &&
          grepl("Colonnes de developpement a facteurs individuels egaux a f_j",
-               av_exclues(run_mw(tri_2)$validation$avertissements), fixed = TRUE))
+               av_exclues(run_mw_memo("tri_2", tri_2)$validation$avertissements), fixed = TRUE))
 verifier("Colonnes exclues : l'attribut n'est pas stocke dans le resultat (res$residus, plots_data)",
          {
-           r <- run_mw(tri_j1)
+           r <- run_mw_memo("tri_j1", tri_j1)
            is.null(attr(r$residus, "colonnes_exclues")) &&
              is.null(attr(r$plots_data$residus, "colonnes_exclues"))
          })
@@ -483,7 +497,7 @@ verifier("Reserve negligeable : pas d'avertissement sous le repere (triangles de
            a <- mw_ajuster(unname(m)); ms <- mw_msep(a)$msep
            v <- mw_valider_ajustement(a, ms)
            isTRUE(v$ok) && sqrt(ms) / a$reserve < 1 && !length(v$avertissements) &&
-             !length(av_cv(run_mw(tri_sym)$validation$avertissements))
+             !length(av_cv(run_mw_memo("tri_sym", tri_sym)$validation$avertissements))
          })
 verifier("Reserve negligeable : repere a la frontiere (objet reduit, racine(MSEP) / R = 1 et 0,999)",
          length(av_cv(mw_valider_ajustement(list(I = 4L, reserve = 10), 100)$avertissements)) == 1 &&
@@ -634,8 +648,8 @@ local({
                                   function(v) sqrt(msep_avec(v)$msep), numeric(1)), rel = 1e-15)) &&
              identical(names(s$racine_msep_arguments), c("sigma2_Jm2", "sigma2_Jm3", "quotient")))
   verifier("#514 : detail M6 de reserve2 = texte de #514 a la lettre (mw_tests()), sans sensibilite",
-           identical(detail_m6(run_mw(t_ref)), T514_M6) &&
-             !grepl("Sensibilite|contrefactuel", detail_m6(run_mw(t_ref))))
+           identical(detail_m6(run_mw_memo("t_ref", t_ref)), T514_M6) &&
+             !grepl("Sensibilite|contrefactuel", detail_m6(run_mw_memo("t_ref", t_ref))))
   verifier("#310 : vocabulaire R1, ni 'extrapolee' ni 'imposee' dans le detail M6",
            !grepl("extrapol|impose", T514_M6) &&
              !grepl("extrapol|impose", .mw_detail_extrapolation(ex)))
@@ -643,7 +657,7 @@ local({
   # suivent sigma_regle_minimum en fin de table.
   verifier("#310 : plots_data$facteurs$sigma_regle_minimum, logique, un seul TRUE en j = J - 1 ; #567 : sigma_residus, sigma_residus_direct en fin",
            {
-             f <- run_mw(t_ref)$plots_data$facteurs
+             f <- run_mw_memo("t_ref", t_ref)$plots_data$facteurs
              identical(names(f), c("j", "f", "sigma", "sigma_regle_minimum", "sigma_residus",
                                    "sigma_residus_direct")) &&
                is.logical(f$sigma_regle_minimum) && sum(f$sigma_regle_minimum) == 1L &&
@@ -655,7 +669,7 @@ verifier("#310 / #514 : quotient non defini (sigma2_(J-3) = 0) -> 'non defini' d
          {
            a <- mw_ajuster(tri_deg); ex <- mw_extrapolation_sigma2(a)
            s <- mw_sensibilite_sigma2_dernier(a, ex)
-           l <- detail_m6(run_mw(tri_deg))
+           l <- detail_m6(run_mw_memo("tri_deg", tri_deg))
            is.na(s$racine_msep_arguments[["quotient"]]) && a$sigma2[a$J] == 0 &&
              identical(l, .mw_detail_extrapolation(ex)) &&
              grepl("quotient = non defini (sigma2_(J-3) = 0)", l, fixed = TRUE) &&
@@ -671,7 +685,7 @@ verifier("#310 / #514 : colonne J-2 constante a 1e-14 pres (regle > 0 mais nulle
            t4 <- tri_sym
            t4[2, 5] <- 2193 * (1 + 1e-14)
            a <- mw_ajuster(t4); ex <- mw_extrapolation_sigma2(a)
-           l <- detail_m6(run_mw(t4))
+           l <- detail_m6(run_mw_memo("t4", t4))
            a$sigma2[a$J] > 0 && isTRUE(ex$degeneree) &&
              identical(l, .mw_detail_extrapolation(ex)) &&
              grepl(", colonne J-2 degeneree : voir l'avertissement sur les donnees.", l, fixed = TRUE) &&
@@ -927,7 +941,7 @@ local({
 })
 verifier("#312 : colonne degeneree (tri_deg, j = 2) exclue des groupes comme dans mw_residus()",
          {
-           r <- run_mw(tri_deg); pd <- r$plots_data
+           r <- run_mw_memo("tri_deg", tri_deg); pd <- r$plots_data
            rs <- mw_residus(mw_ajuster(tri_deg))
            !(2 %in% rs$j) && 2 %in% attr(rs, "colonnes_exclues")$j &&
              sum(pd$residus_acc_groupes$n) == nrow(rs) &&
@@ -1465,7 +1479,7 @@ verifier("j_degeneres : f(aj) et f(aj, .mw_colonnes_degenerees(aj)) identiques (
          })
 verifier("Restitution : la colonne exclue est nommee dans le commentaire, estimation = K (#56)",
          {
-           d <- engine_table_tests(run_mw(tri_deg))
+           d <- engine_table_tests(run_mw_memo("tri_deg", tri_deg))
            l <- d[grepl("ordonnee a l'origine", d$test), ]
            dr <- engine_table_tests(run_engine(methode = "reserve2", triangle = tri_ref,
                                                segment = 1, annexe = "II", B = 99,

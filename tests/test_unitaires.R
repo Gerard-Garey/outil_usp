@@ -51,19 +51,40 @@
 #  forment un groupe indivisible place dans le lot 1, pour l'ordonnancement ;
 #  la CI installe shiny et plotly dans chaque lot. La meme table ordonne
 #  --parallele (plus longs d'abord), avec ou sans --lot.
+#
+#  Selection de fichiers (issue #561) : --fichiers=a,b,c ne lance que les
+#  fichiers nommes (nom avec ou sans .R, sans dossier), seul ou avec
+#  --parallele, pour le job temoin de ci.yml (quatre familles de fichiers, dont
+#  les parties issues de leur coupe) :
+#      Rscript tests/test_unitaires.R --parallele --fichiers=test_outdec,test_defauts_connus
+#  Un nom inconnu, un nom repete, un nom vide, une option repetee ou son
+#  association a --lot sont refuses (code de sortie 1) : une faute de frappe ne
+#  doit pas lancer un sous-ensemble en silence. L'ordre de la ligne de commande
+#  est sans effet : la selection est un sous-ensemble des fichiers du disque,
+#  lance dans l'ordre habituel (alphabetique en sequentiel, table des durees en
+#  --parallele).
 ###############################################################################
 
-# Arguments : --parallele[=N] (ou TU_PARALLELE=N) et --lot=k/n. Tout autre
-# argument est refuse, pour qu'une faute de frappe ne lance pas le mode
-# sequentiel ou la batterie entiere en silence.
+# Arguments : --parallele[=N] (ou TU_PARALLELE=N), --lot=k/n et
+# --fichiers=a,b,c. Tout autre argument est refuse, pour qu'une faute de frappe
+# ne lance pas le mode sequentiel ou la batterie entiere en silence.
 N_PARALLELE_DEFAUT <- 4L
 .arguments <- commandArgs(trailingOnly = TRUE)
 .option <- grep("^--parallele(=.*)?$", .arguments, value = TRUE)
 .option_lot <- grep("^--lot=", .arguments, value = TRUE)
-if (length(setdiff(.arguments, c(.option, .option_lot))) || length(.option_lot) > 1L) {
+.option_fichiers <- grep("^--fichiers=", .arguments, value = TRUE)
+.connus <- c(.option, .option_lot, .option_fichiers)
+if (length(setdiff(.arguments, .connus)) || length(.option_lot) > 1L || length(.option_fichiers) > 1L) {
   cat("Argument(s) inconnu(s) ou repete(s) :",
-      paste(c(setdiff(.arguments, c(.option, .option_lot)), if (length(.option_lot) > 1L) .option_lot), collapse = " "),
-      "\nUsage : Rscript tests/test_unitaires.R [--parallele[=N]] [--lot=k/n]\n")
+      paste(c(setdiff(.arguments, .connus),
+              if (length(.option_lot) > 1L) .option_lot,
+              if (length(.option_fichiers) > 1L) .option_fichiers), collapse = " "),
+      "\nUsage : Rscript tests/test_unitaires.R [--parallele[=N]] [--lot=k/n | --fichiers=a,b,c]\n")
+  quit(status = 1)
+}
+if (length(.option_lot) && length(.option_fichiers)) {
+  cat("Options incompatibles :", .option_lot, .option_fichiers,
+      "\nUsage : Rscript tests/test_unitaires.R [--parallele[=N]] [--lot=k/n | --fichiers=a,b,c]\n")
   quit(status = 1)
 }
 LOT <- NULL   # NULL : batterie complete ; sinon c(k = , n = )
@@ -170,6 +191,30 @@ if (!is.null(LOT)) {
     quit(status = 1)
   }
   FICHIERS_UNITAIRES <- .choisis
+}
+
+# Selection de fichiers (issue #561) : --fichiers=a,b,c. Sous-ensemble des
+# fichiers du disque (ordre habituel, jamais celui de la ligne de commande) ;
+# un nom inconnu, repete ou vide est refuse, avant tout lancement.
+if (length(.option_fichiers)) {
+  .brut <- sub("^--fichiers=", "", .option_fichiers)
+  .noms <- if (nzchar(.brut)) strsplit(.brut, ",", fixed = TRUE)[[1L]] else character(0)
+  if (endsWith(.brut, ",")) .noms <- c(.noms, "")
+  .complets <- ifelse(grepl("[.]R$", .noms), .noms, paste0(.noms, ".R"))
+  .disque <- basename(FICHIERS_UNITAIRES)
+  .vides <- !nzchar(.noms)
+  .inconnus <- .noms[!.vides & !(.complets %in% .disque)]
+  .repetes <- unique(.noms[!.vides & duplicated(.complets)])
+  if (!length(.noms) || any(.vides) || length(.inconnus) || length(.repetes)) {
+    cat("Selection de fichiers invalide :", .option_fichiers, "\n")
+    if (!length(.noms) || any(.vides)) cat("  nom vide (--fichiers=a,b,c, noms separes par une virgule)\n")
+    if (length(.inconnus)) cat("  fichier(s) inconnu(s) de", DOSSIER_UNITAIRES, ":", paste(.inconnus, collapse = " "), "\n")
+    if (length(.repetes)) cat("  fichier(s) repete(s) :", paste(.repetes, collapse = " "), "\n")
+    quit(status = 1)
+  }
+  FICHIERS_UNITAIRES <- FICHIERS_UNITAIRES[.disque %in% .complets]
+  cat(sprintf("Selection : %d fichier(s) sur %d (%s).\n", length(FICHIERS_UNITAIRES), length(.disque),
+              paste(basename(FICHIERS_UNITAIRES), collapse = ", ")))
 }
 
 # Garde (#284) : un fichier unitaire doit finir par fin_fichier(), seul appel

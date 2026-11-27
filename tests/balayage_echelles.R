@@ -10,7 +10,7 @@
 #  R base + stats ; le comparateur est comparer_objets() de
 #  tests/outils_tests.R (TOLERANCE = 1e-6), celui des references.
 #
-#  Objet : la batterie unitaire (tests/unitaires/test_controles_entree.R,
+#  Objet : la batterie unitaire (tests/unitaires/test_controles_entree_partie_2.R,
 #  critere amende du 02/10/2026 de #153) ne lance run_engine() que sur un
 #  echantillon de huit echelles dans le domaine, le calcul complet prenant
 #  quelques secondes par echelle. Ce script parcourt TOUTES les echelles

@@ -769,7 +769,7 @@ verifier("#504 : sigma_reserve absent de all.names(body(.run_engine_mw)) (aucune
 # tolerance relative 1e-6, celle des cas M6 ci-dessus.
 # Le refus d'une valeur de bareme invalide ("moyen", "Court", NA,
 # c("court", "long"), 1) par une erreur d'usage est teste dans
-# test_controles_entree.R (issue #88).
+# test_controles_entree_partie_2.R (issue #88).
 sans_meta <- function(r) { r$metadata <- NULL; r }
 meta_sans <- function(r, champs = c("horodatage", "duree_sec", "bareme_saisi")) {
   m <- r$metadata; m[champs] <- NULL; m

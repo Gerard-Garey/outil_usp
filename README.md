@@ -226,6 +226,20 @@ complète :
 
     Rscript tests/test_unitaires.R --parallele --lot=2/3
 
+La table ne se retouche pas à la main : `tests/calculer_durees_unitaires.R` la
+recalcule, par fichier, comme la moyenne des durées relevées dans les journaux
+des jobs de tests unitaires d'exécutions données de la CI (lus par `gh api`,
+d'où les prérequis `gh` authentifié et accès réseau) :
+
+    Rscript tests/calculer_durees_unitaires.R ID [ID ...]
+
+`--fichiers=a,b,c` (seul ou avec `--parallele`, jamais avec `--lot`) ne lance
+que les fichiers nommés (nom avec ou sans `.R`), dans l'ordre habituel ; un nom
+inconnu, répété ou vide est refusé (code de sortie 1). Le job témoin de la CI
+s'en sert :
+
+    Rscript tests/test_unitaires.R --parallele --fichiers=test_outdec,test_defauts_connus
+
 Sous Windows, la batterie unitaire lancée sous PowerShell passe (poste du
 mainteneur, 11/11/2026, R 4.3.3 ucrt) depuis la correction du lancement des
 processus fils (#477), de la langue des sorties de `summary.lm()` (#478) et de
