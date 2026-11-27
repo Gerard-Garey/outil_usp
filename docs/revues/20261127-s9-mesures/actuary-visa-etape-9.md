@@ -99,3 +99,37 @@ Aucune ne touche un résultat du moteur. Chacune se fait par un nouveau commit `
   3. l. 8330 (`sec:nature`) : « l'ensemble du dispositif reste très peu puissant ». C'est un cadrage global, désormais nuancé par des taux de 0,56 à 0,76 dans trois cellules. **Aucun critère, mineur, écarté.**
   4. Erreurs de mon avis de l'étape 7 (écarts 1, 2, 5, 6) : **aucun critère, mineur**, corrigées par docwriter.
 - **Prochaine action recommandée** : `docwriter` applique C1 (commit `docs:` Refs #421), C2 à C4 (Refs #379), C5 (Refs #494) et C6 (suivi, avec le commit de l'issue concernée). Compilation de contrôle et `concordance_doc_moteur.R --strict`. La session décide du constat 2 (E5). Puis je relis le seul diff de ces corrections (revue sur diff, règle 10), sans nouveau visa intégral.
+
+---
+
+# Revue sur diff des corrections (`git diff ba70146 6bda833`)
+
+> *Rédigé par l'agent actuary (IA), même fiche, le 27/11/2026. Versé intégralement par la session principale.*
+
+Les six corrections sont conformes à mon texte. **Le visa de l'étape 9 est acquis**, sous réserve de la compilation de contrôle et de `concordance_doc_moteur.R --strict`, que je n'ai pas lancées.
+
+**Chaque correction contre mon texte :**
+- **C1 (`ee1ea80`, Refs #421) : oui.**
+  - Le texte demandé est posé aux deux endroits, l. 1339-1340 (inventaire) et l. 9946-9948 (protocole).
+  - La reformulation facultative (« Dans la zone ρ ≤ −0,999 … ») n'est appliquée qu'au paragraphe de protocole. C'est admissible : la fiche Durbin-Watson et la ligne du tableau de traçabilité gardent une liste explicite des points recoupés, qui reste exacte.
+- **C2 (`393b6fd`, Refs #379) : oui.** La parenthèse sur Fisher est insérée à l'endroit demandé (l. 19582-19583), au mot près.
+- **C3 (`393b6fd`) : oui.** « au seuil $0{,}10$ » est ajouté l. 19807.
+- **C4 (`393b6fd`) : oui.** La clause est posée après la citation de T-2 (l. 19510-19512), au mot près.
+- **C5 (`6bda833`, Refs #494) : oui.**
+  - Une redondance vient de mon propre texte : la phrase porte deux fois « rubrique~7 » (« … trois facteurs (rubrique~7), ce qui limite sa puissance (mesurée en rubrique~7). »).
+  - C'est sans effet sur le fond. Si la session veut la retirer, une retouche facultative suffit : « … ce qui limite sa puissance, mesurée en même rubrique. » Elle n'est pas exigée.
+- **C6 (`393b6fd`, suivi III-M) : oui.**
+  - La clause T-F3 est marquée « n'est pas reprise dans le guide ».
+  - La mention « écart signalé à `coder` (hors S9) » est remplacée par le tri : « constat mineur, écarté (ADR 0018, aucun critère) », levé par la clause C4.
+  - Les corrections C1 et C5 sont tracées en I, II et III-M avec renvoi au visa.
+
+Le constat 2 (l. 10574, critère E5) n'est pas corrigé, ce qui est volontaire et noté : il est soumis au mainteneur et n'empêche pas le visa.
+
+## Retour (abrégé)
+- **Statut** : `complet` pour la relecture du diff ; la compilation n'est pas vérifiée par moi.
+- **Résultat** : C1 à C6 conformes ; **visa de l'étape 9 acquis**.
+- **Preuves** : *vérifié* par lecture intégrale de `git diff ba70146 6bda833 -- docs/latex/doc_tests_usp.tex docs/suivi-documentation/` (commits `ee1ea80`, `393b6fd`, `6bda833`). *Non vérifié* : compilation, pagination, `controle_doc_nd.R` et `concordance_doc_moteur.R --strict` (à faire par la skill `compiler-doc`).
+- **Décisions non résolues** : constat 2 (l. 10574, critère E5), à trancher par le mainteneur : issue, ou commit `docs:` minimal dans S9.
+- **Critères déclenchés** : aucun.
+- **Constats hors périmètre** : la double mention « rubrique~7 » de C5 relève du critère « aucun » : mineure, écartée.
+- **Prochaine action recommandée** : compilation de contrôle et `concordance_doc_moteur.R --strict`, puis la session poursuit la fiche S9 (verser cette revue dans `docs/revues/20261127-s9-mesures/`, décision du mainteneur sur le constat 2).
