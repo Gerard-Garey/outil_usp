@@ -56,15 +56,27 @@
 #       rejet si p_i < alpha (regle des verdicts de add(), sens "ne pas
 #       rejeter" : ALERTE si p < alpha) ; a alpha = 0,10 et 0,05 : taux de
 #       rejet de chaque statistique, taux de rejet conjoint,
-#       P(rejet CvM | rejet AD) et P(rejet AD | rejet CvM) ; reperes : 1 si
-#       dependance parfaite (comonotonie), environ alpha si independance.
+#       P(rejet CvM | rejet AD) et P(rejet AD | rejet CvM), et leur minimum
+#       (grandeur du critere, avis Q2) ; reperes : 1 si dependance parfaite
+#       (comonotonie), environ alpha si independance.
+#       Sans ex aequo sur une statistique, ses p laisser-un-de-cote sont une
+#       permutation de {1/n, ..., n/n} : son taux de rejet marginal vaut
+#       exactement (ceiling(n alpha) - 1) / n, par construction (affiche sans
+#       ET, avis Q4 : l'ET jackknife n'y refleterait que les tailles 499 ou
+#       500 des sous-echantillons) ; sans ex aequo sur les deux, les deux
+#       conditionnelles sont egales par construction, sur l'echantillon entier
+#       comme dans chaque sous-echantillon jackknife (une seule ligne en T3,
+#       avis Q2). L'ET du taux conjoint, lui, est garde.
 #  Erreur Monte-Carlo (fonction de B ; avis, par. 2.3) : jackknife par
 #  groupes, G = 20 groupes CONSECUTIFS de lignes retenues (groupe de la
 #  ligne k sur n : ceiling(k G / n), tailles egales a une unite pres) ;
 #  chaque grandeur est recalculee sur les n - n_g lignes hors du groupe g
 #  (p laisser-un-de-cote comprises, recalculees sur ce sous-echantillon) ;
-#  ET = sqrt((G - 1) / G * somme_g (theta_(-g) - moyenne)^2). Deterministe,
-#  aucune graine. Les replications retenues sont i.i.d. conditionnellement
+#  ET = sqrt((G - 1) / G * somme_g (theta_(-g) - moyenne)^2), formule non
+#  ponderee (tailles egales a une unite pres ; avis Q3). Deterministe,
+#  aucune graine. Un sous-echantillon (ou l'echantillon entier) sans aucun
+#  rejet d'une des deux statistiques rend une conditionnelle indefinie :
+#  jackknife degenere, arret par stop() sans aucune lecture (avis Q5). Les replications retenues sont i.i.d. conditionnellement
 #  aux donnees, V3b compris (acceptation-rejet) : avis, par. 2.3. Aucune
 #  erreur d'echantillonnage en R (un seul jeu de donnees par cas) : la
 #  dependance a theta ajuste est une conditionnalite, documentee par deux
@@ -81,22 +93,42 @@
 #         bootstrap$B_effectif ; motif_mc absent ;
 #    (c3) p laisser-un-de-cote par les rangs identiques au comptage direct
 #         sur les 200 premieres lignes retenues de chaque jeu ;
-#    (c4) metadata : seed, B, et graine du flux V3b egales au plan.
+#    (c4) metadata : seed, B, et graine du flux V3b egales au plan ;
+#    (c5) par jeu, si W2 et A2 sont sans ex aequo parmi les lignes retenues :
+#         nombre de rejets de chaque statistique egal a #{k dans 1..n :
+#         k / n < alpha} (= ceiling(n alpha) - 1) aux deux alpha, et
+#         P(rejet CvM | rejet AD) et P(rejet AD | rejet CvM) identiques
+#         (identical()) sur l'echantillon entier et sur chacun des G
+#         sous-echantillons jackknife ; sans objet (conforme, signale) s'il y
+#         a des ex aequo.
 #  Constats rapportes sans controle : variante V1 / V3b de chaque jeu
 #  (attendue V1 pour J1, V3b pour J2 ; avis, par. 2.1), delta estime,
 #  sigma_USP, valeurs observees de W2 et A2 et lignes de tests associees.
 #
-#  Critere de lecture (avis, par. 2.4 ; conventions declarees, sans
-#  fondement theorique), lu automatiquement en T5, dans cet ordre :
+#  Critere de lecture (avis, par. 2.4, complete par les reponses Q1 et Q2
+#  d'actuary, docs/revues/20261127-s9-mesures/actuary-questions-420-367.md,
+#  rendues avant toute execution complete ; conventions declarees, sans
+#  fondement theorique), lu automatiquement en T5, dans cet ordre. CMIN
+#  designe min(P(rejet CvM | rejet AD), P(rejet AD | rejet CvM)) a
+#  alpha = 0,10 (egales par construction en l'absence d'ex aequo ; sinon,
+#  critere sur la plus petite des deux) :
 #    - rho_S < 0,70 sur un jeu au moins : CONTREDITE (PM-3) ;
 #    - sinon 0,70 <= rho_S < 0,90 sur un jeu au moins : DEPENDANCE FORTE,
 #      NON QUASI REDONDANTE (phrase a nuancer, PM-3) ;
-#    - sinon, si sur J1 ET J2 rho_S - 2 ET >= 0,90 et
-#      P(rejet CvM | rejet AD) - 2 ET >= 0,75 a alpha = 0,10 :
+#    - sinon, si sur J1 ET J2 rho_S - 2 ET >= 0,90 et CMIN - 2 ET >= 0,75 :
 #      QUASI-REDONDANCE SOUS H0 ETABLIE ;
-#    - sinon (rho_S >= 0,90 sur les deux jeux, une borne a 2 ET non
-#      atteinte) : cas non prevu par le par. 2.4, lecture renvoyee a
-#      actuary (signale tel quel, sans classement).
+#    - sinon, si CMIN estime < 0,75 sur un jeu au moins : DEPENDANCE FORTE,
+#      NON QUASI REDONDANTE (CONCORDANCE DES REJETS SOUS 0,75), phrase a
+#      nuancer, PM-3 (Q1, branche 1) ;
+#    - sinon (estimations au-dessus des seuils, une borne a 2 ET manquee) :
+#      QUASI-REDONDANCE NON ETABLIE A B = 9 999, PM-3 ; la phrase du .tex est
+#      remplacee par les valeurs chiffrees (estimation +/- ET), sans etre dite
+#      contredite (Q1, branche 2). Pas de relance a B plus grand une fois le
+#      resultat vu (M42).
+#  ET jackknife a G = 20 groupes : environ 19 degres de liberte, incertitude
+#  relative de l'ET d'environ 1/sqrt(38), soit 16 % (approximation du khi-2,
+#  avis Q3) ; la borne "- 2 ET" est une convention a +/- 0,3 ET pres (ecrit
+#  sous T5).
 #  Portee (avis, par. 2.5) : rien sous les alternatives (ou la ponderation
 #  des queues de A2 les distingue) ; ne dit pas qu'un seul verdict suffit en
 #  puissance ; conditionnel a J1 et J2, a T = 8.
@@ -230,8 +262,14 @@ grandeurs <- function(w, a) {
     out[paste0("rej_cvm", suf)] <- mean(rw)
     out[paste0("rej_ad", suf)] <- mean(ra)
     out[paste0("rej_conj", suf)] <- mean(rw & ra)
+    # Q5 : une conditionnelle sans rejet au denominateur est indefinie
+    # (jackknife degenere) : arret, aucune lecture imprimee.
+    if (sum(ra) == 0 || sum(rw) == 0)
+      stop(sprintf("jackknife degenere : aucun rejet %s a alpha = %s sur un echantillon de %d lignes ; aucune lecture",
+                   if (sum(ra) == 0) "AD" else "CvM", format(al), length(w)))
     out[paste0("cvm_sachant_ad", suf)] <- sum(rw & ra) / sum(ra)
     out[paste0("ad_sachant_cvm", suf)] <- sum(rw & ra) / sum(rw)
+    out[paste0("cond_min", suf)] <- min(out[[paste0("cvm_sachant_ad", suf)]], out[[paste0("ad_sachant_cvm", suf)]])
   }
   out
 }
@@ -244,7 +282,7 @@ jackknife <- function(w, a, G) {
   est <- grandeurs(w, a)
   th <- vapply(seq_len(G), function(k) grandeurs(w[g != k], a[g != k]), est)
   et <- sqrt((G - 1) / G * rowSums((th - rowMeans(th))^2))
-  list(est = est, et = et, tailles = as.vector(table(factor(g, levels = seq_len(G)))))
+  list(est = est, et = et, th = th, tailles = as.vector(table(factor(g, levels = seq_len(G)))))
 }
 
 avance <- function(...) cat(sprintf(...), "\n", sep = "", file = stderr())
@@ -301,13 +339,22 @@ for (jeu in names(JEUX)) {
   c4 <- identical(as.numeric(meta$seed), SEED) && identical(as.numeric(meta$B), as.numeric(B_PLAN)) &&
     identical(as.numeric(meta$seed_flux_regime), flux_att) && identical(as.numeric(bt$p_mc_regime$graine_flux), flux_att)
   jk <- jackknife(w, a, G_JACK)
+  # (c5) sans ex aequo : rejets marginaux et conditionnelles par construction.
+  sans_exaeq <- all(exaeq == 0)
+  c5 <- if (!sans_exaeq) TRUE else all(vapply(ALPHAS, function(al) {
+    attendu <- sum(seq_len(length(w)) / length(w) < al)
+    suf <- sprintf("_%03d", round(100 * al))
+    ga <- paste0("cvm_sachant_ad", suf); gc <- paste0("ad_sachant_cvm", suf)
+    sum(p_loo(w) < al) == attendu && sum(p_loo(a) < al) == attendu &&
+      identical(jk$est[[ga]], jk$est[[gc]]) && identical(unname(jk$th[ga, ]), unname(jk$th[gc, ]))
+  }, TRUE))
   RES[[jeu]] <- list(jeu = jeu, cas = nom, ecoule = as.numeric(difftime(t1, t0, units = "secs")),
                      cpu = unname((cpu1 - cpu0)[["user.self"]] + (cpu1 - cpu0)[["sys.self"]]),
                      delta = res$ajustement$delta, sigma_usp = res$parametre_final$sigma_usp,
                      variante = bt$p_mc_regime$variante, regime = bt$p_mc_regime$regime_obs,
                      tirages = bt$p_mc_regime$tirages, retenus = bt$p_mc_regime$retenus, arret = bt$p_mc_regime$arret,
                      lignes = nrow(S), n_aucune = n_aucune, n_une = n_une, n = length(w), exaeq = exaeq,
-                     c2 = c2, c3 = c3, c4 = c4, jk = jk,
+                     c2 = c2, c3 = c3, c4 = c4, c5 = c5, sans_exaeq = sans_exaeq, jk = jk,
                      graines = sprintf("seed %.0f, seed_flux_regime %.0f%s, g\u00e9n\u00e9rateur %s", meta$seed, meta$seed_flux_regime,
                                        if (!is.null(meta$seed_loi_nulle_sw)) sprintf(", seed_loi_nulle_sw %.0f", meta$seed_loi_nulle_sw) else "",
                                        paste(unlist(meta$generateur), collapse = "/")))
@@ -317,6 +364,12 @@ for (jeu in names(JEUX)) {
   controle(sprintf("(c3) %s", jeu), c3, sprintf("p laisser-un-de-c\u00f4t\u00e9 par les rangs = comptage direct, %d premi\u00e8res lignes retenues, W\u00b2 et A\u00b2", m))
   controle(sprintf("(c4) %s", jeu), c4, sprintf("seed %.0f, B %.0f, graine du flux %.0f (attendue %.0f)", meta$seed, meta$B,
                                                  meta$seed_flux_regime, flux_att))
+  controle(sprintf("(c5) %s", jeu), c5,
+           if (sans_exaeq) sprintf(paste0("sans ex aequo : rejets marginaux = #{k : k/n < \u03b1} (%s) et conditionnelles identiques,",
+                                          " \u00e9chantillon entier et %d sous-\u00e9chantillons"),
+                                   paste(vapply(ALPHAS, function(al) sprintf("%d \u00e0 \u03b1 = %s", sum(seq_len(length(w)) / length(w) < al), format(al)), ""),
+                                         collapse = ", "), G_JACK)
+           else sprintf("sans objet : ex aequo (W\u00b2 %d ; A\u00b2 %d)", exaeq[["CvM"]], exaeq[["AD"]]))
   rm(res); invisible(gc(verbose = FALSE))
   avance("[%s] %s (%s) B = %.0f : %.1f s ecoules, %.1f s CPU ; n = %d ; rho_S = %.4f",
          format(Sys.time(), "%H:%M:%S"), jeu, nom, B_PLAN, RES[[jeu]]$ecoule, RES[[jeu]]$cpu, RES[[jeu]]$n,
@@ -329,36 +382,50 @@ if (ECRIRE && !CTRL_OK) {
   quit(status = 1L)
 }
 
-# --- Lecture du critere (avis, par. 2.4) ---------------------------------------
-est <- function(jeu, g) RES[[jeu]]$jk$est[[g]]
-et <- function(jeu, g) RES[[jeu]]$jk$et[[g]]
-RHO <- vapply(names(JEUX), est, 0, g = "spearman")
-BORNE_RHO <- vapply(names(JEUX), function(j) est(j, "spearman") - 2 * et(j, "spearman"), 0)
-BORNE_COND <- vapply(names(JEUX), function(j) est(j, "cvm_sachant_ad_010") - 2 * et(j, "cvm_sachant_ad_010"), 0)
-LECTURE <- if (any(RHO < 0.70)) {
-  sprintf("**Contredite** (PM-3) : \u03c1_S < 0,70 sur %s.", paste(names(JEUX)[RHO < 0.70], collapse = " et "))
-} else if (any(RHO < 0.90)) {
-  sprintf("**D\u00e9pendance forte, non quasi redondante** (phrase \u00e0 nuancer, PM-3) : 0,70 \u2264 \u03c1_S < 0,90 sur %s.",
-          paste(names(JEUX)[RHO < 0.90], collapse = " et "))
-} else if (all(BORNE_RHO >= 0.90) && all(BORNE_COND >= 0.75)) {
-  "**Quasi-redondance sous H0 \u00e9tablie** : sur J1 et J2, \u03c1_S \u2212 2 ET \u2265 0,90 et P(rejet CvM | rejet AD) \u2212 2 ET \u2265 0,75 \u00e0 \u03b1 = 0,10."
-} else {
-  sprintf(paste0("**Cas non pr\u00e9vu par le par. 2.4** : \u03c1_S \u2265 0,90 sur J1 et J2, mais une borne \u00e0 2 ET n'est pas atteinte",
-                 " (\u03c1_S \u2212 2 ET : %s ; P(rejet CvM | rejet AD) \u2212 2 ET \u00e0 \u03b1 = 0,10 : %s) ; lecture renvoy\u00e9e \u00e0 actuary, sans classement."),
-          paste(sprintf("%s %s", names(JEUX), formatC(BORNE_RHO, format = "f", digits = 4)), collapse = ", "),
-          paste(sprintf("%s %s", names(JEUX), formatC(BORNE_COND, format = "f", digits = 4)), collapse = ", "))
-}
-
-# --- Sorties --------------------------------------------------------------------
-if (ECRIRE) REMPLACES <- gardes_ecrire("de l'ex\u00e9cution")
-DUREE <- as.numeric(difftime(Sys.time(), t_debut, units = "secs"))
-si <- Sys.info()
+# --- Formats ------------------------------------------------------------------
 f4 <- function(x) ifelse(is.na(x), "\u2014", formatC(x, format = "f", digits = 4))
 f5 <- function(x) ifelse(is.na(x), "\u2014", formatC(x, format = "f", digits = 5))
 fs <- function(x) ifelse(is.na(x), "\u2014", formatC(x, format = "f", digits = 1))
 fb <- function(B) formatC(B, format = "d", big.mark = "\u00a0")
 # alpha au format decimal francais (0,10 ; 0,05)
 fa <- function(x) sub(".", ",", formatC(x, format = "f", digits = 2), fixed = TRUE)
+
+# --- Lecture du critere (avis, par. 2.4) ---------------------------------------
+est <- function(jeu, g) RES[[jeu]]$jk$est[[g]]
+et <- function(jeu, g) RES[[jeu]]$jk$et[[g]]
+RHO <- vapply(names(JEUX), est, 0, g = "spearman")
+BORNE_RHO <- vapply(names(JEUX), function(j) est(j, "spearman") - 2 * et(j, "spearman"), 0)
+COND <- vapply(names(JEUX), est, 0, g = "cond_min_010")
+BORNE_COND <- vapply(names(JEUX), function(j) est(j, "cond_min_010") - 2 * et(j, "cond_min_010"), 0)
+LIB_CMIN <- "min(P(rejet CvM | rejet AD), P(rejet AD | rejet CvM))"
+LECTURE <- if (any(RHO < 0.70)) {
+  sprintf("**Contredite** (PM-3) : \u03c1_S < 0,70 sur %s.", paste(names(JEUX)[RHO < 0.70], collapse = " et "))
+} else if (any(RHO < 0.90)) {
+  sprintf("**D\u00e9pendance forte, non quasi redondante** (phrase \u00e0 nuancer, PM-3) : 0,70 \u2264 \u03c1_S < 0,90 sur %s.",
+          paste(names(JEUX)[RHO < 0.90], collapse = " et "))
+} else if (all(BORNE_RHO >= 0.90) && all(BORNE_COND >= 0.75)) {
+  sprintf("**Quasi-redondance sous H0 \u00e9tablie** : sur J1 et J2, \u03c1_S \u2212 2 ET \u2265 0,90 et %s \u2212 2 ET \u2265 0,75 \u00e0 \u03b1 = 0,10.", LIB_CMIN)
+} else if (any(COND < 0.75)) {
+  # Q1, branche 1 : decisions non concordantes malgre rho_S >= 0,90.
+  sprintf(paste0("**D\u00e9pendance forte, non quasi redondante (concordance des rejets sous 0,75)** (phrase \u00e0 nuancer, PM-3) :",
+                 " \u03c1_S \u2265 0,90 sur J1 et J2, mais %s estim\u00e9e < 0,75 \u00e0 \u03b1 = 0,10 sur %s."),
+          LIB_CMIN, paste(names(JEUX)[COND < 0.75], collapse = " et "))
+} else {
+  # Q1, branche 2 : estimations au-dessus des seuils, une borne a 2 ET manquee.
+  sprintf(paste0("**Quasi-redondance non \u00e9tablie \u00e0 B = %s** (PM-3) : estimations au-dessus des seuils sur J1 et J2,",
+                 " mais une borne \u00e0 2 ET au moins n'est pas atteinte ; \u03c1_S : %s ; %s \u00e0 \u03b1 = 0,10 : %s.",
+                 " La phrase \u00ab presque deux fois la m\u00eame information \u00bb est remplac\u00e9e par ces valeurs chiffr\u00e9es,",
+                 " sans \u00eatre dite contredite."),
+          fb(B_PLAN),
+          paste(sprintf("%s %s \u00b1 %s", names(JEUX), f4(RHO), f5(vapply(names(JEUX), et, 0, g = "spearman"))), collapse = ", "),
+          LIB_CMIN,
+          paste(sprintf("%s %s \u00b1 %s", names(JEUX), f4(COND), f5(vapply(names(JEUX), et, 0, g = "cond_min_010"))), collapse = ", "))
+}
+
+# --- Sorties --------------------------------------------------------------------
+if (ECRIRE) REMPLACES <- gardes_ecrire("de l'ex\u00e9cution")
+DUREE <- as.numeric(difftime(Sys.time(), t_debut, units = "secs"))
+si <- Sys.info()
 ech <- function(x) OT$echapper(OT$une_ligne(ifelse(is.na(x), "\u2014", as.character(x))))
 EXTRAP <- vapply(RES, function(r) r$ecoule * B_COMPLET / B_PLAN, 0)
 
@@ -423,6 +490,26 @@ for (al in ALPHAS) {
   LIB[paste0("rej_conj", suf)] <- sprintf("P(rejet CvM et rejet AD), \u03b1 = %s", a_txt)
   LIB[paste0("cvm_sachant_ad", suf)] <- sprintf("P(rejet CvM | rejet AD), \u03b1 = %s", a_txt)
   LIB[paste0("ad_sachant_cvm", suf)] <- sprintf("P(rejet AD | rejet CvM), \u03b1 = %s", a_txt)
+  LIB[paste0("cond_min", suf)] <- sprintf("%s, \u03b1 = %s (grandeur du crit\u00e8re)", LIB_CMIN, a_txt)
+}
+# Q2 : sans ex aequo sur J1 ET J2, les deux conditionnelles sont egales par
+# construction sur chaque jeu (controle (c5)) : une seule ligne. Des qu'un
+# jeu a des ex aequo, les deux lignes et leur minimum sont imprimes (les
+# cellules du jeu sans ex aequo y sont egales entre elles).
+SANS_EXAEQ <- vapply(RES, `[[`, TRUE, "sans_exaeq")
+if (all(SANS_EXAEQ)) for (al in ALPHAS) {
+  suf <- sprintf("_%03d", round(100 * al))
+  LIB[paste0("cvm_sachant_ad", suf)] <- sprintf(paste0("P(rejet CvM | rejet AD) = P(rejet AD | rejet CvM), \u03b1 = %s",
+                                                       " (\u00e9gales par construction, aucun ex aequo en T1)"), fa(al))
+  LIB <- LIB[setdiff(names(LIB), paste0(c("ad_sachant_cvm", "cond_min"), suf))]
+}
+# Cellule de T3 : estimation +/- ET ; taux marginal d'une statistique sans
+# ex aequo sur le jeu : valeur fixee par construction, sans ET (Q4).
+cellule <- function(jeu, g) {
+  st <- if (grepl("^rej_cvm_", g)) "CvM" else if (grepl("^rej_ad_", g)) "AD" else NA
+  if (!is.na(st) && RES[[jeu]]$exaeq[[st]] == 0)
+    sprintf("%s = (\u2308n\u03b1\u2309 \u2212 1)/n \u2014 par construction", f4(est(jeu, g)))
+  else sprintf("%s \u00b1 %s", f4(est(jeu, g)), f5(et(jeu, g)))
 }
 REPERE <- function(g) {
   al <- if (grepl("_010$", g)) fa(0.10) else if (grepl("_005$", g)) fa(0.05) else NA
@@ -434,27 +521,36 @@ REPERE <- function(g) {
 md <- c(md, "", sprintf("### T3 \u2014 D\u00e9pendance de W\u00b2 et A\u00b2 sous la loi bootstrap : estimation \u00b1 ET (jackknife, G = %d)", G_JACK), "",
         "| Grandeur | J1 | J2 | Rep\u00e8re |", "|---|---|---|---|")
 for (g in names(LIB))
-  md <- c(md, sprintf("| %s | %s \u00b1 %s | %s \u00b1 %s | %s |", LIB[[g]], f4(est("J1", g)), f5(et("J1", g)),
-                      f4(est("J2", g)), f5(et("J2", g)), REPERE(g)))
+  md <- c(md, sprintf("| %s | %s | %s | %s |", LIB[[g]], cellule("J1", g), cellule("J2", g), REPERE(g)))
 md <- c(md, "",
         "p laisser-un-de-c\u00f4t\u00e9 de la r\u00e9plication i : (1 + #{j \u2260 i : s_j \u2265 s_i}) / n, n lignes retenues ; rejet si p < \u03b1 (r\u00e8gle des verdicts, sens \u00ab ne pas rejeter \u00bb).",
-        "Sans ex aequo (T1), chaque statistique compte le m\u00eame nombre de rejets marginaux (p laisser-un-de-c\u00f4t\u00e9 uniformes sur {1/n, ..., 1}) : P(rejet CvM | rejet AD) et P(rejet AD | rejet CvM) sont alors \u00e9gales par construction.",
+        paste0("Sans ex aequo sur une statistique (T1), ses p laisser-un-de-c\u00f4t\u00e9 sont une permutation de {1/n, ..., n/n} : elle compte exactement \u2308n\u03b1\u2309 \u2212 1 rejets, ",
+               "et son taux marginal (\u2308n\u03b1\u2309 \u2212 1)/n est fix\u00e9 par construction, sans ET (l'ET jackknife n'y refl\u00e9terait que les tailles des sous-\u00e9chantillons). ",
+               "Sans ex aequo sur W\u00b2 et A\u00b2, P(rejet CvM | rejet AD) et P(rejet AD | rejet CvM) sont \u00e9gales par construction (contr\u00f4le (c5)) ; ",
+               "sinon, le crit\u00e8re porte sur la plus petite des deux. L'ET du taux conjoint est une erreur Monte-Carlo r\u00e9elle."),
         "ET : \u00e9cart-type jackknife par groupes cons\u00e9cutifs, erreur Monte-Carlo seule (fonction de B) ; la d\u00e9pendance aux param\u00e8tres ajust\u00e9s n'est pas une erreur mais une conditionnalit\u00e9.")
 
 md <- c(md, "", "### T4 \u2014 Contr\u00f4les", "", "| Contr\u00f4le | R\u00e9sultat | D\u00e9tail |", "|---|---|---|",
         vapply(CTRL, function(k) sprintf("| %s | %s | %s |", k$code, if (k$ok) "conforme" else "**\u00c9CHEC**", ech(k$detail)), ""),
         "",
         "(c1) sens de rejet au catalogue `USP_CATALOGUE_MC` ; (c2) p_mc recalcul\u00e9e depuis `stats_boot` identique \u00e0 `bootstrap$p_mc`, \u00e0 `engine_p_mc()` et \u00e0 la ligne de `engine_table_tests()`, B effectif identique, sans motif ;",
-        "(c3) p laisser-un-de-c\u00f4t\u00e9 par les rangs identiques au comptage direct ; (c4) graine, B et graine du flux V3b conformes au plan.")
+        "(c3) p laisser-un-de-c\u00f4t\u00e9 par les rangs identiques au comptage direct ; (c4) graine, B et graine du flux V3b conformes au plan ;",
+        "(c5) sans ex aequo : rejets marginaux \u00e9gaux \u00e0 \u2308n\u03b1\u2309 \u2212 1 et conditionnelles identiques (`identical()`), \u00e9chantillon entier et sous-\u00e9chantillons jackknife.")
 
-md <- c(md, "", "### T5 \u2014 Lecture du crit\u00e8re (avis d'actuary, par. 2.4)", "",
+md <- c(md, "", "### T5 \u2014 Lecture du crit\u00e8re (avis d'actuary, par. 2.4, compl\u00e9t\u00e9 par ses r\u00e9ponses Q1 et Q2)", "",
         if (ESSAI) "*--essai : lecture m\u00e9canique sur un plan r\u00e9duit, sans valeur.*" else NULL,
         LECTURE, "",
-        sprintf("\u03c1_S : %s ; \u03c1_S \u2212 2 ET : %s ; P(rejet CvM | rejet AD) \u2212 2 ET \u00e0 \u03b1 = 0,10 : %s.",
+        sprintf("\u03c1_S : %s ; \u03c1_S \u2212 2 ET : %s ; %s \u00e0 \u03b1 = 0,10 : %s ; moins 2 ET : %s.",
                 paste(sprintf("%s %s", names(JEUX), f4(RHO)), collapse = ", "),
                 paste(sprintf("%s %s", names(JEUX), f4(BORNE_RHO)), collapse = ", "),
+                LIB_CMIN,
+                paste(sprintf("%s %s", names(JEUX), f4(COND)), collapse = ", "),
                 paste(sprintf("%s %s", names(JEUX), f4(BORNE_COND)), collapse = ", ")),
+        paste0("Crit\u00e8re de concordance sur ", LIB_CMIN, " : \u00e9gales par construction en l'absence d'ex aequo (T1) ; sinon, crit\u00e8re sur la plus petite des deux."),
         "Seuils 0,90, 0,75 et 0,70 : conventions d\u00e9clar\u00e9es par l'avis, sans fondement th\u00e9orique.",
+        sprintf(paste0("ET jackknife \u00e0 G = %d groupes : environ %d degr\u00e9s de libert\u00e9, incertitude relative de l'ET d'environ 1/\u221a%d \u2248 %.0f %% ",
+                       "(approximation du \u03c7\u00b2) ; la borne \u00ab \u2212 2 ET \u00bb est donc une convention \u00e0 \u00b1 0,3 ET pr\u00e8s."),
+                G_JACK, G_JACK - 1L, 2L * (G_JACK - 1L), 100 / sqrt(2 * (G_JACK - 1))),
         "Port\u00e9e : rien sous les alternatives, o\u00f9 la pond\u00e9ration des queues de A\u00b2 les distingue ; la mesure ne dit pas qu'un seul verdict suffit en puissance ; conditionnelle \u00e0 J1 et J2, \u00e0 T = 8.")
 
 ecrire_console <- function(x) writeLines(enc2utf8(x), con = stdout(), useBytes = TRUE)
