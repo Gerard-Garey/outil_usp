@@ -19,6 +19,7 @@
   - « signalé » si elle est inférieure à 2,700e-3, « désaccord » si elle est inférieure à 6,334e-5. Ce sont les queues normales de 3 et 4 ET [V, `2*pnorm(-3)`, `2*pnorm(-4)`].
 - Ce n'est qu'une traduction exacte du critère écrit d'avance. Garder la colonne en ET pour la lecture. Le seuil « plus de 2 signalées » reste inchangé.
 - [V] Avec p = 1 − 1e-9 et N = 4e5 : un taux simulé de 1 donne P = 0,9996 (accord). Un seul non-rejet donne P = 4,0e-4 : la cellule est signalée, sans désaccord automatique.
+  - *Note de la session (27/11) : valeurs unilatérales ; sous la règle bilatérale prescrite ci-dessus, un taux simulé de 1 donne P = 1 et un seul non-rejet P ≈ 8,0e-4, même classement (signalée, sans désaccord). Correction confirmée par actuary, `actuary-questions-420-367.md`, Q10 ; texte de l'avis conservé.*
 
 **3. Graines : acceptables, pas de changement.**
 - [V] Les graines sont déterministes et consignées en T0. Le flux de T = 8 est identique au bit. `git grep` à `4e0a829` ne trouve la plage 421000004-421000100 hors de `mesure_dw_rho_negatif_t8.R` ni dans `tests/` ni dans `R/`.
