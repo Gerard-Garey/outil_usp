@@ -1,0 +1,33 @@
+cible b084e13634af5cafe658b6154647f94357aee206
+
+v3.1.1 — jalon court après A3
+
+Version : 3.1.1 (DESCRIPTION).
+Commit de fusion : b084e13 (PR #624).
+SHA de la batterie : 7ad4e2f ; R/, app.R, DESCRIPTION et tests/ gelés depuis,
+sans dérogation (git diff 7ad4e2f b084e13 -- R/ app.R DESCRIPTION tests/ vide).
+md5 : R/engine.R c7b767f5d9116c35a0a9237ffdd2d79a ;
+      R/charger_moteur.R 5ed6226c768d5ad781ea03a7306ccc11.
+PDF : f8c752b, \versiondoc 4.8, 477 pages (pdfTeX-1.40.25),
+      depuis le .tex de a147700.
+\dateconsultation : 25 novembre 2026, cinq sources sur cinq consultées
+      (consultation de JS2), non déplacée par ce jalon ; veille du 26/11
+      (#463) sans fait nouveau.
+Dernière régénération par cas (inchangée depuis v3.1.0) :
+  premium, premium_ii6, premium_interieur, premium_net, reserve1 : 73fd059
+  (17/11) ; reserve2 : b232cbe (21/11) ; reserve2_trapeze : 8c808af (25/11).
+Batterie au poste Windows et relevés : docs/revues/20261126-jalon-3.1.1/poste-windows/
+  (critère de l'ADR 0006 accepté sur sept cas, résultat identique point pour
+  point à JS2). Batterie faite le 27/11, après la fusion du jalon, sur
+  extraction détachée du SHA de la batterie (#625, PR #627). Relevé
+  informatif test_merz_wuthrich_trapeze.R : 156/156.
+Changement depuis v3.1.0 : #620 corrigée par A3 (PR #623, 32d9895). La colonne
+  J-1 dégénérée d'un trapèze est simulée avec son estimateur direct. σ_USP et
+  les sept références sont inchangés. Sur ce domaine changent les p d'Alpha
+  et la p globale, le verdict d'Alpha à α saisi, σ_boot et l'intervalle. La
+  limite #620 de v3.1.0 (p Monte-Carlo majorée) est levée.
+Limites : trapèze traité selon la convention (B), constats de simulation
+  sous un plan ; mesure de #612 refaisable à son commit seulement ; les
+  écarts de #620 sont des constats de simulation dont la grandeur dépend de
+  la graine (ADR 0005, annotation du 26/11) ; sur le poste, la seule mesure
+  du chemin modifié est le relevé informatif.
