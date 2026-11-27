@@ -12531,8 +12531,18 @@ retenue : la ligne "Anderson-Darling" fait foi.}~». La relation qu'énonce ce l
 par définition~: $A^2$ est $W^2$ pondérée par $[F_0(1-F_0)]^{-1}$ (formes intégrales, rubrique~3
 des deux fiches, que \code{stat\_ad()} et \code{stat\_cvm()} reproduisent, vérifié par quadrature
 numérique). La dépendance entre les deux statistiques, que suppose «~presque deux fois la même
-information~», n'est chiffrée par aucun script versionné ni ici~; la chiffrer est un travail
-postérieur à la remise. Les p-values ne sont pas
+information~», est chiffrée sous la loi bootstrap qui définit leurs p-values de Monte-Carlo, où
+$H_0$ est vraie (\code{tests/mesure\_correlation\_cvm\_ad\_t8.R}, $B = 9\,999$,
+\code{docs/tableaux/}\allowbreak\code{20261127-issue420-}\allowbreak\code{correlation-cvm-ad.md})~:
+corrélation de Spearman $0{,}978 \pm 0{,}0006$ sur J1 et $0{,}976 \pm 0{,}0004$ sur J2, et, au
+seuil $0{,}10$, $0{,}900 \pm 0{,}007$ et $0{,}881 \pm 0{,}009$ des rejets d'Anderson--Darling sont
+aussi des rejets de Cramér--von Mises (estimation $\pm$ erreur de Monte-Carlo par jackknife)~; le critère de
+quasi-redondance fixé avant l'exécution (corrélation moins deux erreurs-types au moins $0{,}90$,
+proportion moins deux erreurs-types au moins $0{,}75$, seuils conventionnels sans fondement
+théorique) est tenu sur les deux jeux. Ces valeurs approchent par Monte-Carlo une fonctionnelle
+de la loi bootstrap, conditionnelle aux paramètres ajustés de J1 et J2, à $T = 8$~: elles ne
+disent rien sous les alternatives, où la pondération des queues de $A^2$ distingue les deux
+statistiques, ni qu'un seul verdict suffise en puissance. Les p-values ne sont pas
 écartées pour leur qualité~: la p-value de Monte-Carlo, restituée, a un niveau compatible avec le
 seuil sous le modèle ajusté ($R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc}~: J1, $0{,}0955$ à
 $\alpha = 0{,}10$ et $0{,}0445$ à $0{,}05$~; J2, $0{,}097$ et $0{,}0465$~; compatible aux deux seuils
