@@ -521,7 +521,7 @@ REPERE <- function(g) {
 md <- c(md, "", sprintf("### T3 \u2014 D\u00e9pendance de W\u00b2 et A\u00b2 sous la loi bootstrap : estimation \u00b1 ET (jackknife, G = %d)", G_JACK), "",
         "| Grandeur | J1 | J2 | Rep\u00e8re |", "|---|---|---|---|")
 for (g in names(LIB))
-  md <- c(md, sprintf("| %s | %s | %s | %s |", LIB[[g]], cellule("J1", g), cellule("J2", g), REPERE(g)))
+  md <- c(md, sprintf("| %s | %s | %s | %s |", ech(LIB[[g]]), cellule("J1", g), cellule("J2", g), REPERE(g)))
 md <- c(md, "",
         "p laisser-un-de-c\u00f4t\u00e9 de la r\u00e9plication i : (1 + #{j \u2260 i : s_j \u2265 s_i}) / n, n lignes retenues ; rejet si p < \u03b1 (r\u00e8gle des verdicts, sens \u00ab ne pas rejeter \u00bb).",
         paste0("Sans ex aequo sur une statistique (T1), ses p laisser-un-de-c\u00f4t\u00e9 sont une permutation de {1/n, ..., n/n} : elle compte exactement \u2308n\u03b1\u2309 \u2212 1 rejets, ",
