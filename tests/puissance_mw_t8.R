@@ -241,12 +241,14 @@
 #    (i2) ; aucun triangle en erreur.
 #    Synthese : par cellule, famille et alpha : taux et IC de Clopper-Pearson
 #    a 95 % de p_f < alpha et de U_f, exces sur le niveau (P1.H0), P(U_f = 1,
-#    p_f >= alpha), McNemar exact contre P1.H0 sur les b communs admis des
-#    deux cotes (bilateral, et unilateral pi(s) < pi(H0) pour le signal
-#    PM-3), et, pour une cellule dont les graines ne sont pas celles de
-#    P1.H0, test exact de Fisher en complement (echantillons independants) ;
-#    classe du par. 4.5 de l'avis (McNemar ; seuils 0,5 : convention
-#    declaree), evaluee mecaniquement SANS CONCLURE.
+#    p_f >= alpha), test contre P1.H0 (avis d'actuary de l'etape 5, Q3) :
+#    cellule a graines communes avec P1.H0 (cellules AR de #494) : McNemar
+#    exact apparie sur les b admis, ligne presente des deux cotes ; cellule a
+#    graines distinctes (CST20, DCAL : graines de #309, echantillons
+#    independants) : test exact de Fisher sur tous les triangles des deux
+#    cellules ; bilateral pour la classe du par. 4.5 de l'avis (seuils 0,5 :
+#    convention declaree), unilateral pi(s) < pi(H0) pour le signal PM-3 ;
+#    evalues mecaniquement SANS CONCLURE.
 #    Reprise (M42 (b)) : tranches de TAILLE_TRANCHE_MW_FAM triangles
 #    consecutifs d'une cellule dans le dossier de travail (--travail, hors du
 #    depot ; defaut <parent de la racine>/issue379-mw-travail-B999), ecrites
@@ -2973,9 +2975,11 @@ if (MODE == "familles") {
   local({
     attendu <- OK_U & (if (OPT_ESSAI) as.integer(D$b) == 1L else as.integer(D$b) %% CTL_PERIODE == 0L)
     ct <- D$ctl[attendu]
-    controle(all(ct == "OK"), sprintf("Familles, (i2) : tests et bootstrap identiques \u00e0 ceux de run_engine() (identical()) sur %d triangle(s) admis (%s) : %d OK%s",
+    # un controle sur 0 triangle n'est pas fait : ECHEC
+    controle(length(ct) > 0L && all(ct == "OK"), sprintf("Familles, (i2) : tests et bootstrap identiques \u00e0 ceux de run_engine() (identical()) sur %d triangle(s) admis (%s) : %d OK%s",
                                       length(ct), if (OPT_ESSAI) "b = 1 de chaque cellule, --essai" else sprintf("b multiple de %d", CTL_PERIODE),
-                                      sum(ct == "OK"), if (any(ct != "OK")) sprintf(", %d \u00c9CHEC ou manquant(s)", sum(ct != "OK")) else ""))
+                                      sum(ct == "OK"), if (!length(ct)) " ; aucun triangle contr\u00f4l\u00e9 : contr\u00f4le non fait"
+                                      else if (any(ct != "OK")) sprintf(", %d \u00c9CHEC ou manquant(s)", sum(ct != "OK")) else ""))
   })
   controle(catalogue_restaure(), "Familles : catalogue MW_CATALOGUE_MC du moteur intact en fin de calcul")
 
@@ -2988,7 +2992,7 @@ if (MODE == "familles") {
           entete_md(c("Cellule", "Famille", "\u03b1", "n (admis, ligne pr\u00e9sente)", "ligne L / T-3b / absente (hors n)", "rejets p_f < \u03b1", "\u03c0\u0302", "IC 95 % (C-P)",
                       "U_f = 1", "U\u0302", "IC 95 % (C-P)", "\u03c0\u0302 \u2212 \u03c0\u0302(H0)", "U\u0302 \u2212 U\u0302(H0)", "P(U_f = 1, p_f \u2265 \u03b1)",
                       "paires (b communs, ligne pr\u00e9sente des deux c\u00f4t\u00e9s)", "McNemar n01 / n10", "McNemar bilat\u00e9ral", "McNemar unilat\u00e9ral \u03c0 < \u03c0(H0)",
-                      "Fisher bilat\u00e9ral (compl\u00e9ment)", "classe (par. 4.5)", "signal PM-3")))
+                      "Fisher bilat\u00e9ral", "Fisher unilat\u00e9ral \u03c0 < \u03c0(H0)", "classe (par. 4.5)", "signal PM-3")))
   for (i in seq_len(nrow(CF))) for (f in FAM_MW[pres]) for (a in SEUILS_FAM) {
     id <- CF$id[i]
     # n : triangles admis ou la ligne est presente (L ou T-3b), convention
@@ -3001,35 +3005,48 @@ if (MODE == "familles") {
     k <- sum(r$rej); ku <- sum(r$U); k0 <- sum(r0$rej); ku0 <- sum(r0$U)
     ci <- ic_cp(k, n); ciu <- ic_cp(ku, n)
     cmp <- id != CELLULE_REF_FAM && n > 0 && n0 > 0
+    # Graines communes avec P1.H0 : McNemar apparie par b (d1 = rejet dans
+    # la cellule, d2 = rejet dans P1.H0 ; unilateral pi(s) < pi(H0) : n01
+    # petit). Graines distinctes : Fisher sur la table (cellule, P1.H0) x
+    # (rejet, non-rejet), cellule en premiere ligne (unilateral "less" :
+    # rapport des cotes < 1, soit pi(s) < pi(H0)).
+    communes <- CF$rang[i] == rang_ref
     bc <- intersect(d$b, refp$b)
-    mc <- c(n01 = NA_real_, n10 = NA_real_, p = NA_real_); pu <- fb <- NA_real_
-    if (cmp && length(bc)) {
+    mc <- c(n01 = NA_real_, n10 = NA_real_, p = NA_real_); pu <- fb <- fu <- NA_real_
+    if (cmp && communes && length(bc)) {
       d1 <- r$rej[match(bc, d$b)]; d2 <- r0$rej[match(bc, refp$b)]
       mc <- mcnemar(d1, d2)
       pu <- if (mc[["n01"]] + mc[["n10"]] > 0) stats::binom.test(mc[["n01"]], mc[["n01"]] + mc[["n10"]], 0.5, alternative = "less")$p.value else 1
     }
-    if (cmp && CF$rang[i] != rang_ref) fb <- stats::fisher.test(matrix(c(k, n - k, k0, n0 - k0), 2, byrow = TRUE))$p.value
+    if (cmp && !communes) {
+      tab <- matrix(c(k, n - k, k0, n0 - k0), 2, byrow = TRUE)
+      fb <- stats::fisher.test(tab)$p.value
+      fu <- stats::fisher.test(tab, alternative = "less")$p.value
+    }
+    p_classe <- if (communes) mc[["p"]] else fb
+    p_pm3 <- if (communes) pu else fu
     F1 <- c(F1, ligne_md(id, lib_fam(f), num(a, 2), n, sprintf("%d / %d / %d", sum(et == "L"), sum(et == "N"), sum(et == "A")),
                          k, num(if (n) k / n else NA_real_), txt_ic(ci, 3), ku, num(if (n) ku / n else NA_real_), txt_ic(ciu, 3),
                          if (cmp) sub("^([0-9])", "+\\1", num(k / n - k0 / n0)) else "\u2014",
                          if (cmp) sub("^([0-9])", "+\\1", num(ku / n - ku0 / n0)) else "\u2014",
                          if (n) num(sum(r$U & !r$rej) / n) else "\u2014",
-                         if (cmp) sprintf("%d (%s)", length(bc), if (CF$rang[i] == rang_ref) "graines communes" else "indice b, graines distinctes") else "\u2014",
-                         if (cmp && length(bc)) sprintf("%d / %d", mc[["n01"]], mc[["n10"]]) else "\u2014",
-                         fmt_p(mc[["p"]]), fmt_p(pu), if (is.finite(fb)) fmt_p(fb) else "\u2014",
-                         if (id == CELLULE_REF_FAM) "niveau (r\u00e9f\u00e9rence)" else classe_puissance(mc[["p"]], ci),
-                         if (is.finite(pu)) (if (pu < 0.05) "**oui**" else "non") else "\u2014"))
+                         if (cmp && communes) sprintf("%d (graines communes)", length(bc)) else "\u2014",
+                         if (cmp && communes && length(bc)) sprintf("%d / %d", mc[["n01"]], mc[["n10"]]) else "\u2014",
+                         fmt_p(mc[["p"]]), fmt_p(pu), fmt_p(fb), fmt_p(fu),
+                         if (id == CELLULE_REF_FAM) "niveau (r\u00e9f\u00e9rence)" else classe_puissance(p_classe, ci),
+                         if (is.finite(p_pm3)) (if (p_pm3 < 0.05) "**oui**" else "non") else "\u2014"))
   }
   F1 <- c(F1, "", paste("n : triangles admis de la cellule o\u00f9 la ligne est pr\u00e9sente (k \u2265 2 ; convention de T-F1 de #297), une",
                         "ligne absente (k \u2264 1) \u00e9tant hors de n et compt\u00e9e \u00e0 part. p_f : p de la ligne de lecture conjointe telle que la",
                         "rend mw_tests() (engine_p_famille(), champ p_mc) ; une ligne sans p (B effectif de famille < 50, texte T-3b) compte",
                         "comme un non-rejet. U_f = 1 : au moins un membre de la ligne (m\u00eames membres, lus par fk_membres(), m\u00eames",
                         "triangles) a une p Monte-Carlo < \u03b1 ; U_f n'est pas un test de niveau \u03b1 : lecture en exc\u00e8s sur le niveau (par. 5.3",
-                        "de l'avis). McNemar exact (bilat\u00e9ral ; unilat\u00e9ral pour le signal PM-3) sur les b admis, ligne pr\u00e9sente, dans la cellule et dans P1.H0,",
-                        "appari\u00e9s par b : appariement par graines communes pour une cellule qui reprend les graines de P1.H0 (cellules AR de",
-                        "#494), par indice b seulement pour une cellule \u00e0 graines distinctes (CST20, DCAL : graines de #309, \u00e9chantillons",
-                        "ind\u00e9pendants), pour laquelle le test exact de Fisher bilat\u00e9ral est donn\u00e9 en compl\u00e9ment. Classe (seuils 0,5 :",
-                        "convention d\u00e9clar\u00e9e) sur le McNemar bilat\u00e9ral : non distingu\u00e9e si p \u2265 0,05, sinon faible (borne haute < 0,5),",
+                        "de l'avis). Test contre P1.H0 (avis d'actuary de l'\u00e9tape 5, Q3) : pour une cellule qui reprend les graines de P1.H0",
+                        "(cellules AR de #494), McNemar exact appari\u00e9 par b sur les b admis, ligne pr\u00e9sente des deux c\u00f4t\u00e9s (n01 : la cellule",
+                        "rejette et P1.H0 non) ; pour une cellule \u00e0 graines distinctes (CST20, DCAL : graines de #309, \u00e9chantillons ind\u00e9pendants),",
+                        "test exact de Fisher sur tous les triangles des deux cellules (cellule en premi\u00e8re ligne), colonnes McNemar sans objet.",
+                        "Bilat\u00e9ral pour la classe, unilat\u00e9ral \u03c0(s) < \u03c0(H0) < 0,05 pour le signal PM-3. Classe (seuils 0,5 :",
+                        "convention d\u00e9clar\u00e9e) : non distingu\u00e9e si p \u2265 0,05, sinon faible (borne haute < 0,5),",
                         "substantielle (borne basse \u2265 0,5) ou interm\u00e9diaire ; \u00e9valu\u00e9e m\u00e9caniquement, sans conclure. IC : erreur",
                         "d'\u00e9chantillonnage (fonction de R) ; l'erreur Monte-Carlo de chaque p (fonction de B) fait partie de la proc\u00e9dure."),
           if (any(!pres)) c("", sprintf("Familles sans ligne (k \u2264 1 sur tous les triangles) : %s", paste(FAM_MW[!pres], collapse = ", "))) else character(0), "")
@@ -3057,7 +3074,8 @@ if (MODE == "familles") {
   S_FAM <- c(sprintf("## Mesure #379 : puissance \u00e0 T = 8 des p de famille et de la p globale, Merz-W\u00fcthrich%s",
                      if (OPT_ESSAI) " -- ESSAI (non versionnable)" else ""), "",
              paste("Statut : **constat de simulation sous plan** (mod\u00e8le de Mack ajust\u00e9 \u00e0 reserve2, g\u00e9om\u00e9trie 8 \u00d7 8, plan P1 de #309),",
-                   "pour la proc\u00e9dure du moteur \u00e0 B = 999 ; rien n'est transpos\u00e9 \u00e0 d'autres triangles, plans ou alternatives.",
+                   sprintf("pour la proc\u00e9dure du moteur \u00e0 B = %d%s ; rien n'est transpos\u00e9 \u00e0 d'autres triangles, plans ou alternatives.",
+                           as.integer(B_BOOT), if (B_BOOT != 999) " (essai de mise au point, non repr\u00e9sentatif de la proc\u00e9dure du dossier \u00e0 B = 999)" else ""),
                    "Les p de famille restent plug-in et non exactes."), "",
              "### T0 \u2014 provenance", "", entete_md(c("Grandeur", "Valeur")),
              ligne_md("Protocole", "avis d'actuary docs/revues/20261127-s9-mesures/actuary-protocoles-etape-1.md, par. 4 et 5 ; d\u00e9cisions Q-S9-1 (a) et Q-S9-2 (a) ; campagne partag\u00e9e avec #494"),
@@ -3100,7 +3118,10 @@ if (MODE == "familles") {
                                    "chaque processus sous la concurrence de %d processus, d'o\u00f9 horloge = CPU / processus (hypoth\u00e8se [H] : d\u00e9bit lin\u00e9aire,",
                                    "triangles refus\u00e9s compt\u00e9s comme admis, queues de groupes non compt\u00e9es ; charge de la machine non contr\u00f4l\u00e9e)."), CTL_PERIODE, N_PROC),
                      "",
-                     if (h * 3600 > SEGMENT_S_FAM)
+                     if (B_BOOT != 999)
+                       sprintf(paste("**Extrapolation non repr\u00e9sentative** (essai de mise au point \u00e0 B = %d) : aucune conclusion sur M42 ;",
+                                     "le pr\u00e9-vol se fait \u00e0 B = 999."), as.integer(B_BOOT))
+                     else if (h * 3600 > SEGMENT_S_FAM)
                        sprintf(paste("**Au-del\u00e0 de 2 h d'horloge (%s h) : PM-2, accord expr\u00e8s du mainteneur requis ; %d segment(s) de 2 h au plus (M42 (b))**,",
                                      "chacun par la m\u00eame commande avec le m\u00eame --travail et --arret-apres 110 (reprise aux tranches absentes)."), num(h, 2), seg)
                      else sprintf("Dur\u00e9e extrapol\u00e9e de %s h d'horloge, sous 2 h : un seul segment (M42 (a)).", num(h, 2)),

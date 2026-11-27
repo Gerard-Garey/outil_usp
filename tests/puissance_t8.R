@@ -402,11 +402,14 @@
 #    (formals, corps) ; critere 6 (depot intact).
 #    Synthese : par jeu, point, famille et alpha : taux et IC de
 #    Clopper-Pearson a 95 % de p_f < alpha et de U_f, exces sur le niveau
-#    (point N), P(U_f = 1, p_f >= alpha), test exact de Fisher contre N
-#    (bilateral, et unilateral pi(s) < pi(N) pour le signal PM-3), classe du
-#    par. 4.5 de l'avis (non distinguee / faible / intermediaire /
-#    substantielle ; seuils 0,5 : convention declaree), evaluee
-#    mecaniquement SANS CONCLURE. L'IC porte l'erreur d'echantillonnage du
+#    (point N), P(U_f = 1, p_f >= alpha), McNemar exact apparie contre N
+#    (les points d'une replication b partagent la ligne e_b et la graine de
+#    bootstrap : paires = replications b ou la ligne est presente au point N
+#    et au point s ; bilateral pour la classe, unilateral pi(s) < pi(N) pour
+#    le signal PM-3 ; avis d'actuary de l'etape 5, Q2, qui remplace le Fisher
+#    du par. 5.6 de l'avis de l'etape 1), classe du par. 4.5 de l'avis (non
+#    distinguee / faible / intermediaire / substantielle ; seuils 0,5 :
+#    convention declaree), evaluee mecaniquement SANS CONCLURE. L'IC porte l'erreur d'echantillonnage du
 #    taux (fonction de R) ; l'erreur Monte-Carlo de chaque p (fonction de B)
 #    fait partie de la procedure mesuree (B = 999), elle n'est pas dans l'IC.
 #    Reprise (M42 (b)) : tranches de TAILLE_TRANCHE_FAM replications
@@ -423,7 +426,10 @@
 #    toutes les replications, dossier temporaire, rien d'ecrit ; imprime la
 #    synthese (marquee ESSAI), la duree par replication et la duree
 #    extrapolee de l'execution complete par (jeu, point) et au total, et le
-#    nombre de segments de 2 h (M42 (b)) au-dela de 2 h (PM-2).
+#    nombre de segments de 2 h (M42 (b)) au-dela de 2 h (PM-2). --B, --graine
+#    et --graine-ic ne sont admis qu'en --essai (mise au point : T0 et
+#    extrapolation marques non representatifs, aucune conclusion sur M42).
+#    Un controle qui porte sur 0 replication est en ECHEC.
 #    Sorties : console ; avec --ecrire (arbre propre et code du depot,
 #    motifs_non_versionnable() ; garde_ecrasement(), --remplacer) dans
 #    docs/tableaux/ : <AAAAMMJJ>-issue379-familles-ln.md et
@@ -480,6 +486,12 @@ if (OPT_FAMILLES && any(c("--combiner", "--tranche", "--volet", "--R", "--R-null
   stop("--familles : options d'un autre mode refusees : ",
        paste(intersect(c("--combiner", "--tranche", "--volet", "--R", "--R-nulle", "--B-controle", "--R-chaine"), ARGS),
              collapse = ", "))
+# Hors --essai, le mode mesure la procedure du dossier (B = 999) avec les
+# graines declarees : --B, --graine et --graine-ic n'y sont admis qu'en
+# --essai (mise au point, sortie marquee non representative), comme dans
+# tests/puissance_mw_t8.R.
+if (OPT_FAMILLES && !("--essai" %in% ARGS) && any(c("--B", "--graine", "--graine-ic") %in% ARGS))
+  stop("--familles : --B, --graine et --graine-ic reserves a --essai (B = 999 et graines declarees du volet B)")
 OPT_ESSAI     <- "--essai" %in% ARGS
 OPT_N_ESSAI   <- suppressWarnings(as.integer(lire_option("--n", "2")))
 OPT_R_FAM     <- suppressWarnings(as.integer(lire_option("--R-familles", "300")))
@@ -1414,19 +1426,30 @@ remplir_familles <- function(v, rf, fam) {
 }
 # Controle de la chaine reduite (par. 5.1 de l'avis) : p_mc des douze lignes
 # de LIG_B de la chaine (memes graines) contre celles de run_engine().
-# "identique" ; "exclusion (boucle)" si les z_boot different (replication
-# interne ecartee d'un seul cote, en-tete du volet B, point 2) ; "exclusion
-# (flux V3b)" si les tirages ou les retenus du flux different (point 3) ;
-# "ECHEC ..." sinon.
+# "identique" ; "exclusion (boucle)" si les z_boot different SEULEMENT sur
+# des replications internes retenues par la chaine et ecartees par
+# usp_bootstrap() (ligne finie d'un cote, NA de l'autre : ecart connu de
+# l'en-tete du volet B, point 2) ; "exclusion (flux V3b)" si, en V3b des
+# deux cotes, les tirages ou les retenus du flux different et que le moteur
+# a ecarte au moins un tirage du flux pour une statistique en erreur
+# (rejets_flux, point 3) ; "ECHEC ..." sinon.
 controle_chaine <- function(J, y, g, res) {
   ch <- chaine(J$x, y, g, OPT_B)
   if (!is.null(ch$ecart)) return(paste("ECHEC : chaine reduite en ecart :", ch$ecart))
   l_re <- lignes_tests(engine_table_tests(res))
   same <- vapply(LIG_B, function(k) identical(ch$lignes[[k]]$p_mc, l_re[[k]]$p_mc), logical(1))
   if (all(same)) return("identique")
-  if (!identical(ch$boucle$z_boot, res$bootstrap$z_boot)) return("exclusion (boucle)")
+  za <- ch$boucle$z_boot; zm <- res$bootstrap$z_boot
+  if (!identical(za, zm)) {
+    if (!identical(dim(za), dim(zm))) return("ECHEC : z_boot de dimensions differentes")
+    lig <- which(vapply(seq_len(nrow(za)), function(i) !identical(za[i, ], zm[i, ]), logical(1)))
+    if (all(is.finite(za[lig, 1])) && all(is.na(zm[lig, 1]))) return("exclusion (boucle)")
+    return(paste("ECHEC : z_boot differents hors replications ecartees par usp_bootstrap() :",
+                 paste(utils::head(lig, 10), collapse = ",")))
+  }
   pe <- res$bootstrap$p_mc_regime; pc <- ch$p_mc_regime
   if (identical(pe$variante, "V3b") && identical(pc$variante, "V3b") &&
+      isTRUE(pe$rejets_flux[["statistiques"]] > 0) &&
       (!identical(as.numeric(pe$tirages), as.numeric(pc$tirages)) ||
        !identical(as.numeric(pe$retenus), as.numeric(pc$retenus))))
     return("exclusion (flux V3b)")
@@ -1470,11 +1493,18 @@ unite_familles_ln <- function(J, pt, b, ctl) {
   v
 }
 # Classe du par. 4.5 de l'avis (seuils 0,5 : convention declaree) :
-# p_test, p du test apparie (Fisher ou McNemar, bilateral) ; ci, IC 95 % du
+# p_test, p du McNemar exact apparie bilateral ; ci, IC 95 % du
 # taux. Evaluee mecaniquement, sans conclure.
 classe_puissance <- function(p_test, ci) {
   if (!is.finite(p_test) || anyNA(ci)) return("\u2014")
   if (p_test >= 0.05) "non distingu\u00e9e" else if (ci[2] < 0.5) "faible" else if (ci[1] >= 0.5) "substantielle" else "interm\u00e9diaire"
+}
+# McNemar exact (copie de mcnemar() de tests/puissance_mw_t8.R) : d1, d2
+# decisions appariees ; n01 = d1 rejette et d2 non, n10 = l'inverse ; p
+# binomiale exacte bilaterale sur n01 + n10 (1 sans paire discordante).
+mcnemar <- function(d1, d2) {
+  n01 <- sum(d1 & !d2); n10 <- sum(!d1 & d2); n <- n01 + n10
+  c(n01 = n01, n10 = n10, p = if (n) stats::binom.test(n01, n, 0.5)$p.value else 1)
 }
 # Rejets d'une famille f a alpha sur des lignes du tableau brut : p_f < alpha
 # (ligne presente, etat L) et U_f (plus petite p_mc des membres < alpha).
@@ -1494,7 +1524,10 @@ if (OPT_FAMILLES) {
     stop("--points : points du volet A separes par des virgules, sans doublon, N en tete (", paste(names(POINTS_A), collapse = ", "), ")")
   if (is.na(OPT_R_FAM) || OPT_R_FAM < 1L || OPT_R_FAM > R_FAM_MAX)
     stop(sprintf("--R-familles : entier de 1 a %d (reseau de graines declare --graine-ic + 1000 b, b <= %d)", R_FAM_MAX, R_FAM_MAX))
-  if (is.na(OPT_N_ESSAI) || OPT_N_ESSAI < 1L || OPT_N_ESSAI > OPT_R_FAM) stop("--n : entier de 1 a --R-familles")
+  if (OPT_ESSAI && (is.na(OPT_N_ESSAI) || OPT_N_ESSAI < 1L || OPT_N_ESSAI > OPT_R_FAM)) stop("--n : entier de 1 a --R-familles")
+  # Essai de mise au point (B ou graines modifies) : extrapolation et T0
+  # marques non representatifs.
+  ESSAI_MODIFIE <- OPT_ESSAI && (OPT_B != 999 || OPT_GRAINE != 20260930 || OPT_GRAINE_IC != 20260831)
   if (OPT_ESSAI && (OPT_ECRIRE || !is.na(OPT_SORTIE))) stop("--essai : rien n'est ecrit (--ecrire et --sortie refuses)")
   if (OPT_ESSAI && !is.na(OPT_TRAVAIL)) stop("--essai : dossier temporaire (--travail refuse)")
   R_RUN <- if (OPT_ESSAI) OPT_N_ESSAI else OPT_R_FAM
@@ -1678,12 +1711,14 @@ if (OPT_FAMILLES) {
     attendu <- OK_U & (OPT_ESSAI | as.integer(D$b) %% CTL_CHAINE_PERIODE == 0L)
     ct <- D$ctl[attendu]
     n_e <- sum(startsWith(ct, "ECHEC")) + sum(ct == "-")
-    controle(n_e == 0L, sprintf(paste("Familles, cha\u00eene r\u00e9duite (par. 5.1 de l'avis) : p_mc des douze lignes de LIG_B \u00e9gales \u00e0 celles de",
+    # un controle sur 0 replication n'est pas fait : ECHEC
+    controle(n_e == 0L && length(ct) > 0L, sprintf(paste("Familles, cha\u00eene r\u00e9duite (par. 5.1 de l'avis) : p_mc des douze lignes de LIG_B \u00e9gales \u00e0 celles de",
                                       "run_engine() hors \u00e9carts d'exclusion, sur %d r\u00e9plication(s) (%s) : %d identique(s), %d exclusion (boucle),",
                                       "%d exclusion (flux V3b), %d \u00e9chec(s) ou contr\u00f4le(s) manquant(s)%s"),
                                 length(ct), if (OPT_ESSAI) "toutes, --essai" else sprintf("b multiple de %d", CTL_CHAINE_PERIODE),
                                 sum(ct == "identique"), sum(ct == "exclusion (boucle)"), sum(ct == "exclusion (flux V3b)"), n_e,
-                                if (n_e) paste0(" : ", paste(unique(ct[startsWith(ct, "ECHEC") | ct == "-"]), collapse = " ; ")) else ""))
+                                if (!length(ct)) " ; aucune r\u00e9plication contr\u00f4l\u00e9e : contr\u00f4le non fait"
+                                else if (n_e) paste0(" : ", paste(unique(ct[startsWith(ct, "ECHEC") | ct == "-"]), collapse = " ; ")) else ""))
   })
   verifier_depot(MD5_DEBUT, "fin")
 
@@ -1697,8 +1732,8 @@ if (OPT_FAMILLES) {
     L <- c(sprintf("### F1 \u2014 %s : p de famille et p globale (ligne du moteur), U_f, comparaison au point N", jn), "",
            entete_md(c("Point", "Famille", "\u03b1", "n (ligne pr\u00e9sente)", "ligne L / T-3b / absente (hors n)", "rejets p_f < \u03b1", "\u03c0\u0302", "IC 95 % (C-P)",
                        "U_f = 1", "U\u0302", "IC 95 % (C-P)", "\u03c0\u0302 \u2212 \u03c0\u0302(N)", "U\u0302 \u2212 U\u0302(N)",
-                       "P(U_f = 1, p_f \u2265 \u03b1)", "Fisher bilat\u00e9ral (contre N)", "Fisher unilat\u00e9ral \u03c0 < \u03c0(N)",
-                       "classe (par. 4.5)", "signal PM-3")))
+                       "P(U_f = 1, p_f \u2265 \u03b1)", "paires (b, ligne pr\u00e9sente en N et au point)", "McNemar n01 / n10",
+                       "McNemar bilat\u00e9ral (contre N)", "McNemar unilat\u00e9ral \u03c0 < \u03c0(N)", "classe (par. 4.5)", "signal PM-3")))
     for (pt in POINTS_FAM) for (f in FAM_LN[pres]) for (a in SEUILS_FAM) {
       # n : replications ou la ligne est presente (L ou T-3b), convention de
       # T-F1 de #297 ; U_f sur les memes replications.
@@ -1710,18 +1745,24 @@ if (OPT_FAMILLES) {
       k <- sum(r$rej); ku <- sum(r$U); k0 <- sum(r0$rej); ku0 <- sum(r0$U)
       ci <- ic_cp(k, n); ciu <- ic_cp(ku, n)
       cmp <- pt != "N" && n > 0 && n0 > 0
-      fb <- fl <- NA_real_
-      if (cmp) {
-        m <- matrix(c(k, n - k, k0, n0 - k0), 2, byrow = TRUE)
-        fb <- stats::fisher.test(m)$p.value
-        fl <- stats::fisher.test(m, alternative = "less")$p.value
+      # McNemar apparie par b : d1 = rejet au point, d2 = rejet en N ;
+      # unilateral pi(s) < pi(N) : n01 petit (binomiale, alternative "less").
+      bc <- intersect(as.integer(d$b), as.integer(refp$b))
+      mc <- c(n01 = NA_real_, n10 = NA_real_, p = NA_real_); fl <- NA_real_
+      if (cmp && length(bc)) {
+        mc <- mcnemar(r$rej[match(bc, as.integer(d$b))], r0$rej[match(bc, as.integer(refp$b))])
+        fl <- if (mc[["n01"]] + mc[["n10"]] > 0)
+          stats::binom.test(mc[["n01"]], mc[["n01"]] + mc[["n10"]], 0.5, alternative = "less")$p.value else 1
       }
+      fb <- mc[["p"]]
       L <- c(L, ligne_md(POINTS_A[[pt]]$lib, lib_fam(f), num(a, 2), n,
                          sprintf("%d / %d / %d", sum(et == "L"), sum(et == "N"), sum(et == "A")),
                          k, taux(k, n), txt_ic(ci), ku, taux(ku, n), txt_ic(ciu),
                          if (cmp) sub("^([0-9])", "+\\1", num(k / n - k0 / n0)) else "\u2014",
                          if (cmp) sub("^([0-9])", "+\\1", num(ku / n - ku0 / n0)) else "\u2014",
                          if (n) num(sum(r$U & !r$rej) / n) else "\u2014",
+                         if (cmp) length(bc) else "\u2014",
+                         if (cmp && length(bc)) sprintf("%d / %d", mc[["n01"]], mc[["n10"]]) else "\u2014",
                          fmt_p(fb), fmt_p(fl),
                          if (pt == "N") "niveau (r\u00e9f\u00e9rence)" else classe_puissance(fb, ci),
                          if (is.finite(fl)) (if (fl < 0.05) "**oui**" else "non") else "\u2014"))
@@ -1732,10 +1773,12 @@ if (OPT_FAMILLES) {
                         "comme un non-rejet. U_f = 1 : au moins un membre de la ligne (m\u00eames membres, lus par fk_membres(), m\u00eames",
                         "r\u00e9plications) a une p Monte-Carlo < \u03b1. U_f n'est pas un test de niveau \u03b1 : la comparaison se lit en exc\u00e8s sur le",
                         "niveau (colonnes \u00ab \u2212 (N) \u00bb), comme le prix en puissance du contr\u00f4le de l'erreur, non comme un classement (par. 5.3",
-                        "de l'avis). Fisher : test exact sur les tables 2 \u00d7 2 (point, N), protocole du par. 5.6 de l'avis ; les points",
-                        "partagent la matrice e et les graines de bootstrap de N (nombres al\u00e9atoires communs). Classe (seuils 0,5 :",
-                        "convention d\u00e9clar\u00e9e) : non distingu\u00e9e si Fisher bilat\u00e9ral \u2265 0,05, sinon faible (borne haute < 0,5),",
-                        "substantielle (borne basse \u2265 0,5) ou interm\u00e9diaire. Signal PM-3 : Fisher unilat\u00e9ral \u03c0(s) < \u03c0(N) < 0,05,",
+                        "de l'avis). McNemar exact appari\u00e9 contre N : les points d'une r\u00e9plication b partagent la ligne e_b et la graine",
+                        "de bootstrap (nombres al\u00e9atoires communs) ; paires = r\u00e9plications b o\u00f9 la ligne est pr\u00e9sente en N et au point ;",
+                        "n01 : le point rejette et N non, n10 : l'inverse ; binomiale exacte de param\u00e8tre 1/2 sur n01 + n10 (avis d'actuary de",
+                        "l'\u00e9tape 5, Q2). Classe (seuils 0,5 : convention d\u00e9clar\u00e9e) : non distingu\u00e9e si McNemar bilat\u00e9ral \u2265 0,05,",
+                        "sinon faible (borne haute < 0,5), substantielle (borne basse \u2265 0,5) ou interm\u00e9diaire. Signal PM-3 : McNemar",
+                        "unilat\u00e9ral \u03c0(s) < \u03c0(N) < 0,05,",
                         "\u00e9valu\u00e9 m\u00e9caniquement, sans conclure. IC : erreur d'\u00e9chantillonnage du taux (fonction de R) ; l'erreur",
                         "Monte-Carlo de chaque p (fonction de B) fait partie de la proc\u00e9dure mesur\u00e9e."),
            if (any(!pres)) c("", sprintf("Familles sans ligne sur ce jeu (k \u2264 1 sur toutes les r\u00e9plications) : %s",
@@ -1782,7 +1825,10 @@ if (OPT_FAMILLES) {
                     "dans chaque processus sous la concurrence de %d processus, d'o\u00f9 horloge = CPU / processus (hypoth\u00e8se [H] : d\u00e9bit",
                     "lin\u00e9aire, queues de groupes non compt\u00e9es ; la charge de la machine n'est pas contr\u00f4l\u00e9e)."), CTL_CHAINE_PERIODE, N_PROC),
       "",
-      if (h * 3600 > SEGMENT_S)
+      if (ESSAI_MODIFIE)
+        sprintf(paste("**Extrapolation non repr\u00e9sentative** (essai de mise au point : B = %d ou graines modifi\u00e9s) : aucune conclusion",
+                      "sur M42 ; le pr\u00e9-vol se fait \u00e0 B = 999 avec les graines d\u00e9clar\u00e9es."), OPT_B)
+      else if (h * 3600 > SEGMENT_S)
         sprintf(paste("**Au-del\u00e0 de 2 h d'horloge (%s h) : PM-2, accord expr\u00e8s du mainteneur requis ; %d segment(s) de 2 h au plus (M42 (b))**,",
                       "chacun par la m\u00eame commande avec le m\u00eame --travail et --arret-apres 110 (reprise aux tranches absentes)."), num(h, 2), seg)
       else sprintf("Dur\u00e9e extrapol\u00e9e de %s h d'horloge, sous 2 h : un seul segment (M42 (a)).", num(h, 2)),
@@ -1803,13 +1849,15 @@ if (OPT_FAMILLES) {
              "### T0 \u2014 provenance", "", entete_md(c("Grandeur", "Valeur")),
              ligne_md("Protocole", "avis d'actuary docs/revues/20261127-s9-mesures/actuary-protocoles-etape-1.md, par. 5 ; d\u00e9cision Q-S9-1 (a)"),
              ligne_md("Proc\u00e9dure par r\u00e9plication", sprintf(paste("run_engine() complet : m\u00e9thode %s, segment %d de l'annexe %s, donn\u00e9es %s,",
-                                                                     "\u03b1 = %g, theta_equiv = %g, B = %d ; lignes de lecture conjointe de usp_tests() (engine_p_famille())"),
-                                                               METHODE, SEGMENT, ANNEXE, NATURE, ALPHA, THETA_EQUIV, OPT_B)),
+                                                                     "\u03b1 = %s, theta_equiv = %s, B = %d ; lignes de lecture conjointe de usp_tests() (engine_p_famille())"),
+                                                               METHODE, SEGMENT, ANNEXE, NATURE, num(ALPHA, 2), num(THETA_EQUIV, 2), OPT_B)),
              ligne_md("Points", paste(vapply(POINTS_FAM, function(pt) POINTS_A[[pt]]$lib, ""), collapse = " ; ")),
              ligne_md("R\u00e9plications par (jeu, point)", sprintf("%d (b = 1..%d) ; tranches de %d", R_RUN, R_RUN, TAILLE_TRANCHE_FAM)),
              ligne_md("Graines", sprintf(paste("matrice e du volet B : %s (ligne b = 8 tirages cons\u00e9cutifs, commune aux points) ; bootstrap de la",
-                                               "r\u00e9plication b : %s + 1000 b (commune aux points ; flux V3b du moteur + 539169) ; aucune graine nouvelle"),
-                                         format(OPT_GRAINE + 1, scientific = FALSE), format(OPT_GRAINE_IC, scientific = FALSE))),
+                                               "r\u00e9plication b : %s + 1000 b (commune aux points ; flux V3b du moteur + DECALAGE_GRAINE_FLUX_REGIME = %s) ; %s"),
+                                         format(OPT_GRAINE + 1, scientific = FALSE), format(OPT_GRAINE_IC, scientific = FALSE),
+                                         format(DECALAGE_GRAINE_FLUX_REGIME, scientific = FALSE),
+                                         if (ESSAI_MODIFIE) "**--essai de mise au point : B ou graines modifi\u00e9s, non repr\u00e9sentatif**" else "aucune graine nouvelle")),
              ligne_md("G\u00e9n\u00e9rateur", paste(ENGINE_RNG_KIND, collapse = ", ")),
              ligne_md("Commit du calcul", COMMIT_FAM),
              ligne_md("Arbre propre et code du d\u00e9p\u00f4t", if (length(nv_fam)) paste("non :", paste(nv_fam, collapse = " ; ")) else "oui"),
