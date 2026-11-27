@@ -104,8 +104,18 @@
 #       (flux de T = 8 inchange) ; graine_T(T) = SEED_BASE_T + T pour T != 8,
 #       SEED_BASE_T = 421 000 000 (plage 421 000 004 - 421 000 100,
 #       nouvelle, absente des litteraux de tests/ et de R/ le 27/11/2026,
-#       hors des plages declarees des autres scripts : 305e6, 387e6, 393e6,
-#       567e6, 610e6, 640e6-664e6, 2026xxxx). Tirage par blocs dans le flux
+#       hors des plages declarees des autres scripts, relevees le 27/11/2026
+#       sur les constantes GRAINE_* et SEED* de tests/ (bornes ecrites en
+#       millions : un litteral a huit chiffres commencant par 2 serait lu
+#       comme une graine par controle_graines() de calibration_mc_mw_t8.R) :
+#       graines datees 2026xxxx ; 20,8e6 - 21,2e6 (flux V3b et plages de
+#       #206, #229, #276 : 20,8e6, 20,81e6, 20,82e6, 20,84e6, 20,87e6,
+#       20,9e6, 21e6, 21,1e6, 21,2e6) ; 424242 (mesure_enveloppe_qq_t8.R) ; 305e6 (#305) ; 387e6 - 393e6 (#387 :
+#       387e6, 387,5e6, 392e6, 393e6) ; 448e6 + 1e6 k + b (#448) ; 567e6 -
+#       571,05e6 (#567 : 567e6, 568e6, 570,5e6, 571e6, 571,05e6) ; 610e6 -
+#       641e6 (#610 : 610e6, 610,5e6, 620e6 + 4e6 par profil, 640e6,
+#       640,05e6, 641e6) ; 660e6 - 664,5e6 (simulation_jm1_trapeze_t8.R :
+#       660e6, 661e6, 661,5e6, 662e6, 663e6, 664e6, 664,5e6)). Tirage par blocs dans le flux
 #       de chaque T : blocs de min(N_SIM, floor(TAILLE_BLOC / T)) lignes,
 #       TAILLE_BLOC = 4e6 normales (32 Mo par matrice), chaque bloc tire par
 #       matrix(rnorm(n T), n, T) a la suite du precedent ; pour T <= 10 un
@@ -114,8 +124,10 @@
 #       bilateraux de la loi nulle exacte par points_critiques_dw() (copie
 #       declaree du calcul de dw_puissance_ar1() : cette loi nulle est celle
 #       de dw_p_exacte(), seule l'alternative est recoupee). Erreur-type
-#       binomiale ET = sqrt(p (1 - p) / N_SIM), p la valeur d'Imhof de la
-#       grille (a rho = 0, la grille, egale a alpha au controle N pres).
+#       binomiale ET = sqrt(p (1 - p) / N_SIM), p = min(valeur d'Imhof de
+#       la grille, 1) (a rho = 0, la grille, egale a alpha au controle N
+#       pres), rapportee pour la lecture ; la lecture K421-2 se fait sur la
+#       p bilaterale binomiale exacte (ci-dessous).
 #    Controles (code de sortie 1 si l'un echoue ; ecarts toujours rapportes) :
 #       D1  determinisme : second appel de dw_puissance_ar1(8, -0,99, 0,10),
 #           valeur de la grille a l'identique (tolerance 0) ;
@@ -148,24 +160,39 @@
 #           entre les rho simules ; desaccords, tolerance 0) ; dw_p_exacte()
 #           calculee une fois par serie, comparee a chaque alpha (#421,
 #           point 4).
-#    Lecture des criteres (section 4 ; avis, par. 1.5 ; ne change pas le code
-#    de sortie : un critere non tenu est un resultat de mesure a lire par
-#    actuary, PM-3, non une defaillance du script) :
+#    Lecture des criteres (section 4 ; avis, par. 1.5, et reponses d'actuary
+#    du 27/11/2026, docs/revues/20261127-s9-mesures/actuary-questions-421.md,
+#    points 1 et 2). K421-1 a K421-4 ne changent pas le code de sortie : un
+#    critere non tenu est un resultat de mesure a lire par actuary, PM-3, non
+#    une defaillance du script. K421-5 (critere d'acceptation de la fiche
+#    "Branche S9", etape 2) est BLOQUANT : lignes de T = 8 differentes du
+#    tableau du 31/10, absentes, ou tableau du 31/10 introuvable : --ecrire
+#    refuse, code de sortie 1 (aussi en --essai) :
 #       K421-1 limite : "decidee" si |m| >= 1e-6, sinon "indecidable a la
 #              precision de la quadrature" ; le .tex peut remplacer
 #              "hypothese non verifiee" si L-(4 ; 0,10) = 0 et L-(5 ; 0,05)
 #              = 0, toute autre issue declenche PM-3 ;
-#       K421-2 precision : simule - Imhof "signale" au-dela de 3 ET ;
-#              "desaccord" au-dela de 4 ET, ou si plus de 2 comparaisons
-#              sont signalees ; desaccord sur un couple (T, alpha) de
-#              l'index : PM-3 ;
+#       K421-2 precision (decision A2 d'actuary, traduction exacte du
+#              critere ecrit de 3 et 4 ET) : x = nombre de rejets sur N_SIM,
+#              p0 = valeur d'Imhof bornee a [1e-9, 1 - 1e-9] ; p bilaterale
+#              binomiale exacte 2 min(P(X <= x), P(X >= x)), X ~ B(N_SIM, p0),
+#              bornee a 1 (pbinom()) ; "signale" si p < 2,700e-3
+#              (2 pnorm(-3)), "desaccord" si p < 6,334e-5 (2 pnorm(-4)) ;
+#              "desaccord" aussi si plus de 2 comparaisons sont signalees ;
+#              130 comparaisons en execution complete (13 T x 5 rho x 2
+#              alpha) ; la colonne en ET reste rapportee pour la lecture.
+#              PM-3 si le desaccord porte sur un T ou un rho cite par le .tex
+#              (TS_CITES_TEX, RHOS_CITES_TEX ci-dessous ; avec la grille de
+#              ce script, tout desaccord en releve) ;
 #       K421-3 vitesse (constat) : |puissance - L-| / (1 - |rho|)^(1/2) a
 #              1 - |rho| = 1e-4 et 1e-6 : "stable" si l'ecart relatif est
 #              <= 1e-3, sinon "regime asymptotique non atteint dans le
-#              domaine garde", qui n'est PAS un echec ; garde de lecture
-#              ajoutee par ce script (hors de l'avis) : "sans objet" si
-#              |puissance - L-| < 1e-9 aux deux points (ordre de la precision
-#              de la quadrature : l'ecart relatif y serait du bruit) ;
+#              domaine garde", qui n'est PAS un echec ; "sans objet" si le
+#              MINIMUM des deux deficits |puissance - L-| est inferieur a
+#              1e-6 (decision A1 d'actuary, ecart a l'avis trace : erreur
+#              absolue nominale de integrate() de l'ordre de 1e-10, soit,
+#              sous 1e-6, une erreur relative superieure au dixieme du seuil
+#              de 1e-3) ;
 #       K421-4 rho -> 1 : |dw_puissance_ar1(T, 1 - 1e-10, alpha) - L+|
 #              "signale" au-dela de 1e-5, "desaccord" au-dela de 1e-4 ;
 #       K421-5 non-regression : lignes de T = 8 des sections 1, 1 bis et 2
@@ -192,7 +219,7 @@
 #  s'appliquent et le code de sortie suit les controles, comme pour une
 #  execution complete (un script perime echoue donc a l'essai) ; K421-5 n'y
 #  compare que les lignes presentes des sections 1 et 1 bis (section 2 : N
-#  different, non comparee).
+#  different, non comparee), et le code de sortie le suit.
 #  --ecrire --issue N : ecrit, si tous les controles tiennent,
 #  docs/tableaux/<AAAAMMJJ>-issue<N>-dw-rho-negatif.md (date du jour ;
 #  plateforme, SHA de HEAD, md5 du moteur, empreintes du script, de
@@ -207,7 +234,8 @@
 #  Le tableau se produit donc apres le commit du script.
 #  Duree : voir la ligne "Duree" de la console (et, en --essai, la duree
 #  estimee d'une execution complete).
-#  Code de sortie : 0 si les controles tiennent, 1 sinon.
+#  Code de sortie : 0 si les controles tiennent et si K421-5 est tenu, 1
+#  sinon.
 ###############################################################################
 
 t_debut <- Sys.time()
@@ -330,15 +358,29 @@ ATT_FICHE <- 0.277840  # rho = -0,5, alpha = 0,10 (test_lois_exactes.R, fiche DW
 ATT_LB1 <- c("-0.3" = 0.163, "-0.6" = 0.355)   # mesure_lb1_dw_t8.R, alpha = 0,10
 # Criteres de lecture (avis, par. 1.5), ecrits avant l'execution.
 K1_MARGE <- 1e-6       # K421-1 : limite decidee si |m| >= 1e-6
-K2_SIGNALE <- 3        # K421-2 : signale au-dela de 3 ET
-K2_DESACCORD <- 4      # K421-2 : desaccord au-dela de 4 ET
+# K421-2 (decision A2 d'actuary, actuary-questions-421.md, point 2) : p
+# bilaterale binomiale exacte, seuils = queues normales de 3 et 4 ET
+# (2 pnorm(-3) = 2,700e-3, 2 pnorm(-4) = 6,334e-5) ; p d'Imhof bornee.
+K2_P_SIGNALE <- 2.700e-3
+K2_P_DESACCORD <- 6.334e-5
+K2_BORNE_P <- 1e-9     # p d'Imhof ramenee a [1e-9, 1 - 1e-9]
 K2_MAX_SIGNALES <- 2L  # K421-2 : desaccord si plus de 2 comparaisons signalees
+# PM-3 de K421-2 (avis, par. 1.5 : "desaccord sur un T ou un rho cite par
+# le .tex"). T et rho cites par docs/latex/doc_tests_usp.tex au voisinage de
+# rho = -1, releves le 27/11/2026 (tete 70cbc12) : index, dw_puissance_ar1(),
+# l. 1329-1331 (T = 4 a 10, 12, 15, 20, 30, 50, 100), l. 1333 (T dans {5, 8,
+# 12, 20}), l. 1338-1340 (T = 4 et 5, T = 8, rho de -1 + 1e-6 a -0,9999),
+# l. 1319 (garde -1 + 1e-6), l. 1353 et fiche DW l. 9887-9892 (T = 8, grille
+# des 13 rho du 31/10, recoupement a rho = 0, -0,9 et -0,99).
+TS_CITES_TEX <- c(4:10, 12L, 15L, 20L, 30L, 50L, 100L)
+RHOS_CITES_TEX <- c(-1 + 1e-6, -0.99999, -0.9999, -0.999, -0.99, -0.98, -0.95, -0.9, -0.8, -0.7, -0.5, -0.3, 0)
 K3_REL <- 1e-3         # K421-3 : stable si ecart relatif <= 1e-3
-# K421-3, garde de lecture (ajout du script, hors de l'avis, signale a
-# actuary) : si |puissance - L-| est inferieur a 1e-9 aux deux points, ordre
-# de la precision de la quadrature (rel.tol = 1e-10 de .imhof_p_sup0()),
-# l'ecart relatif des coefficients est du bruit numerique : "sans objet".
-K3_PLANCHER <- 1e-9
+# K421-3, garde de lecture (decision A1 d'actuary, actuary-questions-421.md,
+# point 1 ; ecart a l'avis trace) : "sans objet" des que le MINIMUM des deux
+# deficits |puissance - L-| est inferieur a 1e-6 (erreur absolue nominale de
+# integrate() de l'ordre de 1e-10 : en deca de 1e-6, l'erreur relative
+# depasse le dixieme du seuil K3_REL).
+K3_PLANCHER <- 1e-6
 K4_SIGNALE <- 1e-5     # K421-4 : signale au-dela de 1e-5
 K4_DESACCORD <- 1e-4   # K421-4 : desaccord au-dela de 1e-4
 TABLEAU_31_10 <- file.path(RACINE, "docs", "tableaux", "20261031-issue164-dw-rho-negatif.md")
@@ -488,7 +530,7 @@ simuler_T <- function(T_, graine, pc) {
       }
       reste <- reste - n; nblocs <- nblocs + 1L
     }
-    list(freq = rej / N_SIM, E_garde = E_garde, nblocs = nblocs, taille = nb)
+    list(rej = rej, freq = rej / N_SIM, E_garde = E_garde, nblocs = nblocs, taille = nb)
   })
 }
 # Serie de reference des controles S0 (#421, point 4) : z = R'e, R =
@@ -539,14 +581,18 @@ for (k in seq_along(TS)) {
   for (i in seq_along(RHOS_SIM)) for (j in seq_along(ALPHAS)) {
     r <- RHOS_SIM[i]; a <- ALPHAS[j]
     imhof <- PUIS[[format(T_)]][[format(r), format(a)]]
-    sim <- r_sim$freq[i, j]; se <- sqrt(imhof * (1 - imhof) / N_SIM)
+    sim <- r_sim$freq[i, j]; p1 <- pmin(imhof, 1); se <- sqrt(p1 * (1 - p1) / N_SIM)
     z <- if (se > 0) (sim - imhof) / se else if (sim == imhof) 0 else Inf
-    SIM <- rbind(SIM, data.frame(T = T_, rho = r, alpha = a, imhof = imhof, sim = sim, se = se, z = z))
+    # p bilaterale binomiale exacte (decision A2) : X ~ B(N_SIM, p0), p0 borne.
+    x <- r_sim$rej[i, j]; p0 <- min(max(imhof, K2_BORNE_P), 1 - K2_BORNE_P)
+    p_bin <- min(1, 2 * min(stats::pbinom(x, N_SIM, p0), stats::pbinom(x - 1, N_SIM, p0, lower.tail = FALSE)))
+    SIM <- rbind(SIM, data.frame(T = T_, rho = r, alpha = a, imhof = imhof, sim = sim, se = se, z = z, p_bin = p_bin))
   }
 }
-SIM$signale <- abs(SIM$z) > K2_SIGNALE
-SIM$desaccord <- abs(SIM$z) > K2_DESACCORD
+SIM$signale <- SIM$p_bin < K2_P_SIGNALE
+SIM$desaccord <- SIM$p_bin < K2_P_DESACCORD
 SIM$index <- mapply(couple_index, SIM$T, SIM$alpha)
+SIM$cite <- SIM$T %in% TS_CITES_TEX | SIM$rho %in% RHOS_CITES_TEX
 INTEGRITE <- all(CTRL$ok)
 
 ###############################################################################
@@ -570,7 +616,7 @@ cellules_s1bis <- function(T_, i)
 origine_s2 <- function(T_, r) if (T_ != T8) "#421" else if (r %in% RHOS_SIM_31_10) "31/10 (#164)" else "ajout\u00e9e (#421)"
 cellules_s2 <- function(l) with(l, c(lib_rho_s2(rho), num(alpha, 2), num(imhof, 5), sprintf("%s \u00b1 %s", num(sim, 5), num(se, 5)),
                                      num(sim - imhof, 5), num(z, 2)))
-lecture_s2 <- function(l) if (l$desaccord) "d\u00e9saccord (> 4 ET)" else if (l$signale) "signal\u00e9 (> 3 ET)" else "\u2264 3 ET"
+lecture_s2 <- function(l) if (l$desaccord) "d\u00e9saccord (p < 6,334e-5)" else if (l$signale) "signal\u00e9 (p < 2,700e-3)" else "p \u2265 2,700e-3"
 # Ligne markdown d'une table : barres verticales des cellules echappees
 # (\|), sauf celles qui le sont deja.
 md <- function(cel) paste0("| ", paste(gsub("(?<!\\\\)\\|", "\\\\|", cel, perl = TRUE), collapse = " | "), " |")
@@ -612,14 +658,14 @@ ajouter("### 1 ter. Forme de la grille par T (constats)", "",
 # Section 2 : recoupement par simulation, une table par T.
 n_neg <- sum(SIM$sim - SIM$imhof < 0)
 ajouter("### 2. Recoupement par simulation (ind\u00e9pendant d'Imhof pour l'alternative)", "",
-        sprintf("N = %s s\u00e9ries AR(1) stationnaires par \u03c1 et par T (z_1 = e_1, z_t = \u03c1 z_{t\u22121} + \u221a(1 \u2212 \u03c1\u00b2) e_t, m\u00eames innovations pour tous les \u03c1 d'un m\u00eame T), g\u00e9n\u00e9rateur %s, une graine par T sous `engine_sous_graine()` : %s \u00e0 T = 8 (graine du 31/10, flux inchang\u00e9), %s + T sinon ; tirage par blocs de min(N, \u230a%s / T\u230b) lignes dans le flux de chaque T (un seul bloc pour T \u2264 10). Statistique DW sur la s\u00e9rie centr\u00e9e (formule matricielle, contr\u00f4les S0 contre une s\u00e9rie construite sans la r\u00e9currence et contre `stat_dw()`) ; points critiques bilat\u00e9raux de la loi nulle exacte (copie d\u00e9clar\u00e9e du calcul de `dw_puissance_ar1()`, contr\u00f4le S1 contre `dw_p_exacte()`). Erreur-type ET = sqrt(p(1 \u2212 p)/N) avec p la valeur d'Imhof de la grille (au plus %s ici). \u03c1 = 0 : niveau (valeur de r\u00e9f\u00e9rence \u03b1, \u00e0 la pr\u00e9cision du contr\u00f4le N). Lecture K421-2 : signal\u00e9 au-del\u00e0 de 3 ET, d\u00e9saccord au-del\u00e0 de 4 ET. Constat : %d \u00e9cart(s) simul\u00e9 \u2212 Imhof n\u00e9gatif(s) sur %d ; les innovations sont communes \u00e0 tous les \u03c1 d'un m\u00eame T et les deux seuils reposent sur les m\u00eames s\u00e9ries, donc les comparaisons d'un m\u00eame T sont corr\u00e9l\u00e9es et ne se lisent pas comme des \u00e9vidences ind\u00e9pendantes. Colonne \u00ab Origine \u00bb : ligne du tableau du 31/10, ligne ajout\u00e9e \u00e0 T = 8, ou ligne nouvelle (#421).",
+        sprintf("N = %s s\u00e9ries AR(1) stationnaires par \u03c1 et par T (z_1 = e_1, z_t = \u03c1 z_{t\u22121} + \u221a(1 \u2212 \u03c1\u00b2) e_t, m\u00eames innovations pour tous les \u03c1 d'un m\u00eame T), g\u00e9n\u00e9rateur %s, une graine par T sous `engine_sous_graine()` : %s \u00e0 T = 8 (graine du 31/10, flux inchang\u00e9), %s + T sinon ; tirage par blocs de min(N, \u230a%s / T\u230b) lignes dans le flux de chaque T (un seul bloc pour T \u2264 10). Statistique DW sur la s\u00e9rie centr\u00e9e (formule matricielle, contr\u00f4les S0 contre une s\u00e9rie construite sans la r\u00e9currence et contre `stat_dw()`) ; points critiques bilat\u00e9raux de la loi nulle exacte (copie d\u00e9clar\u00e9e du calcul de `dw_puissance_ar1()`, contr\u00f4le S1 contre `dw_p_exacte()`). Erreur-type ET = sqrt(p(1 \u2212 p)/N) avec p la valeur d'Imhof de la grille (au plus %s ici). \u03c1 = 0 : niveau (valeur de r\u00e9f\u00e9rence \u03b1, \u00e0 la pr\u00e9cision du contr\u00f4le N). Lecture K421-2 (d\u00e9cision d'actuary du 27/11/2026, traduction exacte du crit\u00e8re de 3 et 4 ET) : p bilat\u00e9rale binomiale exacte 2 min(P(X \u2264 x), P(X \u2265 x)), X ~ B(N, p0), p0 = valeur d'Imhof born\u00e9e \u00e0 [10^\u22129, 1 \u2212 10^\u22129], born\u00e9e \u00e0 1 ; signal\u00e9 si p < 2,700e-3, d\u00e9saccord si p < 6,334e-5 ; la colonne en erreurs-types (ET calcul\u00e9e sur min(Imhof, 1)) est rapport\u00e9e pour la lecture. Constat : %d \u00e9cart(s) simul\u00e9 \u2212 Imhof n\u00e9gatif(s) sur %d ; les innovations sont communes \u00e0 tous les \u03c1 d'un m\u00eame T et les deux seuils reposent sur les m\u00eames s\u00e9ries, donc les comparaisons d'un m\u00eame T sont corr\u00e9l\u00e9es et ne se lisent pas comme des \u00e9vidences ind\u00e9pendantes. Colonne \u00ab Origine \u00bb : ligne du tableau du 31/10, ligne ajout\u00e9e \u00e0 T = 8, ou ligne nouvelle (#421).",
                 format(N_SIM, scientific = FALSE), paste(ENGINE_RNG_KIND, collapse = ", "), format(SEED_SIM, scientific = FALSE),
                 format(SEED_BASE_T, scientific = FALSE), format(TAILLE_BLOC, scientific = FALSE), sci(max(SIM$se)), n_neg, nrow(SIM)), "")
 for (T_ in TS) {
   s <- SIM[SIM$T == T_, ]
   ajouter(sprintf("#### T = %d", T_), "",
-          entete_md(c(RHO, ALPHA, "Imhof (grille)", "Simul\u00e9 \u00b1 erreur-type", "Simul\u00e9 \u2212 Imhof", "\u00c9cart en erreurs-types", "Lecture K421-2", "Origine")),
-          vapply(seq_len(nrow(s)), function(i) md(c(cellules_s2(s[i, ]), lecture_s2(s[i, ]), origine_s2(T_, s$rho[i]))), ""), "")
+          entete_md(c(RHO, ALPHA, "Imhof (grille)", "Simul\u00e9 \u00b1 erreur-type", "Simul\u00e9 \u2212 Imhof", "\u00c9cart en erreurs-types", "p binomiale exacte", "Lecture K421-2", "Origine")),
+          vapply(seq_len(nrow(s)), function(i) md(c(cellules_s2(s[i, ]), sci3(s$p_bin[i]), lecture_s2(s[i, ]), origine_s2(T_, s$rho[i]))), ""), "")
 }
 
 # Section 3 : limites.
@@ -656,21 +702,21 @@ k1_verdict <- if (is.na(L4) && !(4L %in% TS) || is.na(L5) && !(5L %in% TS)) "non
 # K421-2
 n_cmp <- nrow(SIM); n_sig <- sum(SIM$signale); n_des <- sum(SIM$desaccord)
 k2_desaccord <- n_des > 0L || n_sig > K2_MAX_SIGNALES
-lib_cellule <- function(l) sprintf("T = %d, \u03c1 = %s, \u03b1 = %s (%s ET%s)", l$T, lib_rho_s2(l$rho), num(l$alpha, 2), num(l$z, 2),
-                                   if (l$index) ", couple de l'index" else "")
+lib_cellule <- function(l) sprintf("T = %d, \u03c1 = %s, \u03b1 = %s (p = %s, %s ET%s)", l$T, lib_rho_s2(l$rho), num(l$alpha, 2), sci3(l$p_bin), num(l$z, 2),
+                                   if (l$cite) ", T ou \u03c1 cit\u00e9 par le document" else "")
 sig <- SIM[SIM$signale, ]
 k2_liste <- if (nrow(sig)) paste(vapply(seq_len(nrow(sig)), function(i) lib_cellule(sig[i, ]), ""), collapse = " ; ") else "aucune"
-k2_verdict <- if (!k2_desaccord) sprintf("accord : %d comparaison(s) signal\u00e9e(s) sur %d (au plus %d admises), aucune au-del\u00e0 de 4 ET", n_sig, n_cmp, K2_MAX_SIGNALES) else
-  sprintf("**d\u00e9saccord** : %d comparaison(s) au-del\u00e0 de 4 ET, %d signal\u00e9e(s) sur %d%s", n_des, n_sig, n_cmp,
-          if (any(SIM$index & (SIM$desaccord | (n_sig > K2_MAX_SIGNALES & SIM$signale)))) " ; touche un couple (T, \u03b1) de l'index : **PM-3**" else " ; hors des couples de l'index")
+k2_verdict <- if (!k2_desaccord) sprintf("accord : %d comparaison(s) signal\u00e9e(s) sur %d (au plus %d admises), aucune en d\u00e9saccord (p < 6,334e-5)", n_sig, n_cmp, K2_MAX_SIGNALES) else
+  sprintf("**d\u00e9saccord** : %d comparaison(s) en d\u00e9saccord (p < 6,334e-5), %d signal\u00e9e(s) (p < 2,700e-3) sur %d%s", n_des, n_sig, n_cmp,
+          if (any(SIM$cite & (SIM$desaccord | (n_sig > K2_MAX_SIGNALES & SIM$signale)))) " ; porte sur un T ou un \u03c1 cit\u00e9 par le document : **PM-3**" else " ; sur aucun T ni \u03c1 cit\u00e9 par le document")
 # K421-3
 k3 <- do.call(rbind, lapply(TS, function(T_) do.call(rbind, lapply(ALPHAS, function(a) {
   c4 <- coef_limite(T_, RHO_1E4, a); c6 <- coef_limite(T_, RHO_GARDE, a)
   L <- lim_moins(T_, a); P <- PUIS[[format(T_)]]
-  sous_plancher <- !is.na(L) && all(abs(P[c(format(RHO_1E4), format(RHO_GARDE)), format(a)] - L) < K3_PLANCHER)
+  sous_plancher <- !is.na(L) && min(abs(P[c(format(RHO_1E4), format(RHO_GARDE)), format(a)] - L)) < K3_PLANCHER
   rel <- if (is.finite(c4) && c4 > 0 && !sous_plancher) abs(c6 - c4) / c4 else NA_real_
   data.frame(T = T_, alpha = a, c4 = c4, c6 = c6, rel = rel,
-             lecture = if (sous_plancher) "sans objet (|puissance \u2212 L\u208b| < 10^\u22129 aux deux points, sous la pr\u00e9cision de la quadrature)" else
+             lecture = if (sous_plancher) "sans objet (min des deux |puissance \u2212 L\u208b| < 10^\u22126 : rapport illisible \u00e0 la pr\u00e9cision de la quadrature)" else
                if (is.na(rel)) "sans objet (L\u208b ind\u00e9cidable ou coefficient nul)" else if (rel <= K3_REL) "stable" else
                "r\u00e9gime asymptotique non atteint dans le domaine gard\u00e9 (constat, pas un \u00e9chec)", stringsAsFactors = FALSE)
 }))))
@@ -694,8 +740,8 @@ lire_lignes_section <- function(l, titre) {
   lapply(lignes, function(x) strsplit(sub("^\\| ", "", sub(" \\|$", "", x)), " | ", fixed = TRUE)[[1]])
 }
 comparer_31_10 <- function() {
-  if (!(T8 %in% TS)) return(list(verdict = "non \u00e9valu\u00e9 (T = 8 absent)", detail = character(0)))
-  if (!file.exists(TABLEAU_31_10)) return(list(verdict = "non \u00e9valuable : tableau du 31/10 introuvable", detail = character(0)))
+  if (!(T8 %in% TS)) return(list(ok = FALSE, verdict = "**non \u00e9valu\u00e9** (T = 8 absent)", detail = character(0)))
+  if (!file.exists(TABLEAU_31_10)) return(list(ok = FALSE, verdict = "**non \u00e9valuable** : tableau du 31/10 introuvable", detail = character(0)))
   l <- enc2utf8(readLines(TABLEAU_31_10, encoding = "UTF-8", warn = FALSE))
   sections <- list(
     list(titre = "### 1. ", nom = "section 1", cle = 1L,
@@ -724,15 +770,17 @@ comparer_31_10 <- function() {
       }
     }
   }
-  list(verdict = if (n_diff == 0L && n_abs == 0L) sprintf("identiques : %d ligne(s) de T = 8 compar\u00e9e(s) cellule par cellule au tableau du 31/10%s", n_cmp5,
+  list(ok = n_diff == 0L && n_abs == 0L && n_cmp5 > 0L,
+       verdict = if (n_diff == 0L && n_abs == 0L && n_cmp5 > 0L) sprintf("identiques : %d ligne(s) de T = 8 compar\u00e9e(s) cellule par cellule au tableau du 31/10%s", n_cmp5,
                                                          if (OPT_ESSAI) " (essai : lignes pr\u00e9sentes des sections 1 et 1 bis seules)" else "")
-                 else sprintf("**diff\u00e9rences** : %d ligne(s) diff\u00e9rente(s), %d absente(s), sur %d compar\u00e9e(s)", n_diff, n_abs, n_cmp5),
+                 else sprintf("**diff\u00e9rences** : %d ligne(s) diff\u00e9rente(s), %d absente(s), sur %d compar\u00e9e(s) : --ecrire refus\u00e9, code de sortie 1", n_diff, n_abs, n_cmp5),
        detail = detail)
 }
 k5 <- comparer_31_10()
+SORTIE_OK <- INTEGRITE && isTRUE(k5$ok)   # K421-5 bloquant (critere d'acceptation de l'etape 2)
 
 ajouter("### 4. Lecture des crit\u00e8res K421-1 \u00e0 K421-5", "",
-        "Crit\u00e8res de l'avis d'actuary de l'\u00e9tape 1 de S9 (\u00a7 1.5), \u00e9crits avant toute ex\u00e9cution de ce script ; lecture automatique, sans effet sur le code de sortie (un crit\u00e8re non tenu est un r\u00e9sultat \u00e0 lire, non une d\u00e9faillance du script).", "",
+        "Crit\u00e8res de l'avis d'actuary de l'\u00e9tape 1 de S9 (\u00a7 1.5), \u00e9crits avant toute ex\u00e9cution de ce script ; lecture automatique. K421-1 \u00e0 K421-4 sont sans effet sur le code de sortie (un crit\u00e8re non tenu est un r\u00e9sultat \u00e0 lire, PM-3, non une d\u00e9faillance du script) ; K421-5, crit\u00e8re d'acceptation de l'\u00e9tape 2 de S9, est bloquant (--ecrire refus\u00e9, code de sortie 1).", "",
         entete_md(c("Crit\u00e8re", "Lecture")),
         md(c("K421-1 (limite \u03c1 \u2192 \u22121)", sprintf("%s ; %d couple(s) d\u00e9cid\u00e9(s) sur %d ; L\u208b = 0 pour %s ; ind\u00e9cidables : %s", k1_verdict, sum(k1$decidee), nrow(k1),
                                                  { z0 <- k1[k1$decidee & k1$L == 0, ]; if (nrow(z0)) paste(sprintf("(%d ; %s)", z0$T, vapply(z0$alpha, num, "", d = 2)), collapse = ", ") else "aucun couple" },
@@ -745,7 +793,7 @@ ajouter("### 4. Lecture des crit\u00e8res K421-1 \u00e0 K421-5", "",
                                              sum(k4$lecture == "\u2264 10^\u22125"), sum(startsWith(k4$lecture, "signal")), sum(startsWith(k4$lecture, "d\u00e9saccord")), sci3(max(k4$ecart))))),
         md(c("K421-5 (non-r\u00e9gression \u00e0 T = 8)", k5$verdict)), "",
         if (length(k5$detail)) c("D\u00e9tail de K421-5 :", "", paste0("- ", k5$detail), "") else character(0),
-        "K421-3, d\u00e9tail : coefficient |puissance \u2212 L\u208b| / (1 \u2212 |\u03c1|)^\u00bd \u00e0 1 \u2212 |\u03c1| = 10^\u22124 (\u03c1 = \u22120,9999) et 10^\u22126 (garde) ; stable si l'\u00e9cart relatif est \u2264 10^\u22123. Garde de lecture ajout\u00e9e par le script (hors de l'avis) : \u00ab sans objet \u00bb si |puissance \u2212 L\u208b| < 10^\u22129 aux deux points (ordre de la pr\u00e9cision de la quadrature).", "",
+        "K421-3, d\u00e9tail : coefficient |puissance \u2212 L\u208b| / (1 \u2212 |\u03c1|)^\u00bd \u00e0 1 \u2212 |\u03c1| = 10^\u22124 (\u03c1 = \u22120,9999) et 10^\u22126 (garde) ; stable si l'\u00e9cart relatif est \u2264 10^\u22123. Garde de lecture (d\u00e9cision d'actuary du 27/11/2026, \u00e9cart \u00e0 l'avis trac\u00e9) : \u00ab sans objet \u00bb si le minimum des deux |puissance \u2212 L\u208b| est inf\u00e9rieur \u00e0 10^\u22126 (erreur absolue nominale de la quadrature de l'ordre de 10^\u221210).", "",
         entete_md(c("T", ALPHA, "Coefficient \u00e0 10^\u22124", "Coefficient \u00e0 10^\u22126", "\u00c9cart relatif", "Lecture")),
         vapply(seq_len(nrow(k3)), function(i) with(k3[i, ], md(c(T, num(alpha, 2), num(c4, 4), num(c6, 4), sci3(rel), lecture))), ""), "",
         "K421-4, d\u00e9tail : |dw_puissance_ar1(T, 1 \u2212 10^\u221210, \u03b1) \u2212 L\u208a|, signal\u00e9 au-del\u00e0 de 10^\u22125, d\u00e9saccord au-del\u00e0 de 10^\u22124.", "",
@@ -806,6 +854,8 @@ ecrire_console(c(sortie, T0, sprintf("Dur\u00e9e totale : %.1f s.", duree)))
 if (OPT_ECRIRE) {
   if (!INTEGRITE) {
     message("--ecrire : contr\u00f4les en \u00e9chec, aucun fichier \u00e9crit")
+  } else if (!isTRUE(k5$ok)) {
+    message("--ecrire refuse : K421-5 non tenu (lignes de T = 8 differentes du tableau du 31/10, absentes, ou tableau introuvable) -- aucun fichier ecrit")
   } else {
     gardes_ecrire("\u00e0 l'\u00e9criture")
     con <- file(CHEMIN_ECRIT, open = "wb")
@@ -814,4 +864,5 @@ if (OPT_ECRIRE) {
     message("\u00e9crit : ", CHEMIN_ECRIT)
   }
 }
-quit(status = if (INTEGRITE) 0L else 1L)
+if (!isTRUE(k5$ok)) message("K421-5 non tenu : ", k5$verdict)
+quit(status = if (SORTIE_OK) 0L else 1L)

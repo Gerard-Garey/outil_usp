@@ -35,14 +35,14 @@ empreintes_code <- function(script, racine = RACINE) {
   md5 <- function(x) if (!length(x) || !file.exists(x)) "absent" else unname(tools::md5sum(x))
   dans <- length(f) == 1L && identical(normalizePath(f, winslash = "/", mustWork = FALSE),
                                        normalizePath(file.path(racine, script), winslash = "/", mustWork = FALSE))
-  sprintf("%s %s%s ; tests/outils_tests.R %s ; %s %s", script, md5(f), if (dans) "" else " (hors dépôt)",
+  sprintf("%s %s%s ; tests/outils_tests.R %s ; %s %s", script, md5(f), if (dans) "" else " (hors d\u00e9p\u00f4t)",
           md5(file.path(racine, "tests", "outils_tests.R")), OUTILS_MESURE_DW,
           md5(file.path(racine, OUTILS_MESURE_DW)))
 }
 
 # Plateforme de calcul : R, systeme, machine, BLAS, LAPACK.
 plateforme_calcul <- function() {
-  txt <- function(v) if (is.null(v) || !length(v) || is.na(v[1]) || !nzchar(v[1])) "non renseigné" else unname(v[1])
+  txt <- function(v) if (is.null(v) || !length(v) || is.na(v[1]) || !nzchar(v[1])) "non renseign\u00e9" else unname(v[1])
   si <- Sys.info()
   sprintf("%s ; %s ; %s, %s ; BLAS : %s ; LAPACK : %s (version %s)",
           R.version.string, txt(utils::sessionInfo()$running), txt(si[["sysname"]]), txt(si[["machine"]]),
