@@ -183,7 +183,11 @@
 #              alpha) ; la colonne en ET reste rapportee pour la lecture.
 #              PM-3 si le desaccord porte sur un T ou un rho cite par le .tex
 #              (TS_CITES_TEX, RHOS_CITES_TEX ci-dessous ; avec la grille de
-#              ce script, tout desaccord en releve) ;
+#              ce script, tout desaccord en releve, ce que la lecture dit en
+#              clair) ; un desaccord dans une cellule ou Imhof vaut 1 tronque
+#              (p0 = 1 - 1e-9) se lit "simulation ou quadrature", l'erreur de
+#              integrate() etant estimee et non bornee (Q10 d'actuary,
+#              actuary-questions-420-367.md) ;
 #       K421-3 vitesse (constat) : |puissance - L-| / (1 - |rho|)^(1/2) a
 #              1 - |rho| = 1e-4 et 1e-6 : "stable" si l'ecart relatif est
 #              <= 1e-3, sinon "regime asymptotique non atteint dans le
@@ -591,7 +595,11 @@ for (k in seq_along(TS)) {
 }
 SIM$signale <- SIM$p_bin < K2_P_SIGNALE
 SIM$desaccord <- SIM$p_bin < K2_P_DESACCORD
-SIM$index <- mapply(couple_index, SIM$T, SIM$alpha)
+# Cellule ou la valeur d'Imhof atteint la borne haute de p0 (1 - 1e-9, Imhof
+# egal a 1 tronque) : un desaccord s'y lit "simulation ou quadrature" (Q10,
+# actuary-questions-420-367.md : l'erreur de integrate() est estimee, non
+# bornee).
+SIM$tronquee <- SIM$imhof >= 1 - K2_BORNE_P
 SIM$cite <- SIM$T %in% TS_CITES_TEX | SIM$rho %in% RHOS_CITES_TEX
 INTEGRITE <- all(CTRL$ok)
 
@@ -658,7 +666,7 @@ ajouter("### 1 ter. Forme de la grille par T (constats)", "",
 # Section 2 : recoupement par simulation, une table par T.
 n_neg <- sum(SIM$sim - SIM$imhof < 0)
 ajouter("### 2. Recoupement par simulation (ind\u00e9pendant d'Imhof pour l'alternative)", "",
-        sprintf("N = %s s\u00e9ries AR(1) stationnaires par \u03c1 et par T (z_1 = e_1, z_t = \u03c1 z_{t\u22121} + \u221a(1 \u2212 \u03c1\u00b2) e_t, m\u00eames innovations pour tous les \u03c1 d'un m\u00eame T), g\u00e9n\u00e9rateur %s, une graine par T sous `engine_sous_graine()` : %s \u00e0 T = 8 (graine du 31/10, flux inchang\u00e9), %s + T sinon ; tirage par blocs de min(N, \u230a%s / T\u230b) lignes dans le flux de chaque T (un seul bloc pour T \u2264 10). Statistique DW sur la s\u00e9rie centr\u00e9e (formule matricielle, contr\u00f4les S0 contre une s\u00e9rie construite sans la r\u00e9currence et contre `stat_dw()`) ; points critiques bilat\u00e9raux de la loi nulle exacte (copie d\u00e9clar\u00e9e du calcul de `dw_puissance_ar1()`, contr\u00f4le S1 contre `dw_p_exacte()`). Erreur-type ET = sqrt(p(1 \u2212 p)/N) avec p la valeur d'Imhof de la grille (au plus %s ici). \u03c1 = 0 : niveau (valeur de r\u00e9f\u00e9rence \u03b1, \u00e0 la pr\u00e9cision du contr\u00f4le N). Lecture K421-2 (d\u00e9cision d'actuary du 27/11/2026, traduction exacte du crit\u00e8re de 3 et 4 ET) : p bilat\u00e9rale binomiale exacte 2 min(P(X \u2264 x), P(X \u2265 x)), X ~ B(N, p0), p0 = valeur d'Imhof born\u00e9e \u00e0 [10^\u22129, 1 \u2212 10^\u22129], born\u00e9e \u00e0 1 ; signal\u00e9 si p < 2,700e-3, d\u00e9saccord si p < 6,334e-5 ; la colonne en erreurs-types (ET calcul\u00e9e sur min(Imhof, 1)) est rapport\u00e9e pour la lecture. Constat : %d \u00e9cart(s) simul\u00e9 \u2212 Imhof n\u00e9gatif(s) sur %d ; les innovations sont communes \u00e0 tous les \u03c1 d'un m\u00eame T et les deux seuils reposent sur les m\u00eames s\u00e9ries, donc les comparaisons d'un m\u00eame T sont corr\u00e9l\u00e9es et ne se lisent pas comme des \u00e9vidences ind\u00e9pendantes. Colonne \u00ab Origine \u00bb : ligne du tableau du 31/10, ligne ajout\u00e9e \u00e0 T = 8, ou ligne nouvelle (#421).",
+        sprintf("N = %s s\u00e9ries AR(1) stationnaires par \u03c1 et par T (z_1 = e_1, z_t = \u03c1 z_{t\u22121} + \u221a(1 \u2212 \u03c1\u00b2) e_t, m\u00eames innovations pour tous les \u03c1 d'un m\u00eame T), g\u00e9n\u00e9rateur %s, une graine par T sous `engine_sous_graine()` : %s \u00e0 T = 8 (graine du 31/10, flux inchang\u00e9), %s + T sinon ; tirage par blocs de min(N, \u230a%s / T\u230b) lignes dans le flux de chaque T (un seul bloc pour T \u2264 10). Statistique DW sur la s\u00e9rie centr\u00e9e (formule matricielle, contr\u00f4les S0 contre une s\u00e9rie construite sans la r\u00e9currence et contre `stat_dw()`) ; points critiques bilat\u00e9raux de la loi nulle exacte (copie d\u00e9clar\u00e9e du calcul de `dw_puissance_ar1()`, contr\u00f4le S1 contre `dw_p_exacte()`). Erreur-type ET = sqrt(p(1 \u2212 p)/N) avec p = min(valeur d'Imhof de la grille, 1) (ET au plus %s ici). \u03c1 = 0 : niveau (valeur de r\u00e9f\u00e9rence \u03b1, \u00e0 la pr\u00e9cision du contr\u00f4le N). Lecture K421-2 (d\u00e9cision d'actuary du 27/11/2026, traduction exacte du crit\u00e8re de 3 et 4 ET) : p bilat\u00e9rale binomiale exacte 2 min(P(X \u2264 x), P(X \u2265 x)), X ~ B(N, p0), p0 = valeur d'Imhof born\u00e9e \u00e0 [10^\u22129, 1 \u2212 10^\u22129], born\u00e9e \u00e0 1 ; signal\u00e9 si p < 2,700e-3, d\u00e9saccord si p < 6,334e-5 ; la colonne en erreurs-types (ET calcul\u00e9e sur min(Imhof, 1)) est rapport\u00e9e pour la lecture. Constat : %d \u00e9cart(s) simul\u00e9 \u2212 Imhof n\u00e9gatif(s) sur %d ; les innovations sont communes \u00e0 tous les \u03c1 d'un m\u00eame T et les deux seuils reposent sur les m\u00eames s\u00e9ries, donc les comparaisons d'un m\u00eame T sont corr\u00e9l\u00e9es et ne se lisent pas comme des \u00e9vidences ind\u00e9pendantes. Colonne \u00ab Origine \u00bb : ligne du tableau du 31/10, ligne ajout\u00e9e \u00e0 T = 8, ou ligne nouvelle (#421).",
                 format(N_SIM, scientific = FALSE), paste(ENGINE_RNG_KIND, collapse = ", "), format(SEED_SIM, scientific = FALSE),
                 format(SEED_BASE_T, scientific = FALSE), format(TAILLE_BLOC, scientific = FALSE), sci(max(SIM$se)), n_neg, nrow(SIM)), "")
 for (T_ in TS) {
@@ -702,13 +710,22 @@ k1_verdict <- if (is.na(L4) && !(4L %in% TS) || is.na(L5) && !(5L %in% TS)) "non
 # K421-2
 n_cmp <- nrow(SIM); n_sig <- sum(SIM$signale); n_des <- sum(SIM$desaccord)
 k2_desaccord <- n_des > 0L || n_sig > K2_MAX_SIGNALES
-lib_cellule <- function(l) sprintf("T = %d, \u03c1 = %s, \u03b1 = %s (p = %s, %s ET%s)", l$T, lib_rho_s2(l$rho), num(l$alpha, 2), sci3(l$p_bin), num(l$z, 2),
-                                   if (l$cite) ", T ou \u03c1 cit\u00e9 par le document" else "")
+lib_cellule <- function(l) sprintf("T = %d, \u03c1 = %s, \u03b1 = %s (p = %s, %s ET%s%s)", l$T, lib_rho_s2(l$rho), num(l$alpha, 2), sci3(l$p_bin), num(l$z, 2),
+                                   if (l$cite) ", T ou \u03c1 cit\u00e9 par le document" else "",
+                                   if (l$tronquee) ", Imhof \u00e9gal \u00e0 1 tronqu\u00e9" else "")
 sig <- SIM[SIM$signale, ]
 k2_liste <- if (nrow(sig)) paste(vapply(seq_len(nrow(sig)), function(i) lib_cellule(sig[i, ]), ""), collapse = " ; ") else "aucune"
 k2_verdict <- if (!k2_desaccord) sprintf("accord : %d comparaison(s) signal\u00e9e(s) sur %d (au plus %d admises), aucune en d\u00e9saccord (p < 6,334e-5)", n_sig, n_cmp, K2_MAX_SIGNALES) else
   sprintf("**d\u00e9saccord** : %d comparaison(s) en d\u00e9saccord (p < 6,334e-5), %d signal\u00e9e(s) (p < 2,700e-3) sur %d%s", n_des, n_sig, n_cmp,
-          if (any(SIM$cite & (SIM$desaccord | (n_sig > K2_MAX_SIGNALES & SIM$signale)))) " ; porte sur un T ou un \u03c1 cit\u00e9 par le document : **PM-3**" else " ; sur aucun T ni \u03c1 cit\u00e9 par le document")
+          paste0(if (any(SIM$cite & (SIM$desaccord | (n_sig > K2_MAX_SIGNALES & SIM$signale)))) " ; porte sur un T ou un \u03c1 cit\u00e9 par le document : **PM-3**" else " ; sur aucun T ni \u03c1 cit\u00e9 par le document",
+                 # Q10 : desaccord dans une cellule ou Imhof vaut 1 tronque
+                 if (any(SIM$desaccord & SIM$tronquee))
+                   sprintf(paste0(" ; %d d\u00e9saccord(s) dans une cellule o\u00f9 Imhof vaut 1 tronqu\u00e9 (p0 = 1 \u2212 10^\u22129) : \u00e0 lire \u00ab simulation ou quadrature \u00bb",
+                                  " (l'erreur de `integrate()` est estim\u00e9e, non born\u00e9e), non comme un d\u00e9faut de la simulation"), sum(SIM$desaccord & SIM$tronquee)) else ""))
+# Mineur 2 de l'audit leger de 6d7295e : TS_CITES_TEX couvre tous les T de
+# l'execution, le filtre "T cite" est alors toujours vrai ; dit en clair.
+k2_couverture <- if (all(TS %in% TS_CITES_TEX))
+  " ; TS_CITES_TEX couvre tous les T de l'ex\u00e9cution : tout d\u00e9saccord porte sur un T cit\u00e9 par le document et rel\u00e8ve de PM-3" else ""
 # K421-3
 k3 <- do.call(rbind, lapply(TS, function(T_) do.call(rbind, lapply(ALPHAS, function(a) {
   c4 <- coef_limite(T_, RHO_1E4, a); c6 <- coef_limite(T_, RHO_GARDE, a)
@@ -785,7 +802,7 @@ ajouter("### 4. Lecture des crit\u00e8res K421-1 \u00e0 K421-5", "",
         md(c("K421-1 (limite \u03c1 \u2192 \u22121)", sprintf("%s ; %d couple(s) d\u00e9cid\u00e9(s) sur %d ; L\u208b = 0 pour %s ; ind\u00e9cidables : %s", k1_verdict, sum(k1$decidee), nrow(k1),
                                                  { z0 <- k1[k1$decidee & k1$L == 0, ]; if (nrow(z0)) paste(sprintf("(%d ; %s)", z0$T, vapply(z0$alpha, num, "", d = 2)), collapse = ", ") else "aucun couple" },
                                                  { u <- k1[!k1$decidee, ]; if (nrow(u)) paste(sprintf("(%d ; %s), m = %s", u$T, vapply(u$alpha, num, "", d = 2), vapply(u$marge, sci3, "")), collapse = ", ") else "aucun" }))),
-        md(c("K421-2 (pr\u00e9cision, simul\u00e9 contre Imhof)", sprintf("%s ; cellules signal\u00e9es : %s", k2_verdict, k2_liste))),
+        md(c("K421-2 (pr\u00e9cision, simul\u00e9 contre Imhof)", sprintf("%s ; cellules signal\u00e9es : %s%s", k2_verdict, k2_liste, k2_couverture))),
         md(c("K421-3 (vitesse, constat)", sprintf("%d couple(s) stable(s), %d en r\u00e9gime asymptotique non atteint dans le domaine gard\u00e9, %d sans objet (d\u00e9tail ci-dessous)",
                                                     sum(k3$lecture == "stable"), sum(startsWith(k3$lecture, "r\u00e9gime")), sum(startsWith(k3$lecture, "sans objet"))))),
         md(c("K421-4 (\u03c1 \u2192 1)", sprintf("%s ; |P(1 \u2212 10^\u221210) \u2212 L\u208a| : %d \u2264 10^\u22125, %d signal\u00e9(s), %d d\u00e9saccord(s) ; \u00e9cart max %s",
