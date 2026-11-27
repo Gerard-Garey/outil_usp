@@ -1,0 +1,20 @@
+premium     sigma_USP = 0.1114524114  (12 s)
+            CONFORME : 57022 feuille(s), 1584 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 3.454e-08 (relatif, bootstrap$sigma_boot_restreint[670])
+reserve1    sigma_USP = 0.1073524114  (10 s)
+            CONFORME : 57021 feuille(s), 1586 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 3.454e-08 (relatif, bootstrap$sigma_boot_restreint[670])
+reserve2    sigma_USP = 0.0497764613  (17 s)
+            CONFORME : 18746 feuille(s), 8 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 4.545e-16 (relatif, bootstrap$stats_boot[2743])
+premium_ii6 sigma_USP = 0.1483524114  (10 s)
+            CONFORME : 57022 feuille(s), 1584 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 3.454e-08 (relatif, bootstrap$sigma_boot_restreint[670])
+premium_net sigma_USP = 0.1032524114  (11 s)
+            CONFORME : 57022 feuille(s), 1586 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 3.454e-08 (relatif, bootstrap$sigma_boot_restreint[670])
+premium_interieur sigma_USP = 0.0871308679  (20 s)
+            NON CONFORME : 57022 feuille(s), 2658 non strictement identique(s), 2 en ecart au seuil 1e-06 ; ecart maximal 1.814e-06 (relatif, bootstrap$stats_boot[13470])
+reserve2_trapeze sigma_USP = 0.0475797067  (16 s)
+            CONFORME : 18573 feuille(s), 8 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 5.831e-16 (relatif, bootstrap$stats_boot[3665])
+
+ECHEC
+  - premium_interieur : ecart a la reference
+    NON CONFORME : 57022 feuille(s), 2658 non strictement identique(s), 2 en ecart au seuil 1e-06 ; ecart maximal 1.814e-06 (relatif, bootstrap$stats_boot[13470])
+    bootstrap$stats_boot[13470] [relatif] : 0.0158362387 -> 0.01583626742 (ecart 1.814e-06)
+    bootstrap$stats_boot[14469] [relatif] : 0.002375132188 -> 0.002375136413 (ecart 1.779e-06)

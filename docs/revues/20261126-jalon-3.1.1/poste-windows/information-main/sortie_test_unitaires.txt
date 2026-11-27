@@ -1,0 +1,240 @@
+
+== test_affichage_regime_t8.R
+   74 assertions : 74 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (1.3 s)
+
+== test_anti_bruit.R
+  note : premium : n*_0 (demarrages a l'optimum au code 0, res$ajustement) change sous 3 des 8 couples (kx = 1, ky = 1), (kx = 1, ky = 3), (kx = 2, ky = 4) (non perturbe : 54) ; le test detecte un libelle imprimant n*_0 sur cette machine
+  note : reserve1 : n*_0 (demarrages a l'optimum au code 0, res$ajustement) change sous 3 des 8 couples (kx = 1, ky = 1), (kx = 1, ky = 3), (kx = 2, ky = 4) (non perturbe : 54) ; le test detecte un libelle imprimant n*_0 sur cette machine
+   5 assertions : 5 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (26.6 s)
+
+== test_application.R
+   188 assertions : 188 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (77.6 s)
+
+== test_application_partie_2.R
+   111 assertions : 111 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (69.1 s)
+
+== test_b_effectif_mw.R
+   30 assertions : 30 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (7.8 s)
+
+== test_calibration.R
+   120 assertions : 120 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (33.6 s)
+
+== test_chargement_moteur.R
+   9 assertions : 9 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (4.3 s)
+
+== test_chemins_chauds_445.R
+   9 assertions : 9 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (18.3 s)
+
+== test_comparateur.R
+   42 assertions : 42 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (0.8 s)
+
+== test_comparer_references.R
+   31 assertions : 31 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (1.7 s)
+
+== test_concordance_doc_moteur.R
+   155 assertions : 155 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (103.2 s)
+
+== test_constante_ponderee.R
+   36 assertions : 36 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (19.0 s)
+
+== test_controle_doc_nd.R
+  (systeme non Unix : faux pdftotext xpdf non teste)
+   340 assertions : 340 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (38.4 s)
+
+== test_controles_entree.R
+  [saute] temoin openxlsx, corpus naturel (ADR 0020) : liste des ecarts non datee pour la version 4.2.9
+  [saute] .echapper_texte() sous LC_ALL = C.UTF-8 (#588) : locale indisponible
+  [saute] chemin "~" (#580) : HOME non redirigeable sur ce systeme
+   529 assertions : 529 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (302.5 s)
+
+== test_controles_entree_partie_2.R
+  note : plateforme courante, y = x / 2 : ligne Cook non applicable ; TOST sous-normal 1e-320 : statistique non definie ; 5e-324 : statistique non definie (#153).
+   117 assertions : 117 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (70.2 s)
+
+== test_controles_numeriques.R
+   84 assertions : 84 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (2.6 s)
+
+== test_date_reference.R
+   31 assertions : 31 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (16.4 s)
+
+== test_defauts_connus.R
+   127 assertions : 127 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (58.9 s)
+
+== test_detail_deux_phrases.R
+  A2 longueur maximale du texte propre : premium 385, reserve1 385, reserve2 385, premium_ii6 385, premium_net 385, premium_interieur 385, reserve2_trapeze 385
+   66 assertions : 66 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (65.4 s)
+
+== test_empreinte_moteur.R
+   20 assertions : 20 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (16.4 s)
+
+== test_enveloppe_qq.R
+   36 assertions : 36 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (15.6 s)
+
+== test_enveloppe_spread.R
+   33 assertions : 33 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (8.4 s)
+
+== test_ex_aequo.R
+   39 assertions : 39 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (23.2 s)
+
+== test_forme_close_m1.R
+   29 assertions : 29 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (35.6 s)
+
+== test_garde_ecrasement.R
+  puissance_t8.R --ecrire --volet A --R 20 : code 1 en 1.2 s
+  puissance_t8.R --ecrire --volet B --R-chaine 1 : code 1 en 1.2 s
+  puissance_t8.R --ecrire --volet B --jeu J2 --R-chaine 1 : code 1 en 1.0 s
+  puissance_t8.R --ecrire --volet B --jeu J1 --R-chaine 1 --B 99 : code 0 en 6.8 s
+  puissance_t8.R --ecrire --volet A --R 20 : code 1 en 1.0 s
+  calibration_mc_t8.R --combiner tranche-absente.txt --ecrire : code 1 en 1.2 s
+  taux_franchissement_reperes.R --ecrire --issue 999 --R 1 : code 1 en 0.8 s
+  conservatisme_interieur_t8.R --combiner tranche-absente.txt --ecrire : code 1 en 1.2 s
+  constats_puissance_t8.R --partie tost --ecrire docs/tableaux --R 1 : code 1 en 0.4 s
+  grille_regime_t8.R --ecrire --brut "C:\Users\jerem\AppData\Local\Temp\RtmpOIUSp2/grille-brut-absent.tsv" : code 1 en 1.0 s
+  p_conditionnelle_regime_t8.R --combiner tranche-absente.txt --partie regime --ecrire --brut "C:\Users\jerem\AppData\Local\Temp\RtmpOIUSp2/p229-brut-absent.tsv" --journal journal-absent.md : code 1 en 1.2 s
+  calibration_mc_mw_t8.R --combiner tranche-absente.txt --niveau L0 --ecrire --brut "C:\Users\jerem\AppData\Local\Temp\RtmpOIUSp2/mw206-brut-absent.tsv" --journal journal-absent.md : code 1 en 1.2 s
+  enumeration_spearman_ex_aequo.R --ecrire : code 1 en 0.4 s
+  mesure_b_dossier_t8.R --ecrire : code 1 en 0.4 s
+  mesure_lb1_dw_t8.R --ecrire : code 1 en 0.5 s
+  puissance_mw_t8.R --combiner tranche-absente.txt --ecrire --brut "C:\Users\jerem\AppData\Local\Temp\RtmpOIUSp2/mw309-brut-absent.tsv" --journal journal-absent.md : code 1 en 0.9 s
+  couverture_ic_sigma_t8.R --R 2 --ecrire : code 1 en 1.4 s
+  mesure_dw_rho_negatif_t8.R --ecrire --issue 164 : code 1 en 0.4 s
+  constats_puissance_t8.R --partie tost --ecrire docs/autres --R 1 : code 1 en 1.3 s
+  puissance_t8.R --ecrire --volet A --R 20 : code 1 en 1.1 s
+  calibration_mc_t8.R --combiner tranche-absente.txt --ecrire : code 1 en 1.3 s
+  taux_franchissement_reperes.R --ecrire --issue 999 --R 1 : code 1 en 1.1 s
+  conservatisme_interieur_t8.R --combiner tranche-absente.txt --ecrire : code 1 en 1.2 s
+  constats_puissance_t8.R --partie tost --ecrire docs/tableaux --R 1 : code 1 en 1.0 s
+  grille_regime_t8.R --ecrire --brut "C:\Users\jerem\AppData\Local\Temp\RtmpOIUSp2/grille-brut-absent.tsv" : code 1 en 1.0 s
+  p_conditionnelle_regime_t8.R --combiner tranche-absente.txt --partie regime --ecrire --brut "C:\Users\jerem\AppData\Local\Temp\RtmpOIUSp2/p229-brut-absent.tsv" --journal journal-absent.md : code 1 en 1.3 s
+  calibration_mc_mw_t8.R --combiner tranche-absente.txt --niveau L0 --ecrire --brut "C:\Users\jerem\AppData\Local\Temp\RtmpOIUSp2/mw206-brut-absent.tsv" --journal journal-absent.md : code 1 en 1.2 s
+  enumeration_spearman_ex_aequo.R --ecrire : code 1 en 1.3 s
+  mesure_b_dossier_t8.R --ecrire : code 1 en 1.1 s
+  mesure_lb1_dw_t8.R --ecrire : code 1 en 1.2 s
+  puissance_mw_t8.R --combiner tranche-absente.txt --ecrire --brut "C:\Users\jerem\AppData\Local\Temp\RtmpOIUSp2/mw309-brut-absent.tsv" --journal journal-absent.md : code 1 en 1.4 s
+  couverture_ic_sigma_t8.R --R 2 --ecrire : code 1 en 1.7 s
+  mesure_dw_rho_negatif_t8.R --ecrire --issue 164 : code 1 en 1.3 s
+  constats_puissance_t8.R --partie normalite --ecrire "C:\Users\jerem\AppData\Local\Temp\RtmpOIUSp2\hors_depot_b7ec60d02487" --R 1 : code 0 en 4.7 s
+   192 assertions : 192 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (73.9 s)
+
+== test_incertitude_bootstrap.R
+   38 assertions : 38 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (65.5 s)
+
+== test_inoperance.R
+   141 assertions : 141 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (22.7 s)
+
+== test_jonction_detail.R
+   14 assertions : 14 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (0.2 s)
+
+== test_lois_exactes.R
+   131 assertions : 131 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (3.4 s)
+
+== test_lr_delta.R
+   44 assertions : 44 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (21.2 s)
+
+== test_m5_diagnostic.R
+   8 assertions : 8 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (1.1 s)
+
+== test_mc_nom.R
+   5 assertions : 5 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (1.9 s)
+
+== test_merz_wuthrich.R
+   112 assertions : 112 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (60.9 s)
+
+== test_merz_wuthrich_suite.R
+   160 assertions : 160 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (70.3 s)
+
+== test_merz_wuthrich_trapeze.R
+   156 assertions : 156 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (30.3 s)
+
+== test_mk_spearman.R
+   13 assertions : 13 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (1.1 s)
+
+== test_modele_lognormal.R
+   38 assertions : 38 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (1.3 s)
+
+== test_nature_p_non_simulee.R
+   16 assertions : 16 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (3.1 s)
+
+== test_non_applicable.R
+   25 assertions : 25 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (1.0 s)
+
+== test_ordonnee_wls.R
+   3 assertions : 3 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (4.3 s)
+
+== test_origine_non_identifiable.R
+   11 assertions : 11 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (27.2 s)
+
+== test_outdec.R
+   102 assertions : 102 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (14.1 s)
+
+== test_outillage_mesure.R
+  [saute] scripts de tests/outillage/ : bash >= 4.3 introuvable
+   80 assertions : 80 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (75.7 s)
+
+== test_p_famille.R
+   28 assertions : 28 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (7.2 s)
+
+== test_p_mc_regime.R
+   32 assertions : 32 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (47.1 s)
+
+== test_p_mc_regime_partie_2.R
+   47 assertions : 47 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (42.1 s)
+
+== test_patcher_reference.R
+   21 assertions : 21 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (0.2 s)
+
+== test_plancher_mc.R
+   43 assertions : 43 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (29.2 s)
+
+== test_rapport_html.R
+  note : 2 cellule(s) repliee(s) sur les six references : premium_interieur commentaire 11, reserve2 H1 8
+   330 assertions : 330 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (64.0 s)
+
+== test_regenerer_et_rendre_compte.R
+   76 assertions : 76 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (1.3 s)
+
+== test_regimes_p_exactes.R
+   89 assertions : 89 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (5.2 s)
+
+== test_registre_add.R
+   32 assertions : 32 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (2.9 s)
+
+== test_regle_verdicts.R
+   39 assertions : 39 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (0.0 s)
+
+== test_regressions_qr.R
+  note : 1 000 jeux, resultats identiques au bit pres : BP79 1000, BP 1000, White 1000, BF 1000, RESET 1000, Pond 1000 ; ecart relatif maximal : BP79 0, BP 0, White 0, BF 0, RESET 0, Pond 0 (#237).
+  note : plateforme courante, TOST sous-normal 9.99989e-321 : statistique non definie, ponderee = lm() ; 4.94066e-324 : statistique non definie, ponderee = lm() (#237).
+   16 assertions : 16 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (6.3 s)
+
+== test_retirage_mw.R
+   22 assertions : 22 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (27.5 s)
+
+== test_sans_repli_p_non_simulee.R
+   24 assertions : 24 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (2.3 s)
+
+== test_sans_sigma_mw.R
+   12 assertions : 12 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (17.8 s)
+
+== test_statistiques.R
+   87 assertions : 87 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (12.2 s)
+
+== test_tables_mw.R
+   17 assertions : 17 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (7.3 s)
+
+== test_texte_2026_269.R
+   17 assertions : 17 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (69.4 s)
+
+== test_textes_inconditionnels.R
+   24 assertions : 24 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (7.5 s)
+
+== test_verdict_sensible_mc.R
+   55 assertions : 55 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (6.4 s)
+
+== test_volumes_constants.R
+   50 assertions : 50 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (11.6 s)
+
+Duree totale : 1864.6 s
+
+TOTAL : 4611 assertions, 4611 ok, 0 echec(s), 0 echec(s) attendu(s) (defauts connus), 0 succes inattendu(s)
+OK

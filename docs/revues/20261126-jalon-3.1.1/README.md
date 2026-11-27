@@ -7,6 +7,7 @@ Pièces de l'étape 4 de la fiche « Jalon court 3.1.1 » (§ 3 de `docs/feuille
 - Le 26/11/2026, le mainteneur a demandé de poursuivre le jalon **sans le poste Windows**, avec une issue si besoin.
 - L'étape 3 (critère de l'ADR 0006, annotation du 14/11, note du 25/11) **n'est donc pas faite**. Elle est reportée à l'issue #625, à rejouer au SHA de la batterie ou à tout commit où `R/`, `app.R`, `tests/` et `DESCRIPTION` sont identiques.
 - Les relevés ci-dessous **ne valent pas** ce critère. Ils établissent la non-régression sous Linux. Ils n'établissent rien sur le poste.
+- *[27/11/2026 : batterie faite au poste après la fusion, au SHA de la batterie, et **acceptée sur les sept cas** (#625) ; relevés et synthèse dans `poste-windows/`.]*
 
 ## Relevé en session cloud (`session-cloud/`)
 
