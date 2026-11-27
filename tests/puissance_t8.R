@@ -395,9 +395,14 @@
 #    K-F3 de #297) a CHAQUE replication ; implication p_f < alpha => U_f = 1
 #    hors texte T-3a (par. 5.2 de l'avis) ; p_mc des douze lignes de LIG_B
 #    egales a celles de la chaine reduite (memes graines) hors ecarts
-#    d'exclusion (boucle : z_boot differents ; flux V3b : tirages ou retenus
-#    differents), sur une replication sur CTL_CHAINE_PERIODE (b multiple de
-#    10) et sur toutes en --essai ; ligne N identique a usp_simuler(FIT0) ;
+#    d'exclusion (regle stricte de controle_chaine()) : boucle, z_boot
+#    differents SEULEMENT sur des replications retenues par la chaine (finies)
+#    et ecartees par usp_bootstrap() (ligne entierement NA cote moteur) ; flux
+#    V3b, V3b des deux cotes, tirages ou retenus du flux differents ET au
+#    moins un tirage du flux ecarte par le moteur pour une statistique en
+#    erreur (rejets_flux) ; tout autre ecart est un ECHEC ; sur une
+#    replication sur CTL_CHAINE_PERIODE (b multiple de 10) et sur toutes en
+#    --essai ; ligne N identique a usp_simuler(FIT0) ;
 #    copie des fonctions fk_*() identique a celle de tests/calibration_mc_t8.R
 #    (formals, corps) ; critere 6 (depot intact).
 #    Synthese : par jeu, point, famille et alpha : taux et IC de
@@ -1428,8 +1433,8 @@ remplir_familles <- function(v, rf, fam) {
 # de LIG_B de la chaine (memes graines) contre celles de run_engine().
 # "identique" ; "exclusion (boucle)" si les z_boot different SEULEMENT sur
 # des replications internes retenues par la chaine et ecartees par
-# usp_bootstrap() (ligne finie d'un cote, NA de l'autre : ecart connu de
-# l'en-tete du volet B, point 2) ; "exclusion (flux V3b)" si, en V3b des
+# usp_bootstrap() (ligne finie d'un cote, entierement NA de l'autre :
+# ecart connu de l'en-tete du volet B, point 2) ; "exclusion (flux V3b)" si, en V3b des
 # deux cotes, les tirages ou les retenus du flux different et que le moteur
 # a ecarte au moins un tirage du flux pour une statistique en erreur
 # (rejets_flux, point 3) ; "ECHEC ..." sinon.
@@ -1443,7 +1448,7 @@ controle_chaine <- function(J, y, g, res) {
   if (!identical(za, zm)) {
     if (!identical(dim(za), dim(zm))) return("ECHEC : z_boot de dimensions differentes")
     lig <- which(vapply(seq_len(nrow(za)), function(i) !identical(za[i, ], zm[i, ]), logical(1)))
-    if (all(is.finite(za[lig, 1])) && all(is.na(zm[lig, 1]))) return("exclusion (boucle)")
+    if (all(is.finite(za[lig, 1])) && all(is.na(zm[lig, , drop = FALSE]))) return("exclusion (boucle)")
     return(paste("ECHEC : z_boot differents hors replications ecartees par usp_bootstrap() :",
                  paste(utils::head(lig, 10), collapse = ",")))
   }

@@ -202,69 +202,101 @@
 #  Code de sortie : 0 si les controles d'integrite tiennent, 1 sinon ; en mode
 #  --combiner, 0 si la combinaison est acceptee, 1 si elle est refusee.
 #
-#  MODE --familles (issue #379, S9 etape 5 ; campagne Merz-Wuthrich unique
-#  partagee avec #494 ; protocole : avis d'actuary
+#  MODE --familles (issues #379 et #494, S9 etape 5 ; campagne
+#  Merz-Wuthrich unique partagee par #379 et #494 ; protocole : avis d'actuary
 #  docs/revues/20261127-s9-mesures/actuary-protocoles-etape-1.md, par. 4 et
-#  5, decisions Q-S9-1 (a) et Q-S9-2 (a)). Mode distinct : les modes
-#  ci-dessus sont inchanges ; --essai y est une sous-option (pre-vol du
+#  5, decisions Q-S9-1 (a) et Q-S9-2 (a), corrections de l'avis de l'etape 5
+#  (actuary-questions-etape-5.md, Q3 et section #494)). Mode distinct : les
+#  modes ci-dessus sont inchanges ; --essai y est une sous-option (pre-vol du
 #  mode), et --cellules, --travail, --arret-apres lui sont reserves.
 #    Quantites (constat de simulation sous plan) : pour chaque famille f (M1 a
 #    M4) et pour la ligne globale (LC), pi_f = P(p_f < alpha), p_f etant la p
 #    de la ligne de lecture conjointe telle que la rend mw_tests() (champ p_mc
 #    de la ligne posee par engine_p_famille(), composition fixee a chaque
 #    triangle), et U_f = P(au moins un membre de p_mc < alpha), memes membres,
-#    memes triangles ; alpha = 0,10 et 0,05.
-#    Procedure par triangle : DGP et scenario de la cellule du volet B
-#    (triangle_cellule(), graine de triangle de #309), admission (admettre()),
-#    mw_bootstrap(aj, B = 999, graine de bootstrap de #309) avec le catalogue
-#    du moteur SANS injection, mw_tests(aj, boot, 0,10) ; identite a
-#    run_engine() (tests et bootstrap, identical()) controlee sur b multiple
-#    de 50 et, en --essai, sur b = 1 (controle (i2) de
-#    tests/calibration_mc_mw_t8.R).
-#    Cellules (CELLULES_FAM) : P1.H0 (R = 500), P1.CST20 et P1.DCAL (R = 300)
-#    ; --cellules P1.H0=500,P1.CST20=300,P1.DCAL=300 (R par cellule, au plus
-#    le R de #309, qui borne la plage declaree des graines ; P1.H0
-#    obligatoire : reference des comparaisons). Graines : celles de la
-#    cellule dans le plan de #309 (rang c ; aucune graine nouvelle). Les
-#    cellules AR(rho) de #494 s'insereront dans CELLULES_FAM (graines de P1.H0,
-#    nombres aleatoires communs) et dans triangle_familles() (point marque).
+#    memes triangles ; alpha = 0,10 et 0,05 (#379) ; taux de rejet p_mc <
+#    alpha de CorrDev (M3) et de DW sur residus de Mack sous persistance AR(1)
+#    dans l'annee d'accident (#494).
+#    Procedure par triangle : DGP et scenario de la cellule (triangle_familles()
+#    : scenario du volet B, triangle_cellule(), ou AR(1), gen_triangle_ar1() ;
+#    graine de triangle de #309), admission (admettre()), mw_bootstrap(aj,
+#    B = 999, graine de bootstrap de #309) avec le catalogue du moteur SANS
+#    injection, mw_tests(aj, boot, 0,10) ; identite a run_engine() (tests et
+#    bootstrap, identical()) controlee sur b multiple de 50 et, en --essai,
+#    sur b = 1 (controle (i2) de tests/calibration_mc_mw_t8.R).
+#    Scenario AR(1) (#494, par. 4.2 de l'avis) : gen_triangle_ar1(), variante
+#    de gen_triangle_h0() (copie declaree non modifiee), meme ordre de
+#    consommation de l'alea (un tirage eta de longueur n_j par colonne j),
+#    eps(i, 0) = eta(i, 0), eps(i, j) = rho eps(i, j - 1) + sqrt(1 - rho^2)
+#    eta(i, j), variance marginale 1. Controles : (ar0) a rho = 0, triangles
+#    identical() a ceux de H0 sous la meme graine ; (ar1) eta reconstruit du
+#    triangle AR(1) egal au flux stats::rnorm() de la graine.
+#    Cellules (CELLULES_FAM ; ref : cellule H0 du meme plan) :
+#      jeu par defaut (sans P2) : P1.H0 (R = 500), P1.CST20 et P1.DCAL
+#      (R = 300 ; #379), P1.AR03 et P1.AR05 (rho = 0,3 et 0,5, R = 500 ;
+#      #494) ;
+#      P2 (Q-S9-2 (a) : seulement si le pre-vol le loge dans l'enveloppe) :
+#      P2.H0 et P2.AR05 (R = 500), hors du jeu par defaut, selectionnables par
+#      --cellules ; --essai mesure par defaut TOUTES les cellules (pre-vol avec
+#      et sans P2).
+#    --cellules id[=R],... (R par cellule, au plus le R de #309 de la cellule
+#    dont les graines sont reprises, qui borne la plage declaree ; P1.H0
+#    obligatoire, et la cellule H0 du plan de chaque cellule retenue).
+#    Graines : celles de la cellule dans le plan de #309 (rang c) ; les
+#    cellules AR(rho) reprennent celles de la cellule H0 de leur plan (nombres
+#    aleatoires communs) ; aucune graine nouvelle.
 #    Releve par triangle (tableau brut) : statut et motif d'admission,
 #    colonnes degenerees, drapeaux du retirage (#257), par famille etat, k, B
 #    effectif de famille, p de la ligne, plus petite p_mc des membres (U_f),
 #    drapeau T-3a et membres ; pour chacune des 13 cles du catalogue, p_mc,
-#    p retenue et verdict (lus par la campagne de #494).
+#    p retenue, verdict et statistique observee (obs, %.17g).
 #    Controles d'integrite (un echec met INTEGRITE a ECHEC) : catalogue du
 #    moteur non injecte ; copie des fonctions fk_*() identique a celle de
-#    tests/calibration_mc_mw_t8.R ; (graines) de la mesure #309 ; etats des
-#    lignes de famille coherents ; K-F3 (fk_recalcul()) a CHAQUE triangle
-#    admis ; p_f < alpha => U_f = 1 hors texte T-3a (par. 5.2 de l'avis) ;
-#    (i2) ; aucun triangle en erreur.
-#    Synthese : par cellule, famille et alpha : taux et IC de Clopper-Pearson
-#    a 95 % de p_f < alpha et de U_f, exces sur le niveau (P1.H0), P(U_f = 1,
-#    p_f >= alpha), test contre P1.H0 (avis d'actuary de l'etape 5, Q3) :
-#    cellule a graines communes avec P1.H0 (cellules AR de #494) : McNemar
-#    exact apparie sur les b admis, ligne presente des deux cotes ; cellule a
+#    tests/calibration_mc_mw_t8.R ; (graines) de la mesure #309 ; graines des
+#    cellules dans les plages declarees ; (ar0), (ar1) ; taille de reference
+#    de CorrDev relue au tableau de #309 ; etats des lignes de famille
+#    coherents ; K-F3 (fk_recalcul()) a CHAQUE triangle admis ; p_f < alpha
+#    => U_f = 1 hors texte T-3a (par. 5.2 de l'avis) ; (i2) ; aucun triangle
+#    en erreur ; recoupement avec le brut de #309 (cellules H0, b = 1..R :
+#    statut et obs:CorrDev identiques triangle par triangle).
+#    Synthese : F1, par cellule, famille et alpha : taux et IC de
+#    Clopper-Pearson a 95 % de p_f < alpha et de U_f, exces sur le niveau
+#    (cellule H0 du plan), P(U_f = 1, p_f >= alpha), test contre la cellule
+#    H0 du plan (avis d'actuary de l'etape 5, Q3) : cellule a graines
+#    communes (cellules AR de #494) : McNemar exact apparie sur les b admis
+#    dans les deux cellules, ligne presente des deux cotes ; cellule a
 #    graines distinctes (CST20, DCAL : graines de #309, echantillons
-#    independants) : test exact de Fisher sur tous les triangles des deux
-#    cellules ; bilateral pour la classe du par. 4.5 de l'avis (seuils 0,5 :
-#    convention declaree), unilateral pi(s) < pi(H0) pour le signal PM-3 ;
-#    evalues mecaniquement SANS CONCLURE.
+#    independants) : test exact de Fisher sur les triangles admis, ligne
+#    presente, des deux cellules ; bilateral pour la classe du par. 4.5 de
+#    l'avis (seuils 0,5 : convention declaree), unilateral pi(s) < pi(H0)
+#    pour le signal PM-3 ; F2 : admission et refus par cellule ; F3 (#494) :
+#    CorrDev, DW, famille M3 et ligne globale, cellules AR contre la cellule
+#    H0 du plan, McNemar exact apparie et classe du par. 4.5 ; F4 (PM-3 de
+#    #494, par. 4.5 corrige) : niveau de CorrDev des cellules H0 classe
+#    contre la taille de reference de #309 (distorsion materielle : signal),
+#    et McNemar exact apparie, sur b = 1..R, contre p:CorrDev du brut de #309
+#    (BRUT_309_REL) ; evalues mecaniquement SANS CONCLURE.
 #    Reprise (M42 (b)) : tranches de TAILLE_TRANCHE_MW_FAM triangles
 #    consecutifs d'une cellule dans le dossier de travail (--travail, hors du
-#    depot ; defaut <parent de la racine>/issue379-mw-travail-B999), ecrites
-#    des qu'elles sont completes ; reprise aux tranches absentes ; contexte
-#    different : arret. --arret-apres MIN : "SEGMENT INCOMPLET", code 3.
+#    depot ; defaut <parent de la racine>/issue379-issue494-mw-travail-B999),
+#    ecrites des qu'elles sont completes ; reprise aux tranches absentes
+#    (une execution avec P2 apres le jeu par defaut, meme --travail, reprend
+#    les tranches de P1) ; contexte different : arret. --arret-apres MIN :
+#    "SEGMENT INCOMPLET", code 3.
 #    --essai [--n 1] : n triangles par cellule, dossier temporaire, rien
 #    d'ecrit ; synthese marquee ESSAI, duree par triangle et duree extrapolee
-#    par cellule et au total, segments de 2 h (M42 (b)) au-dela de 2 h.
+#    par cellule et au total, sans P2 et avec P2, segments de 2 h (M42 (b))
+#    au-dela de 2 h ; --B (mise au point) : de 99 (B_MIN_USAGE du moteur,
+#    sous lequel (i2) echoue) a 998.
 #    Sorties : console ; avec --ecrire (arbre propre, code du depot,
 #    garde_ecrasement(), --remplacer) dans docs/tableaux/ :
-#    <AAAAMMJJ>-issue379-familles-mw.md et -familles-mw-brut.tsv ; --sortie
-#    DOSSIER : memes fichiers hors du depot, jamais ecrases.
+#    <AAAAMMJJ>-issue379-issue494-puissance-mw.md et -puissance-mw-brut.tsv ;
+#    --sortie DOSSIER : memes fichiers hors du depot, jamais ecrases.
 #    Usage :
 #      Rscript tests/puissance_mw_t8.R --familles --essai [--n 1] [--coeurs 4]
 #      Rscript tests/puissance_mw_t8.R --familles
-#          [--cellules P1.H0=500,P1.CST20=300,P1.DCAL=300] [--coeurs 4]
+#          [--cellules P1.H0=500,P1.CST20=300,P1.DCAL=300,P1.AR03=500,
+#           P1.AR05=500[,P2.H0=500,P2.AR05=500]] [--coeurs 4]
 #          [--travail DOSSIER] [--arret-apres MIN]
 #          [--ecrire [--remplacer] | --sortie DOSSIER]
 ###############################################################################
@@ -434,7 +466,11 @@ if (!is.na(OPT_N0) && !OPT_PROVISOIRE && N0 != N0_SPEC) stop("--N0 inferieur a 2
 B_BOOT <- 999       # double, comme le B par defaut de run_engine() (voir calibration_mc_mw_t8.R)
 if (!is.na(OPT_B_REDUIT)) {
   B_BOOT <- suppressWarnings(as.numeric(OPT_B_REDUIT))
-  if (is.na(B_BOOT) || B_BOOT < 19 || B_BOOT != round(B_BOOT) || B_BOOT >= 999) stop("--B : entier de 19 a 998 (mise au point)")
+  # --familles : B >= B_MIN_USAGE du moteur (99), sinon run_engine() refuse B
+  # et le controle (i2) echoue (borne relue apres chargement du moteur).
+  B_MIN_OPT <- if (MODE == "familles") 99 else 19
+  if (is.na(B_BOOT) || B_BOOT < B_MIN_OPT || B_BOOT != round(B_BOOT) || B_BOOT >= 999)
+    stop(sprintf("--B : entier de %d a 998 (mise au point)", as.integer(B_MIN_OPT)))
   if (!(OPT_PROVISOIRE || OPT_ESSAI)) stop("--B : reserve a --provisoire ou --essai")
 }
 N_ESSAI <- suppressWarnings(as.integer(OPT_N_ESSAI))
@@ -2690,24 +2726,41 @@ fk_recalcul <- function(lignes, boot, catalogue, fam) {
 # M4, puis la ligne globale (FAM_MW de tests/calibration_mc_mw_t8.R).
 FAM_MW <- c("M1", "M2", "M3", "M4", PREFIXE_LECTURE_CONJOINTE)
 SEUILS_FAM <- c(0.10, 0.05)
-# Cellules de la campagne (Q-S9-1 (a), Q-S9-2 (a)) : id et R par defaut ;
-# plan, code et rang des graines lus dans CELLULES (plan de #309) ; R_max :
-# R de la cellule dans #309, qui borne la plage declaree de ses graines.
-# #494 : les cellules AR(rho) (P1.AR03, P1.AR05, R = 500) s'ajouteront ici
-# avec le rang de P1.H0 (nombres aleatoires communs, aucune graine nouvelle)
-# et leur scenario dans triangle_familles().
+# Cellules de la campagne (Q-S9-1 (a), Q-S9-2 (a)) : id, R par defaut, rho
+# (coefficient AR(1) de #494, NA hors AR) et appartenance au jeu par defaut
+# (P2 : hors du jeu par defaut, conditionnel au pre-vol). ref : cellule H0 du
+# meme plan (reference des comparaisons). rang des graines et R_max lus dans
+# CELLULES (plan de #309) : ceux de la cellule elle-meme, ou, pour une cellule
+# AR(rho), ceux de la cellule H0 de son plan (nombres aleatoires communs,
+# aucune graine nouvelle) ; R_max borne la plage declaree des graines.
 CELLULES_FAM <- local({
-  d <- data.frame(id = c("P1.H0", "P1.CST20", "P1.DCAL"), R = c(500L, 300L, 300L), stringsAsFactors = FALSE)
-  k <- match(d$id, CELLULES$id)
-  d$plan <- CELLULES$plan[k]; d$code <- CELLULES$code[k]; d$rang <- CELLULES$rang[k]; d$R_max <- as.integer(CELLULES$R[k])
+  d <- data.frame(id = c("P1.H0", "P1.CST20", "P1.DCAL", "P1.AR03", "P1.AR05", "P2.H0", "P2.AR05"),
+                  R = c(500L, 300L, 300L, 500L, 500L, 500L, 500L),
+                  rho = c(NA, NA, NA, 0.3, 0.5, NA, 0.5),
+                  defaut = c(TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE), stringsAsFactors = FALSE)
+  d$plan <- sub("\\..*$", "", d$id); d$code <- sub("^[^.]*\\.", "", d$id)
+  d$ref <- paste0(d$plan, ".H0")
+  k <- match(ifelse(is.finite(d$rho), d$ref, d$id), CELLULES$id)
+  d$rang <- CELLULES$rang[k]; d$R_max <- as.integer(CELLULES$R[k])
   d
 })
-CELLULE_REF_FAM <- "P1.H0"
+CELLULE_REF_FAM <- "P1.H0"     # obligatoire : niveau de #379 et reference de P1
+# PM-3 de #494 (par. 4.5 de l'avis, second cas corrige a l'etape 5) : brut
+# versionne de #309 (cellules B-P1.H0 et B-P2.H0, b = 1..1000, memes graines
+# que les cellules H0 du mode pour b = 1..R) et tableau de #309, ou sont lues
+# les tailles de reference de CorrDev (oracle de P1 : ORA-A-N, loi N du volet
+# A ; oracle de P2 : ORA-B-P2 ; colonnes rho 0,10 et rho 0,05, 5 decimales),
+# relues a chaque execution (controle (rho 309)).
+BRUT_309_REL <- file.path("docs", "tableaux", "20261021-issue309-puissance-mw-brut.tsv")
+MD_309_REL <- file.path("docs", "tableaux", "20261021-issue309-puissance-mw.md")
+ORA_309 <- c(P1 = "ORA-A-N", P2 = "ORA-B-P2")
+RHO_CORRDEV_309 <- list(P1 = c(0.09751, 0.04761), P2 = c(0.09751, 0.04759))
+LIGNES_494 <- c("CorrDev", "DW", "M3", PREFIXE_LECTURE_CONJOINTE)
 TAILLE_TRANCHE_MW_FAM <- 25L     # triangles consecutifs d'une cellule par tranche
 SEGMENT_S_FAM <- 2 * 3600        # M42 (b) : segments de 2 h au plus
 COLS_FAM_MW <- c("cellule", "b", "statut", "motif", "jd", "cum", "plaf", "etats", "kf3", "ctl",
                  as.vector(t(outer(FAM_MW, c("etf", "kf", "bf", "pf", "minf", "red", "memb"), function(f, c) paste0(c, ":", f)))),
-                 paste0("pmc:", CLES), paste0("pret:", CLES), paste0("v:", CLES), "duree", "duree_ctl")
+                 paste0("pmc:", CLES), paste0("pret:", CLES), paste0("v:", CLES), paste0("obs:", CLES), "duree", "duree_ctl")
 COLS_DUREE_FAM <- c("duree", "duree_ctl")
 num_tsv <- function(x) suppressWarnings(as.numeric(ifelse(x %in% "NA", NA_character_, x)))
 ecrire_lignes <- function(f, lignes) {
@@ -2753,11 +2806,75 @@ champs_cles <- function(lignes, cles) {
        pret = vapply(i, function(j) if (is.na(j)) NA_real_ else fk_num(lignes[[j]], "p_retenue"), 1),
        v = vapply(i, function(j) if (is.na(j)) "-" else { x <- fk_champ(lignes[[j]], "verdict"); if (x %in% names(code_v)) code_v[[x]] else "?" }, ""))
 }
-# Triangle d'une cellule du mode --familles pour la graine g.
+# Scenario AR(1) de #494 (par. 4.2 de l'avis d'actuary) : variante de
+# gen_triangle_h0() (copie declaree laissee intacte, controle (copie)) ; memes
+# operations, meme ordre de consommation de l'alea (un tirage eta de longueur
+# n_j par colonne j), meme arret au premier cumul invalide. L'erreur
+# standardisee de la transition j -> j + 1 de l'annee d'accident i suit un
+# AR(1) le long de la ligne i :
+#   eps(i, 0) = eta(i, 0) ; eps(i, j) = rho eps(i, j - 1) + sqrt(1 - rho^2) eta(i, j),
+# eta i.i.d. de moyenne 0 et de variance 1, donc variance marginale 1 a chaque
+# j. A rho = 0 : eps = 0 * eps(i, j - 1) + 1 * eta = eta au bit pres (eps fini),
+# triangle de H0 (controle (ar0), identical()).
+gen_triangle_ar1 <- function(aj, tirer, rho) {
+  I <- aj$I; J <- aj$J
+  tri <- matrix(NA_real_, I + 1, J + 1)
+  tri[, 1] <- aj$tri[, 1]
+  c_rho <- sqrt(1 - rho^2)
+  eps <- rep(NA_real_, I + 1)
+  for (j in 0:(J - 1)) {
+    idx <- 0:(I - j - 1)
+    sg <- sqrt(aj$sigma2[j + 1])
+    if (!is.finite(sg)) sg <- 0
+    eta <- tirer(length(idx))
+    e <- if (j == 0L) eta else rho * eps[idx + 1] + c_rho * eta
+    eps[idx + 1] <- e
+    Cij <- tri[idx + 1, j + 1]
+    nv <- Cij * aj$f[j + 1] + e * sg * sqrt(Cij)
+    inval <- !is.finite(nv) | nv <= 0
+    if (any(inval)) {
+      nv[inval] <- NA_real_
+      tri[idx + 1, j + 2] <- nv
+      return(tri)
+    }
+    tri[idx + 1, j + 2] <- nv
+  }
+  tri
+}
+# Triangle d'une cellule du mode --familles pour la graine g : AR(rho) sur le
+# DGP du plan (rho fini), sinon scenario du volet B (triangle_cellule()).
 triangle_familles <- function(cel, g) {
-  # #494 : scenario AR(rho) a inserer ici (gen_triangle_h0() a erreurs AR(1)
-  # le long de l'annee d'accident, graine de triangle de P1.H0).
+  if (is.finite(cel$rho)) return(engine_sous_graine(g, gen_triangle_ar1(AJ_PLAN[[cel$plan]], tireur("N"), cel$rho)))
   triangle_cellule(cel$plan, cel$code, g)
+}
+# Controle (ar1) : reconstruction INDEPENDANTE des eta d'un triangle AR(1)
+# (ligne par ligne, depuis les cumuls) : eps(i, j) = (C(i, j + 1) - f_j
+# C(i, j)) / (sigma_j sqrt(C(i, j))), eta(i, 0) = eps(i, 0), eta(i, j) =
+# (eps(i, j) - rho eps(i, j - 1)) / sqrt(1 - rho^2) ; compares, colonne par
+# colonne (ordre de consommation), au flux stats::rnorm() de la meme graine.
+# Colonnes reconstruites : jusqu'a la premiere colonne simulee non complete
+# ou a sigma_j nul (exclue). Rend l'ecart absolu maximal et le nombre de
+# valeurs comparees.
+ecart_ar1 <- function(aj, g, rho) {
+  tri <- engine_sous_graine(g, gen_triangle_ar1(aj, tireur("N"), rho))
+  I <- aj$I; J <- aj$J
+  n_j <- I - (0:(J - 1))
+  flux <- engine_sous_graine(g, stats::rnorm(sum(n_j)))
+  deb <- cumsum(c(0L, n_j))
+  ecart <- 0; n_cmp <- 0L
+  eps_prec <- rep(NA_real_, I + 1)
+  for (j in 0:(J - 1)) {
+    sg <- sqrt(aj$sigma2[j + 1])
+    lig <- seq_len(n_j[j + 1])
+    C0 <- tri[lig, j + 1]; C1 <- tri[lig, j + 2]
+    if (!is.finite(sg) || sg == 0 || anyNA(C1)) break
+    eps <- (C1 - aj$f[j + 1] * C0) / (sg * sqrt(C0))
+    eta <- if (j == 0L) eps else (eps - rho * eps_prec[lig]) / sqrt(1 - rho^2)
+    ecart <- max(ecart, abs(eta - flux[deb[j + 1] + lig]))
+    n_cmp <- n_cmp + length(lig)
+    eps_prec[lig] <- eps
+  }
+  c(ecart = ecart, n = n_cmp)
 }
 # Un triangle b d'une cellule : admission, mw_bootstrap() du catalogue du
 # moteur, mw_tests(), releve ; ctl : identite a run_engine() (i2). Rend
@@ -2788,6 +2905,7 @@ unite_familles_mw <- function(cel, b, ctl) {
   v <- remplir_familles(v, rf, FAM_MW)
   ck <- champs_cles(tt, CLES)
   v[paste0("pmc:", CLES)] <- f17(ck$pmc); v[paste0("pret:", CLES)] <- f17(ck$pret); v[paste0("v:", CLES)] <- ck$v
+  v[paste0("obs:", CLES)] <- f17(vapply(CLES, function(s) { o <- bt$stats_obs[[s]]; if (is.null(o) || length(o) != 1L) NA_real_ else as.numeric(o) }, 1))
   v[["duree"]] <- sprintf("%.3f", secondes(t0))
   if (ctl) {
     t1 <- Sys.time()
@@ -2810,16 +2928,22 @@ rejets_famille <- function(d, f, a) {
 if (MODE == "familles") {
   t_fam <- Sys.time()
   # Cellules et R (--cellules id[=R],...) ; P1.H0 obligatoire.
-  spec_c <- strsplit(if (is.na(OPT_CELLULES_FAM)) paste(sprintf("%s=%d", CELLULES_FAM$id, CELLULES_FAM$R), collapse = ",")
+  # Defaut : jeu par defaut (sans P2) ; --essai : toutes les cellules (pre-vol
+  # avec et sans P2, Q-S9-2 (a)).
+  if (!is.na(OPT_B_REDUIT) && B_BOOT < B_MIN_USAGE) stop("--B : au moins B_MIN_USAGE = ", B_MIN_USAGE, " du moteur en mode --familles")
+  CF_DEF <- if (OPT_ESSAI) CELLULES_FAM else CELLULES_FAM[CELLULES_FAM$defaut, , drop = FALSE]
+  spec_c <- strsplit(if (is.na(OPT_CELLULES_FAM)) paste(sprintf("%s=%d", CF_DEF$id, CF_DEF$R), collapse = ",")
                      else OPT_CELLULES_FAM, ",", fixed = TRUE)[[1]]
   ids_c <- sub("=.*$", "", spec_c)
   R_c <- ifelse(grepl("=", spec_c), suppressWarnings(as.integer(sub("^[^=]*=", "", spec_c))), CELLULES_FAM$R[match(ids_c, CELLULES_FAM$id)])
-  if (!length(ids_c) || anyDuplicated(ids_c) || !all(ids_c %in% CELLULES_FAM$id) || !CELLULE_REF_FAM %in% ids_c)
-    stop("--cellules : cellules de CELLULES_FAM (", paste(CELLULES_FAM$id, collapse = ", "), "), sans doublon, ", CELLULE_REF_FAM, " comprise")
+  if (!length(ids_c) || anyDuplicated(ids_c) || !all(ids_c %in% CELLULES_FAM$id) || !CELLULE_REF_FAM %in% ids_c ||
+      !all(CELLULES_FAM$ref[match(ids_c, CELLULES_FAM$id)] %in% ids_c))
+    stop("--cellules : cellules de CELLULES_FAM (", paste(CELLULES_FAM$id, collapse = ", "), "), sans doublon, ", CELLULE_REF_FAM,
+         " comprise, ainsi que la cellule H0 du plan de chaque cellule")
   CF <- CELLULES_FAM[match(ids_c, CELLULES_FAM$id), , drop = FALSE]
   CF$R <- R_c
   if (anyNA(CF$R) || any(CF$R < 1L) || any(CF$R > CF$R_max))
-    stop("--cellules : R entier de 1 au R de la cellule dans #309 (plage declaree des graines) : ",
+    stop("--cellules : R entier de 1 au R dans #309 de la cellule dont les graines sont reprises (plage declaree) : ",
          paste(sprintf("%s <= %d", CF$id, CF$R_max), collapse = ", "))
   if (OPT_ESSAI && (OPT_ECRIRE || !is.na(OPT_SORTIE))) stop("--familles --essai : rien n'est ecrit (--ecrire et --sortie refuses)")
   if (OPT_ESSAI && !is.na(OPT_TRAVAIL)) stop("--familles --essai : dossier temporaire (--travail refuse)")
@@ -2831,13 +2955,15 @@ if (MODE == "familles") {
     if (!is.finite(a_) || a_ <= 0) stop("--arret-apres : nombre de minutes > 0")
     60 * a_
   }
-  TRAVAIL <- if (OPT_ESSAI) tempfile("issue379-mw-essai-") else if (!is.na(OPT_TRAVAIL)) OPT_TRAVAIL else
-    file.path(dirname(normalizePath(RACINE, winslash = "/")), sprintf("issue379-mw-travail-B%d", as.integer(B_BOOT)))
+  TRAVAIL <- if (OPT_ESSAI) tempfile("issue379-issue494-mw-essai-") else if (!is.na(OPT_TRAVAIL)) OPT_TRAVAIL else
+    file.path(dirname(normalizePath(RACINE, winslash = "/")), sprintf("issue379-issue494-mw-travail-B%d", as.integer(B_BOOT)))
   if (!dir.exists(TRAVAIL) && !dir.create(TRAVAIL, recursive = TRUE)) stop("--travail : dossier impossible a creer : ", TRAVAIL)
   if (sous_depot(TRAVAIL)) stop("--travail : dossier sous le depot refuse : ", TRAVAIL)
   # Fichiers ecrits et gardes anticipees (#205, #173), avant tout calcul.
   DATE_FAM <- format(Sys.Date(), "%Y%m%d")
-  NOMS_FAM <- c(md = sprintf("%s-issue379-familles-mw.md", DATE_FAM), brut = sprintf("%s-issue379-familles-mw-brut.tsv", DATE_FAM))
+  # Nom commun aux deux issues de la campagne (#379 et #494 ; un seul tableau
+  # et un seul brut, chaque numero cherchable tel quel).
+  NOMS_FAM <- c(md = sprintf("%s-issue379-issue494-puissance-mw.md", DATE_FAM), brut = sprintf("%s-issue379-issue494-puissance-mw-brut.tsv", DATE_FAM))
   cibles_fam <- function() stats::setNames(file.path(if (OPT_ECRIRE) file.path(RACINE, "docs", "tableaux") else OPT_SORTIE, NOMS_FAM),
                                            names(NOMS_FAM))
   if (OPT_ECRIRE) {
@@ -2880,6 +3006,71 @@ if (MODE == "familles") {
                                   if (length(ko)) paste0(" ; DIFF\u00c9RENTES OU ABSENTES : ", paste(ko, collapse = ", ")) else ""))
   })
   local({ g <- controle_graines(); controle(g$ok, paste("Familles, (graines) de la mesure #309 :", g$txt)) })
+  # Graines des cellules : rang de la cellule dans #309, ou rang de la cellule
+  # H0 du plan pour une cellule AR (nombres aleatoires communs) ; b <= R_max.
+  local({
+    ok <- vapply(seq_len(nrow(CF)), function(i) {
+      src <- if (is.finite(CF$rho[i])) CF$ref[i] else CF$id[i]
+      k <- match(src, CELLULES$id)
+      !is.na(k) && CF$rang[i] == CELLULES$rang[k] && CF$plan[i] == CELLULES$plan[k] && CF$R[i] <= CELLULES$R[k]
+    }, logical(1))
+    txt <- vapply(seq_len(nrow(CF)), function(i) sprintf("%s : triangle %.0f..%.0f, bootstrap %.0f..%.0f (rang %d de %s, b <= %d)",
+      CF$id[i], graine_tri_B(CF$plan[i], CF$rang[i], 1L), graine_tri_B(CF$plan[i], CF$rang[i], CF$R[i]),
+      graine_boot_B(CF$plan[i], CF$rang[i], 1L), graine_boot_B(CF$plan[i], CF$rang[i], CF$R[i]), CF$rang[i], CF$plan[i], CF$R_max[i]), "")
+    controle(all(ok), sprintf("Familles, graines des cellules dans les plages d\u00e9clar\u00e9es de #309 (cellules AR : graines de la cellule H0 du plan, aucune graine nouvelle) : %s%s",
+                              paste(txt, collapse = " ; "), if (all(ok)) "" else paste0(" ; HORS PLAGE : ", paste(CF$id[!ok], collapse = ", "))))
+  })
+  # (ar0) : a rho = 0, gen_triangle_ar1() par triangle_familles() rend le
+  # triangle de H0 du plan au bit pres (identical()), sur 100 graines de la
+  # cellule H0 de chaque plan retenu.
+  local({
+    txt <- character(0); ok <- TRUE
+    for (pl in unique(CF$plan)) {
+      rg <- CELLULES$rang[CELLULES$id == paste0(pl, ".H0")]
+      g <- vapply(1:100, function(b) graine_tri_B(pl, rg, b), 1)
+      t0 <- lapply(g, function(x) triangle_familles(list(plan = pl, code = "AR00", rho = 0), x))
+      th <- lapply(g, function(x) triangle_cellule(pl, "H0", x))
+      idt <- mapply(identical, t0, th)
+      inc <- sum(vapply(th, .mw_triangle_incomplet, logical(1)))
+      ok <- ok && all(idt)
+      txt <- c(txt, sprintf("%s : %d / 100 identiques (graines %.0f..%.0f ; %d triangle(s) H0 incomplet(s) parmi eux)", pl, sum(idt), g[1], g[100], inc))
+    }
+    controle(ok, sprintf("Familles, (ar0) : gen_triangle_ar1() \u00e0 \u03c1 = 0 = triangle de H0 du plan sous la m\u00eame graine (identical()) : %s", paste(txt, collapse = " ; ")))
+  })
+  # (ar1) : structure AR(1) des cellules AR retenues, par reconstruction
+  # independante des eta (ecart_ar1()) sur 20 graines, et triangles
+  # differents de ceux de H0 sous la meme graine.
+  local({
+    ar <- which(is.finite(CF$rho))
+    if (!length(ar)) return(invisible(NULL))
+    txt <- character(0); ok <- TRUE
+    for (i in ar) {
+      g <- vapply(1:20, function(b) graine_tri_B(CF$plan[i], CF$rang[i], b), 1)
+      e <- vapply(g, function(x) ecart_ar1(AJ_PLAN[[CF$plan[i]]], x, CF$rho[i]), c(ecart = 0, n = 0))
+      dif <- sum(!mapply(function(x) identical(triangle_familles(CF[i, ], x), triangle_cellule(CF$plan[i], "H0", x)), g))
+      ok <- ok && max(e["ecart", ]) <= 1e-8 && all(e["n", ] > 0) && dif == 20L
+      txt <- c(txt, sprintf("%s (\u03c1 = %s) : \u00e9cart maximal %.2e sur %d valeurs, triangles diff\u00e9rents de H0 : %d / 20",
+                            CF$id[i], num(CF$rho[i], 1), max(e["ecart", ]), as.integer(sum(e["n", ])), dif))
+    }
+    controle(ok, sprintf("Familles, (ar1) : \u03b7 reconstruits des triangles AR(1) (\u03b5 = (C(i, j + 1) \u2212 f_j C(i, j)) / (\u03c3_j \u221aC(i, j)), \u03b7 = (\u03b5_j \u2212 \u03c1 \u03b5_(j\u22121)) / \u221a(1 \u2212 \u03c1\u00b2)) = flux stats::rnorm() de la graine \u00e0 1e-8 pr\u00e8s, 20 graines par cellule : %s",
+                         paste(txt, collapse = " ; ")))
+  })
+  # (rho 309) : tailles de reference de CorrDev relues au tableau de #309.
+  local({
+    f <- file.path(RACINE, MD_309_REL)
+    l <- if (file.exists(f)) readLines(f, warn = FALSE, encoding = "UTF-8") else character(0)
+    pls <- intersect(names(ORA_309), unique(CF$plan))
+    ok <- vapply(pls, function(pl) {
+      x <- l[startsWith(l, sprintf("| %s | CorrDev (deux) |", ORA_309[[pl]]))]
+      if (length(x) != 1L) return(FALSE)
+      ch <- trimws(strsplit(x, "|", fixed = TRUE)[[1]]); ch <- ch[nzchar(ch)]
+      identical(utils::tail(ch, 2), c(num(RHO_CORRDEV_309[[pl]][1], 5), num(RHO_CORRDEV_309[[pl]][2], 5)))
+    }, logical(1))
+    controle(all(ok), sprintf("Familles, (rho 309) : taille de r\u00e9f\u00e9rence de CorrDev (\u03c1 0,10 ; \u03c1 0,05) relue au tableau de #309 (%s, md5 %s) : %s",
+                              MD_309_REL, md5_fichier(f),
+                              paste(sprintf("%s (%s) %s ; %s : %s", pls, ORA_309[pls], vapply(pls, function(pl) num(RHO_CORRDEV_309[[pl]][1], 5), ""),
+                                            vapply(pls, function(pl) num(RHO_CORRDEV_309[[pl]][2], 5), ""), ifelse(ok, "identique", "DIFF\u00c9RENTE OU ABSENTE")), collapse = " ; ")))
+  })
 
   # --- Tranches (reprise M42 (b)) ---------------------------------------------
   tranches_de_fam <- function(R) lapply(seq(1L, R, by = TAILLE_TRANCHE_MW_FAM), function(a) c(a, min(a + TAILLE_TRANCHE_MW_FAM - 1L, R)))
@@ -2981,20 +3172,58 @@ if (MODE == "familles") {
                                       sum(ct == "OK"), if (!length(ct)) " ; aucun triangle contr\u00f4l\u00e9 : contr\u00f4le non fait"
                                       else if (any(ct != "OK")) sprintf(", %d \u00c9CHEC ou manquant(s)", sum(ct != "OK")) else ""))
   })
+  # Recoupement avec le brut de #309 (PM-3 de #494, second cas, corrige a
+  # l'etape 5) : cellules H0 retenues de P1 et P2, b = 1..R de l'execution,
+  # lignes "rep" de cle B-<id> du brut versionne. Statut identique et, sur les
+  # b admis des deux cotes, obs:CorrDev identique (meme chaine %.17g, donc meme
+  # double) : preuve que les triangles sont les memes ; tout ecart met
+  # INTEGRITE a ECHEC. McNemar exact apparie (n01 : rejet ici et pas dans
+  # #309) sur p_mc de CorrDev contre p:CorrDev de #309, en F4.
+  H0_309 <- CF$id[CF$id == CF$ref & CF$plan %in% names(ORA_309)]
+  F309 <- file.path(RACINE, BRUT_309_REL)
+  REC309 <- list()
+  if (length(H0_309)) {
+    l309 <- if (file.exists(F309)) readLines(F309, warn = FALSE, encoding = "UTF-8") else character(0)
+    ent <- if (length(l309)) strsplit(l309[1], "\t", fixed = TRUE)[[1]] else character(0)
+    col <- match(c("b", "statut", "obs:CorrDev", "p:CorrDev"), ent)
+    for (id in H0_309) {
+      x <- l309[startsWith(l309, sprintf("rep\tB-%s\t", id))]
+      m <- if (length(x) && !anyNA(col)) strsplit(x, "\t", fixed = TRUE) else list()
+      m <- m[lengths(m) == length(ent)]
+      d3 <- if (length(m)) as.data.frame(do.call(rbind, m)[, col, drop = FALSE], stringsAsFactors = FALSE) else
+        data.frame(b = character(0), statut = character(0), o = character(0), p = character(0), stringsAsFactors = FALSE)
+      names(d3) <- c("b", "statut", "obs", "p")
+      dn <- D[D$cellule == id, , drop = FALSE]
+      k <- match(as.integer(dn$b), as.integer(d3$b))
+      trouve <- !is.na(k)
+      st_eq <- trouve & dn$statut == d3$statut[k]
+      both <- st_eq & dn$statut == "admis"
+      obs_eq <- dn[["obs:CorrDev"]][both] == d3$obs[k][both]
+      pn <- num_tsv(dn[["pmc:CorrDev"]][both]); p3 <- num_tsv(d3$p[k][both])
+      REC309[[id]] <- list(n_lu = length(x), n = nrow(dn), trouve = sum(trouve), st_eq = sum(st_eq), n_both = sum(both),
+                           obs_eq = sum(obs_eq), p_eq = sum(dn[["pmc:CorrDev"]][both] == d3$p[k][both]), pn = pn, p3 = p3,
+                           ok = length(x) > 0L && all(trouve) && all(st_eq) && all(obs_eq))
+    }
+    controle(all(vapply(REC309, `[[`, logical(1), "ok")),
+             sprintf("Familles, recoupement avec le brut de #309 (%s, md5 %s ; PM-3 de #494) : statut et obs:CorrDev identiques triangle par triangle : %s",
+                     BRUT_309_REL, md5_fichier(F309),
+                     paste(vapply(names(REC309), function(id) { r <- REC309[[id]]
+                       sprintf("%s : %d triangle(s) (b = 1..%d), %d trouv\u00e9(s) parmi %d lignes B-%s de #309, statut identique %d, admis des deux c\u00f4t\u00e9s %d, obs:CorrDev identique %d / %d, p_mc de CorrDev identique \u00e0 p:CorrDev %d / %d",
+                               id, r$n, r$n, r$trouve, r$n_lu, id, r$st_eq, r$n_both, r$obs_eq, r$n_both, r$p_eq, r$n_both) }, ""), collapse = " ; ")))
+  }
   controle(catalogue_restaure(), "Familles : catalogue MW_CATALOGUE_MC du moteur intact en fin de calcul")
 
   # --- Synthese ------------------------------------------------------------------
   lib_fam <- function(f) if (f == PREFIXE_LECTURE_CONJOINTE) sprintf("%s (globale)", f) else f
-  rang_ref <- CF$rang[CF$id == CELLULE_REF_FAM]
-  ref <- D[OK_U & D$cellule == CELLULE_REF_FAM, , drop = FALSE]; n0 <- nrow(ref)
   pres <- vapply(FAM_MW, function(f) any(D[[paste0("etf:", f)]][OK_U] %in% c("L", "N")), logical(1))
-  F1 <- c("### F1 \u2014 p de famille et p globale (ligne de mw_tests()), U_f, comparaison \u00e0 P1.H0", "",
+  F1 <- c("### F1 \u2014 p de famille et p globale (ligne de mw_tests()), U_f, comparaison \u00e0 la cellule H0 du plan", "",
           entete_md(c("Cellule", "Famille", "\u03b1", "n (admis, ligne pr\u00e9sente)", "ligne L / T-3b / absente (hors n)", "rejets p_f < \u03b1", "\u03c0\u0302", "IC 95 % (C-P)",
                       "U_f = 1", "U\u0302", "IC 95 % (C-P)", "\u03c0\u0302 \u2212 \u03c0\u0302(H0)", "U\u0302 \u2212 U\u0302(H0)", "P(U_f = 1, p_f \u2265 \u03b1)",
                       "paires (b communs, ligne pr\u00e9sente des deux c\u00f4t\u00e9s)", "McNemar n01 / n10", "McNemar bilat\u00e9ral", "McNemar unilat\u00e9ral \u03c0 < \u03c0(H0)",
                       "Fisher bilat\u00e9ral", "Fisher unilat\u00e9ral \u03c0 < \u03c0(H0)", "classe (par. 4.5)", "signal PM-3")))
   for (i in seq_len(nrow(CF))) for (f in FAM_MW[pres]) for (a in SEUILS_FAM) {
-    id <- CF$id[i]
+    id <- CF$id[i]; id_ref <- CF$ref[i]
+    ref <- D[OK_U & D$cellule == id_ref, , drop = FALSE]
     # n : triangles admis ou la ligne est presente (L ou T-3b), convention
     # de T-F1 de #297 ; U_f et paires de McNemar sur les memes triangles.
     d0 <- D[OK_U & D$cellule == id, , drop = FALSE]
@@ -3004,13 +3233,13 @@ if (MODE == "familles") {
     r <- rejets_famille(d, f, a); r0 <- rejets_famille(refp, f, a)
     k <- sum(r$rej); ku <- sum(r$U); k0 <- sum(r0$rej); ku0 <- sum(r0$U)
     ci <- ic_cp(k, n); ciu <- ic_cp(ku, n)
-    cmp <- id != CELLULE_REF_FAM && n > 0 && n0 > 0
-    # Graines communes avec P1.H0 : McNemar apparie par b (d1 = rejet dans
-    # la cellule, d2 = rejet dans P1.H0 ; unilateral pi(s) < pi(H0) : n01
-    # petit). Graines distinctes : Fisher sur la table (cellule, P1.H0) x
-    # (rejet, non-rejet), cellule en premiere ligne (unilateral "less" :
+    cmp <- id != id_ref && n > 0 && n0 > 0
+    # Graines communes avec la cellule H0 du plan : McNemar apparie par b (d1
+    # = rejet dans la cellule, d2 = rejet dans H0 ; unilateral pi(s) <
+    # pi(H0) : n01 petit). Graines distinctes : Fisher sur la table (cellule,
+    # H0) x (rejet, non-rejet), cellule en premiere ligne (unilateral "less" :
     # rapport des cotes < 1, soit pi(s) < pi(H0)).
-    communes <- CF$rang[i] == rang_ref
+    communes <- CF$rang[i] == CF$rang[CF$id == id_ref]
     bc <- intersect(d$b, refp$b)
     mc <- c(n01 = NA_real_, n10 = NA_real_, p = NA_real_); pu <- fb <- fu <- NA_real_
     if (cmp && communes && length(bc)) {
@@ -3033,7 +3262,7 @@ if (MODE == "familles") {
                          if (cmp && communes) sprintf("%d (graines communes)", length(bc)) else "\u2014",
                          if (cmp && communes && length(bc)) sprintf("%d / %d", mc[["n01"]], mc[["n10"]]) else "\u2014",
                          fmt_p(mc[["p"]]), fmt_p(pu), fmt_p(fb), fmt_p(fu),
-                         if (id == CELLULE_REF_FAM) "niveau (r\u00e9f\u00e9rence)" else classe_puissance(p_classe, ci),
+                         if (id == id_ref) "niveau (r\u00e9f\u00e9rence)" else classe_puissance(p_classe, ci),
                          if (is.finite(p_pm3)) (if (p_pm3 < 0.05) "**oui**" else "non") else "\u2014"))
   }
   F1 <- c(F1, "", paste("n : triangles admis de la cellule o\u00f9 la ligne est pr\u00e9sente (k \u2265 2 ; convention de T-F1 de #297), une",
@@ -3041,10 +3270,10 @@ if (MODE == "familles") {
                         "rend mw_tests() (engine_p_famille(), champ p_mc) ; une ligne sans p (B effectif de famille < 50, texte T-3b) compte",
                         "comme un non-rejet. U_f = 1 : au moins un membre de la ligne (m\u00eames membres, lus par fk_membres(), m\u00eames",
                         "triangles) a une p Monte-Carlo < \u03b1 ; U_f n'est pas un test de niveau \u03b1 : lecture en exc\u00e8s sur le niveau (par. 5.3",
-                        "de l'avis). Test contre P1.H0 (avis d'actuary de l'\u00e9tape 5, Q3) : pour une cellule qui reprend les graines de P1.H0",
-                        "(cellules AR de #494), McNemar exact appari\u00e9 par b sur les b admis, ligne pr\u00e9sente des deux c\u00f4t\u00e9s (n01 : la cellule",
-                        "rejette et P1.H0 non) ; pour une cellule \u00e0 graines distinctes (CST20, DCAL : graines de #309, \u00e9chantillons ind\u00e9pendants),",
-                        "test exact de Fisher sur tous les triangles des deux cellules (cellule en premi\u00e8re ligne), colonnes McNemar sans objet.",
+                        "de l'avis). Test contre la cellule H0 du m\u00eame plan (avis d'actuary de l'\u00e9tape 5, Q3) : pour une cellule qui reprend ses graines",
+                        "(cellules AR de #494), McNemar exact appari\u00e9 par b sur les b admis dans les deux cellules, ligne pr\u00e9sente des deux c\u00f4t\u00e9s (n01 : la",
+                        "cellule rejette et H0 non) ; pour une cellule \u00e0 graines distinctes (CST20, DCAL : graines de #309, \u00e9chantillons ind\u00e9pendants),",
+                        "test exact de Fisher sur les triangles admis, ligne pr\u00e9sente, des deux cellules (cellule en premi\u00e8re ligne), colonnes McNemar sans objet.",
                         "Bilat\u00e9ral pour la classe, unilat\u00e9ral \u03c0(s) < \u03c0(H0) < 0,05 pour le signal PM-3. Classe (seuils 0,5 :",
                         "convention d\u00e9clar\u00e9e) : non distingu\u00e9e si p \u2265 0,05, sinon faible (borne haute < 0,5),",
                         "substantielle (borne basse \u2265 0,5) ou interm\u00e9diaire ; \u00e9valu\u00e9e m\u00e9caniquement, sans conclure. IC : erreur",
@@ -3066,24 +3295,100 @@ if (MODE == "familles") {
   }
   F2 <- c(F2, "")
 
+  # F3 (#494) : CorrDev, DW sur residus de Mack, famille M3, ligne globale ;
+  # cellules AR contre la cellule H0 du plan (graines communes). Ligne
+  # presente : p_mc finie (CorrDev, DW) ou ligne de lecture conjointe L ou
+  # T-3b (M3, globale) ; rejet : p_mc < alpha (T-3b : non-rejet).
+  rej_ligne <- function(d, l, a) {
+    if (l %in% FAM_MW) { pr <- d[[paste0("etf:", l)]] %in% c("L", "N"); list(pres = pr, rej = pr & rejets_famille(d, l, a)$rej) }
+    else { p <- num_tsv(d[[paste0("pmc:", l)]]); list(pres = is.finite(p), rej = is.finite(p) & p < a) }
+  }
+  lib_l <- function(l) if (l %in% FAM_MW) paste("famille", lib_fam(l)) else l
+  F3 <- character(0)
+  ar <- which(is.finite(CF$rho))
+  if (length(ar)) {
+    F3 <- c("### F3 \u2014 #494 : CorrDev, DW sur r\u00e9sidus de Mack, famille M3 et ligne globale sous persistance AR(1) dans l'ann\u00e9e d'accident", "",
+            entete_md(c("Cellule", "\u03c1", "admis / refus\u00e9s", "Ligne", "\u03b1", "n (admis, ligne pr\u00e9sente)", "rejets p < \u03b1", "\u03c0\u0302", "IC 95 % (C-P)",
+                        "\u03c0\u0302(H0) du plan", "paires (b admis des deux c\u00f4t\u00e9s, ligne pr\u00e9sente)", "McNemar n01 / n10", "McNemar bilat\u00e9ral",
+                        "classe (par. 4.5)", "p retenue \u2260 p_mc (admis)")))
+    for (i in which(CF$id %in% c(unique(CF$ref[ar]), CF$id[ar]))) for (l in LIGNES_494) for (a in SEUILS_FAM) {
+      id <- CF$id[i]; id_ref <- CF$ref[i]
+      d0 <- D[OK_U & D$cellule == id, , drop = FALSE]; r <- rej_ligne(d0, l, a)
+      dr <- D[OK_U & D$cellule == id_ref, , drop = FALSE]; rr <- rej_ligne(dr, l, a)
+      n <- sum(r$pres); k <- sum(r$rej); n0 <- sum(rr$pres); k0 <- sum(rr$rej); ci <- ic_cp(k, n)
+      cmp <- id != id_ref && n > 0 && n0 > 0
+      bc <- intersect(d0$b[r$pres], dr$b[rr$pres])
+      mc <- if (cmp && length(bc)) mcnemar(r$rej[match(bc, d0$b)], rr$rej[match(bc, dr$b)]) else c(n01 = NA_real_, n10 = NA_real_, p = NA_real_)
+      nret <- if (l %in% FAM_MW) "\u2014" else as.character(sum(d0[[paste0("pret:", l)]] != d0[[paste0("pmc:", l)]]))
+      dt <- D[D$cellule == id, , drop = FALSE]
+      F3 <- c(F3, ligne_md(id, if (is.finite(CF$rho[i])) num(CF$rho[i], 1) else "0 (H0)", sprintf("%d / %d", sum(dt$statut == "admis"), sum(dt$statut == "refuse")),
+                           lib_l(l), num(a, 2), n, k, num(if (n) k / n else NA_real_), txt_ic(ci, 3),
+                           if (id != id_ref) num(if (n0) k0 / n0 else NA_real_) else "\u2014",
+                           if (cmp) length(bc) else "\u2014", if (cmp && length(bc)) sprintf("%d / %d", mc[["n01"]], mc[["n10"]]) else "\u2014",
+                           fmt_p(mc[["p"]]), if (id == id_ref) "niveau (r\u00e9f\u00e9rence)" else classe_puissance(mc[["p"]], ci), nret))
+    }
+    F3 <- c(F3, "", paste("Constat de simulation sous plan (DGP du plan, sc\u00e9nario AR(1) de gen_triangle_ar1(), m\u00eames graines que la cellule H0 du plan :",
+                          "nombres al\u00e9atoires communs). Rejet : p Monte-Carlo de la ligne (p_mc, champ du moteur, B = 999 ; m\u00eame grandeur que p: de #309) < \u03b1 ;",
+                          "pour M3 et la ligne globale, p de la ligne de lecture conjointe (comme F1). Refus d'admission : par cellule (motifs en F2) ; une paire",
+                          "exige le triangle admis dans les deux cellules et la ligne pr\u00e9sente des deux c\u00f4t\u00e9s. McNemar exact appari\u00e9 bilat\u00e9ral (n01 : la cellule",
+                          "AR rejette et H0 non). Classe (par. 4.5 de l'avis ; seuils 0,5 : convention d\u00e9clar\u00e9e) : non distingu\u00e9e du niveau si p \u2265 0,05,",
+                          "sinon faible (borne haute < 0,5), substantielle (borne basse \u2265 0,5) ou interm\u00e9diaire ; \u00e9valu\u00e9e m\u00e9caniquement, sans conclure.",
+                          "IC : erreur d'\u00e9chantillonnage (fonction de R) ; l'erreur Monte-Carlo (fonction de B) fait partie de la proc\u00e9dure mesur\u00e9e.",
+                          "Derni\u00e8re colonne : triangles admis o\u00f9 la p retenue de la ligne diff\u00e8re de sa p_mc (cha\u00eenes %.17g)."), "")
+  }
+  # F4 (PM-3 de #494, par. 4.5 de l'avis, second cas corrige a l'etape 5).
+  F4 <- character(0)
+  if (length(H0_309)) {
+    F4 <- c("### F4 \u2014 #494, PM-3 : niveau de CorrDev des cellules H0 et recoupement avec #309", "",
+            "Premier cas : taux de rejet de CorrDev (p_mc < \u03b1, triangles admis, p non finie compt\u00e9e comme non-rejet) class\u00e9 sur l'\u00e9chelle de #206/#309 contre la taille de r\u00e9f\u00e9rence \u03c1 de l'oracle de #309 (relue, contr\u00f4le (rho 309)) ; signal si distorsion mat\u00e9rielle.", "",
+            entete_md(c("Cellule", "\u03b1", "n (admis)", "p non finies", "\u03c1 (#309)", "rejets", "taux [IC 95 %]", "classe (#206/#309)", "signal PM-3")))
+    for (id in H0_309) for (j in seq_along(SEUILS_FAM)) {
+      a <- SEUILS_FAM[j]; pl <- CF$plan[CF$id == id]; rho_r <- RHO_CORRDEV_309[[pl]][j]
+      c_ <- cellule(num_tsv(D[OK_U & D$cellule == id, "pmc:CorrDev"]), a, rho_r)
+      F4 <- c(F4, ligne_md(id, num(a, 2), c_$n, c_$absentes, num(rho_r, 5), c_$k, txt_lec(c_), txt_classe(c_),
+                           if (identical(c_$classe, CLASSES[4])) "**oui**" else "non"))
+    }
+    F4 <- c(F4, "", "Second cas : McNemar exact appari\u00e9 bilat\u00e9ral, sur les b de 1 \u00e0 R admis ici et dans #309 (m\u00eames graines, triangles identiques : contr\u00f4le de recoupement), entre le rejet par p_mc de CorrDev ici et le rejet par p:CorrDev du brut de #309 (n01 : rejet ici et non dans #309) ; signal si p < 0,05.", "",
+            entete_md(c("Cellule", "\u03b1", "paires (b admis des deux c\u00f4t\u00e9s)", "obs:CorrDev identique", "p identique", "taux S9", "taux #309 (m\u00eames b)",
+                        "McNemar n01 / n10", "McNemar bilat\u00e9ral", "signal PM-3")))
+    for (id in H0_309) for (a in SEUILS_FAM) {
+      r <- REC309[[id]]; d1 <- is.finite(r$pn) & r$pn < a; d2 <- is.finite(r$p3) & r$p3 < a
+      mc <- if (r$n_both) mcnemar(d1, d2) else c(n01 = NA_real_, n10 = NA_real_, p = NA_real_)
+      F4 <- c(F4, ligne_md(id, num(a, 2), r$n_both, sprintf("%d / %d", r$obs_eq, r$n_both), sprintf("%d / %d", r$p_eq, r$n_both),
+                           num(if (r$n_both) mean(d1) else NA_real_), num(if (r$n_both) mean(d2) else NA_real_),
+                           if (r$n_both) sprintf("%d / %d", mc[["n01"]], mc[["n10"]]) else "\u2014", fmt_p(mc[["p"]]),
+                           if (is.finite(mc[["p"]])) (if (mc[["p"]] < 0.05) "**oui**" else "non") else "\u2014"))
+    }
+    F4 <- c(F4, "", "Signaux \u00e9valu\u00e9s m\u00e9caniquement, sans conclure : la lecture d'un signal revient \u00e0 actuary puis au mainteneur (PM-3).", "")
+  }
+
   # --- Sorties ---------------------------------------------------------------------
   BRUT <- c(paste(setdiff(COLS_FAM_MW, COLS_DUREE_FAM), collapse = "\t"),
             apply(D[, setdiff(COLS_FAM_MW, COLS_DUREE_FAM), drop = FALSE], 1, paste, collapse = "\t"))
   md5_brut <- md5_lignes(BRUT)
   nv_fam <- motifs_non_versionnable(COMMIT, EMPREINTES, "de l'ex\u00e9cution")
-  S_FAM <- c(sprintf("## Mesure #379 : puissance \u00e0 T = 8 des p de famille et de la p globale, Merz-W\u00fcthrich%s",
+  S_FAM <- c(sprintf("## Mesures #379 et #494 : puissance \u00e0 T = 8 des p de famille et de la p globale (#379) et de CorrDev sous persistance AR(1) (#494), Merz-W\u00fcthrich%s",
                      if (OPT_ESSAI) " -- ESSAI (non versionnable)" else ""), "",
-             paste("Statut : **constat de simulation sous plan** (mod\u00e8le de Mack ajust\u00e9 \u00e0 reserve2, g\u00e9om\u00e9trie 8 \u00d7 8, plan P1 de #309),",
+             paste(sprintf("Statut : **constat de simulation sous plan** (mod\u00e8le de Mack ajust\u00e9 \u00e0 reserve2, g\u00e9om\u00e9trie 8 \u00d7 8, plan(s) %s de #309),",
+                           paste(unique(CF$plan), collapse = " et ")),
                    sprintf("pour la proc\u00e9dure du moteur \u00e0 B = %d%s ; rien n'est transpos\u00e9 \u00e0 d'autres triangles, plans ou alternatives.",
                            as.integer(B_BOOT), if (B_BOOT != 999) " (essai de mise au point, non repr\u00e9sentatif de la proc\u00e9dure du dossier \u00e0 B = 999)" else ""),
                    "Les p de famille restent plug-in et non exactes."), "",
              "### T0 \u2014 provenance", "", entete_md(c("Grandeur", "Valeur")),
-             ligne_md("Protocole", "avis d'actuary docs/revues/20261127-s9-mesures/actuary-protocoles-etape-1.md, par. 4 et 5 ; d\u00e9cisions Q-S9-1 (a) et Q-S9-2 (a) ; campagne partag\u00e9e avec #494"),
+             ligne_md("Protocole", paste("avis d'actuary docs/revues/20261127-s9-mesures/actuary-protocoles-etape-1.md, par. 4 et 5 ; d\u00e9cisions Q-S9-1 (a) et Q-S9-2 (a) ;",
+                                         "corrections de l'avis \u00e0 l'\u00e9tape 5 (actuary-questions-etape-5.md : Q3 et section #494) ; campagne Merz-W\u00fcthrich unique de #379 et #494")),
              ligne_md("Proc\u00e9dure par triangle", sprintf(paste("admission (admettre()), mw_bootstrap(aj, B = %d, graine de bootstrap) du catalogue du moteur sans injection,",
                                                                 "mw_tests(aj, boot, \u03b1 = %s) ; lignes de lecture conjointe (engine_p_famille()) ; identit\u00e9 \u00e0 run_engine() contr\u00f4l\u00e9e (i2)"),
                                                           as.integer(B_BOOT), num(ALPHA, 2))),
-             ligne_md("Cellules et R", paste(sprintf("%s : R = %d (b = 1..%d), graines de rang %d du plan de #309", CF$id, CF$R_run, CF$R_run, CF$rang), collapse = " ; ")),
+             ligne_md("Cellules et R", paste(sprintf("%s : R = %d (b = 1..%d), graines de rang %d du plan de #309%s", CF$id, CF$R_run, CF$R_run, CF$rang,
+                                                     ifelse(is.finite(CF$rho), sprintf(" (celles de %s, nombres al\u00e9atoires communs), AR(1) \u03c1 = %s", CF$ref,
+                                                                                       vapply(CF$rho, num, "", 1)), "")), collapse = " ; ")),
              ligne_md("DGP", TXT_DGP),
+             ligne_md("Sc\u00e9nario AR(1) (#494)", paste("gen_triangle_ar1() : gen_triangle_h0() du plan, erreur standardis\u00e9e de la transition j \u2192 j + 1 de l'ann\u00e9e i",
+                                                       "\u03b5(i, 0) = \u03b7(i, 0), \u03b5(i, j) = \u03c1 \u03b5(i, j \u2212 1) + \u221a(1 \u2212 \u03c1\u00b2) \u03b7(i, j), \u03b7 ~ N(0, 1) (stats::rnorm), variance marginale 1,",
+                                                       "m\u00eame ordre de consommation de l'al\u00e9a que H0 ; \u00e0 \u03c1 = 0 : triangles de H0 au bit pr\u00e8s (contr\u00f4le (ar0))")),
+             ligne_md("Recoupement PM-3 (#494)", sprintf("%s (md5 %s), cellules %s", BRUT_309_REL, md5_fichier(F309),
+                                                         if (length(H0_309)) paste(H0_309, collapse = ", ") else "aucune")),
              ligne_md("Graines", TXT_GRAINES),
              ligne_md("G\u00e9n\u00e9rateur", paste(ENGINE_RNG_KIND, collapse = ", ")),
              ligne_md("Commit du calcul", COMMIT),
@@ -3096,37 +3401,44 @@ if (MODE == "familles") {
              ligne_md("Dur\u00e9e", sprintf("cette ex\u00e9cution : %.0f s d'horloge, %d processus ; somme des dur\u00e9es des triangles : %.0f s ; des contr\u00f4les (i2) : %.0f s",
                                           secondes(t_fam), N_PROC, sum(num_tsv(D$duree)), sum(num_tsv(D$duree_ctl), na.rm = TRUE))),
              ligne_md("Tableau brut", sprintf("%d ligne(s) de donn\u00e9es, md5 %s", nrow(D), md5_brut)), "",
-             F1, F2, "### Contr\u00f4les d'int\u00e9grit\u00e9", "", paste("-", CONTROLES), "",
+             F1, F2, F3, F4, "### Contr\u00f4les d'int\u00e9grit\u00e9", "", paste("-", CONTROLES), "",
              sprintf("Bilan : %s", if (length(INTEGRITE)) sprintf("\u00c9CHEC (%d contr\u00f4le(s))", length(INTEGRITE)) else "OK"), "")
   ecrire_console(S_FAM)
   if (OPT_ESSAI) {
-    rows <- character(0); cpu_tot <- 0
+    rows <- character(0); cpu <- numeric(nrow(CF))
     for (i in seq_len(nrow(CF))) {
       d <- D[D$cellule == CF$id[i], , drop = FALSE]; o <- d[d$statut == "admis", , drop = FALSE]
       c_t <- if (nrow(o)) mean(num_tsv(o$duree)) else mean(num_tsv(d$duree))
       c_c <- mean(num_tsv(d$duree_ctl), na.rm = TRUE); if (!is.finite(c_c)) c_c <- 0
-      cpu <- CF$R[i] * c_t + (CF$R[i] %/% CTL_PERIODE) * c_c
-      cpu_tot <- cpu_tot + cpu
-      rows <- c(rows, ligne_md(CF$id[i], nrow(d), nrow(o), num(c_t, 2), num(c_c, 2), CF$R[i], num(cpu / 3600, 2), num(cpu / 3600 / N_PROC, 2)))
+      cpu[i] <- CF$R[i] * c_t + (CF$R[i] %/% CTL_PERIODE) * c_c
+      rows <- c(rows, ligne_md(CF$id[i], if (CF$defaut[i]) "par d\u00e9faut" else "P2 (conditionnel)", nrow(d), nrow(o), num(c_t, 2), num(c_c, 2), CF$R[i],
+                               num(cpu[i] / 3600, 2), num(cpu[i] / 3600 / N_PROC, 2)))
     }
-    h <- cpu_tot / 3600 / N_PROC; seg <- as.integer(ceiling(h * 3600 / SEGMENT_S_FAM))
-    ecrire_console(c("### Dur\u00e9e (--essai) : par triangle et extrapol\u00e9e \u00e0 l'ex\u00e9cution compl\u00e8te", "",
-                     entete_md(c("Cellule", "triangles mesur\u00e9s", "admis", "s par triangle admis (sous concurrence)", "s par contr\u00f4le (i2)",
+    # Totaux : jeu par defaut (sans P2) et, si des cellules P2 sont retenues,
+    # campagne avec P2 ; verdict M42 et commande pour chacun.
+    jeux <- list(list(nom = "sans P2 (jeu par d\u00e9faut)", k = CF$defaut))
+    if (any(!CF$defaut)) jeux <- c(jeux, list(list(nom = "avec P2", k = rep(TRUE, nrow(CF)))))
+    tot <- character(0); verdicts <- character(0)
+    for (jx in jeux) {
+      ct <- sum(cpu[jx$k]); h <- ct / 3600 / N_PROC; seg <- as.integer(ceiling(h * 3600 / SEGMENT_S_FAM))
+      tot <- c(tot, ligne_md(sprintf("**Total %s**", jx$nom), "", "", "", "", "", sum(CF$R[jx$k]), num(ct / 3600, 2), num(h, 2)))
+      verdicts <- c(verdicts, sprintf("- %s : %s", jx$nom,
+        if (B_BOOT != 999) sprintf("**extrapolation non repr\u00e9sentative** (essai de mise au point \u00e0 B = %d) : aucune conclusion sur M42 ; le pr\u00e9-vol se fait \u00e0 B = 999.", as.integer(B_BOOT))
+        else if (h * 3600 > SEGMENT_S_FAM)
+          sprintf(paste("**au-del\u00e0 de 2 h d'horloge (%s h) : PM-2, accord expr\u00e8s du mainteneur requis ; %d segment(s) de 2 h au plus (M42 (b))**,",
+                        "chacun par la m\u00eame commande avec le m\u00eame --travail et --arret-apres 110 (reprise aux tranches absentes)."), num(h, 2), seg)
+        else sprintf("dur\u00e9e extrapol\u00e9e de %s h d'horloge, sous 2 h : un seul segment (M42 (a)).", num(h, 2))),
+        sprintf("  Commande de la mesure (arbre propre) : LC_ALL=C.UTF-8 Rscript %s --familles --cellules %s --coeurs %d --arret-apres 110 --ecrire",
+                SCRIPT, paste(sprintf("%s=%d", CF$id[jx$k], CF$R[jx$k]), collapse = ","), N_PROC))
+    }
+    ecrire_console(c("### Dur\u00e9e (--essai) : par triangle et extrapol\u00e9e \u00e0 l'ex\u00e9cution compl\u00e8te, sans P2 et avec P2", "",
+                     entete_md(c("Cellule", "jeu", "triangles mesur\u00e9s", "admis", "s par triangle admis (sous concurrence)", "s par contr\u00f4le (i2)",
                                  "R complet", "CPU extrapol\u00e9 (h)", sprintf("horloge \u00e0 %d processus (h)", N_PROC))),
-                     rows, ligne_md("**Total**", "", "", "", "", sum(CF$R), num(cpu_tot / 3600, 2), num(h, 2)), "",
+                     rows, tot, "",
                      sprintf(paste("Extrapolation : R \u00d7 dur\u00e9e par triangle admis + \u230aR / %d\u230b \u00d7 dur\u00e9e du contr\u00f4le (i2) ; dur\u00e9es mesur\u00e9es dans",
                                    "chaque processus sous la concurrence de %d processus, d'o\u00f9 horloge = CPU / processus (hypoth\u00e8se [H] : d\u00e9bit lin\u00e9aire,",
                                    "triangles refus\u00e9s compt\u00e9s comme admis, queues de groupes non compt\u00e9es ; charge de la machine non contr\u00f4l\u00e9e)."), CTL_PERIODE, N_PROC),
-                     "",
-                     if (B_BOOT != 999)
-                       sprintf(paste("**Extrapolation non repr\u00e9sentative** (essai de mise au point \u00e0 B = %d) : aucune conclusion sur M42 ;",
-                                     "le pr\u00e9-vol se fait \u00e0 B = 999."), as.integer(B_BOOT))
-                     else if (h * 3600 > SEGMENT_S_FAM)
-                       sprintf(paste("**Au-del\u00e0 de 2 h d'horloge (%s h) : PM-2, accord expr\u00e8s du mainteneur requis ; %d segment(s) de 2 h au plus (M42 (b))**,",
-                                     "chacun par la m\u00eame commande avec le m\u00eame --travail et --arret-apres 110 (reprise aux tranches absentes)."), num(h, 2), seg)
-                     else sprintf("Dur\u00e9e extrapol\u00e9e de %s h d'horloge, sous 2 h : un seul segment (M42 (a)).", num(h, 2)),
-                     "", sprintf("Commande de la mesure (arbre propre) : LC_ALL=C.UTF-8 Rscript %s --familles --cellules %s --coeurs %d --arret-apres 110 --ecrire",
-                                 SCRIPT, paste(sprintf("%s=%d", CF$id, CF$R), collapse = ","), N_PROC), ""))
+                     "", verdicts, ""))
   }
   if (!length(INTEGRITE) && (OPT_ECRIRE || !is.na(OPT_SORTIE))) {
     remplaces <- NULL
