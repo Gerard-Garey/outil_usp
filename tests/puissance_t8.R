@@ -394,7 +394,9 @@
 #    chaque ligne recalcules par une ecriture independante (fk_recalcul(),
 #    K-F3 de #297) a CHAQUE replication ; implication p_f < alpha => U_f = 1
 #    hors texte T-3a (par. 5.2 de l'avis) ; p_mc des douze lignes de LIG_B
-#    egales a celles de la chaine reduite (memes graines) hors ecarts
+#    (colonne p_monte_carlo de engine_table_tests(), lue par p_mc_lignes() :
+#    valeur absente ou de longueur differente de 1 = ECHEC, jamais une
+#    egalite) egales a celles de la chaine reduite (memes graines) hors ecarts
 #    d'exclusion (regle stricte de controle_chaine()) : boucle, z_boot
 #    differents SEULEMENT sur des replications retenues par la chaine (finies)
 #    et ecartees par usp_bootstrap() (ligne entierement NA cote moteur) ; flux
@@ -1429,6 +1431,22 @@ remplir_familles <- function(v, rf, fam) {
   }
   v
 }
+# p_mc des lignes `cles` d'un releve de lignes_tests() (data.frame d'une
+# ligne de engine_table_tests() par cle) : colonne p_monte_carlo, lue par
+# [[ ]] (correspondance exacte du nom). stop() si une ligne manque, si la
+# colonne est absente ou si sa valeur n'est pas un numerique de longueur 1 :
+# un acces a une colonne absente rend NULL des deux cotes, et identical()
+# de deux NULL passerait pour une egalite (comparaison vide, #379).
+p_mc_lignes <- function(lignes, cles) {
+  vapply(cles, function(k) {
+    l <- lignes[[k]]
+    if (!is.data.frame(l) || nrow(l) != 1L) stop(sprintf("ligne %s absente ou non unique (p_mc_lignes)", k))
+    v <- l[["p_monte_carlo"]]
+    if (!is.numeric(v) || length(v) != 1L)
+      stop(sprintf("p_monte_carlo de la ligne %s absente ou de longueur differente de 1 (p_mc_lignes)", k))
+    v
+  }, numeric(1))
+}
 # Controle de la chaine reduite (par. 5.1 de l'avis) : p_mc des douze lignes
 # de LIG_B de la chaine (memes graines) contre celles de run_engine().
 # "identique" ; "exclusion (boucle)" si les z_boot different SEULEMENT sur
@@ -1437,17 +1455,25 @@ remplir_familles <- function(v, rf, fam) {
 # ecart connu de l'en-tete du volet B, point 2) ; "exclusion (flux V3b)" si, en V3b des
 # deux cotes, les tirages ou les retenus du flux different et que le moteur
 # a ecarte au moins un tirage du flux pour une statistique en erreur
-# (rejets_flux, point 3) ; "ECHEC ..." sinon.
+# (rejets_flux, point 3) ; "ECHEC ..." sinon. La p Monte-Carlo d'une ligne
+# de engine_table_tests() est la colonne p_monte_carlo, lue par
+# p_mc_lignes() (garde : jamais de comparaison vide).
 controle_chaine <- function(J, y, g, res) {
   ch <- chaine(J$x, y, g, OPT_B)
   if (!is.null(ch$ecart)) return(paste("ECHEC : chaine reduite en ecart :", ch$ecart))
   l_re <- lignes_tests(engine_table_tests(res))
-  same <- vapply(LIG_B, function(k) identical(ch$lignes[[k]]$p_mc, l_re[[k]]$p_mc), logical(1))
+  pc <- tryCatch(p_mc_lignes(ch$lignes, LIG_B), error = function(e) e)
+  pm <- tryCatch(p_mc_lignes(l_re, LIG_B), error = function(e) e)
+  for (e in list(pc, pm)) if (inherits(e, "error")) return(paste("ECHEC :", conditionMessage(e)))
+  same <- vapply(LIG_B, function(k) identical(pc[[k]], pm[[k]]), logical(1))
   if (all(same)) return("identique")
   za <- ch$boucle$z_boot; zm <- res$bootstrap$z_boot
   if (!identical(za, zm)) {
     if (!identical(dim(za), dim(zm))) return("ECHEC : z_boot de dimensions differentes")
     lig <- which(vapply(seq_len(nrow(za)), function(i) !identical(za[i, ], zm[i, ]), logical(1)))
+    # z_boot differents par leurs seuls attributs : aucune ligne a lire,
+    # all() sur un ensemble vide vaudrait TRUE (exclusion a tort)
+    if (!length(lig)) return("ECHEC : z_boot differents sans ligne differente (attributs)")
     if (all(is.finite(za[lig, 1])) && all(is.na(zm[lig, , drop = FALSE]))) return("exclusion (boucle)")
     return(paste("ECHEC : z_boot differents hors replications ecartees par usp_bootstrap() :",
                  paste(utils::head(lig, 10), collapse = ",")))

@@ -44,6 +44,14 @@
 #       construites ici sous la seule loi N) sont des signaux, les autres
 #       restent sans signal ; n du repere de T4 compte par pool
 #       (n_cles_verdict()).
+#  Constat de la revue finale de S9 (#379, tests/puissance_t8.R, mode
+#  --familles, sans calcul de mesure) :
+#  (u)  controle_chaine() compare la colonne p_monte_carlo des lignes de
+#       engine_table_tests() (p_mc_lignes()) : une p perturbee n'est plus
+#       "identique" (l'ancienne ecriture $p_mc lisait NULL des deux cotes et
+#       concluait toujours a l'egalite) ; colonne absente des deux cotes :
+#       ECHEC, jamais "identique" ; z_boot differents par leurs seuls
+#       attributs : ECHEC, jamais "exclusion (boucle)".
 #  Les tests qui demandent bash (>= 4.3, wait -n) sont sautes, avec
 #  message, s'il manque.
 ###############################################################################
@@ -727,6 +735,47 @@ tryCatch({
   verifier("(t) calibration_mc_mw_t8.R : Pi0 et Phi0 ne lisent plus que les signaux non expliques (etat_k3)",
            { l <- readLines(SCRIPT_MW); any(grepl("pi0 <- (!is.null(e3) && nrow(e3$non_expliques) > 0) || k4_def", l, fixed = TRUE)) &&
                any(grepl("def3 <- !is.null(e3) && nrow(e3$non_expliques) > 0", l, fixed = TRUE)) })
+
+  ## --- (u) puissance_t8.R --familles : controle_chaine() lit p_monte_carlo (#379) ---
+  # Definitions extraites par parse() (jamais executees) ; chaine(),
+  # lignes_tests() et engine_table_tests() remplaces par des substituts sur
+  # des lignes construites (data.frame d'une ligne par cle, comme
+  # lignes_tests()) : aucun calcul de moteur.
+  ligne_u <- function(p, col = "p_monte_carlo") { d <- data.frame(test = "t", p_exacte = NA_real_); d[[col]] <- p; d }
+  lignes_u <- function(p, col = "p_monte_carlo") stats::setNames(lapply(p, ligne_u, col = col), names(p))
+  P_U <- c(Runs = 0.25, supF = 0.5, Grubbs = NA_real_)
+  Z_U <- matrix(c(0.1, 0.2, 0.3, 0.4), 2)
+  ch_u <- function(lignes, z = Z_U, var = "V1") function(x, y, g, B) list(lignes = lignes, boucle = list(z_boot = z), p_mc_regime = list(variante = var))
+  res_u <- function(lignes, z = Z_U, var = "V1") list(tab = lignes, bootstrap = list(z_boot = z, p_mc_regime = list(variante = var)))
+  EU <- extraire_defs(file.path(.tests, "puissance_t8.R"), c("p_mc_lignes", "controle_chaine"),
+                      amont = list(LIG_B = names(P_U), OPT_B = 99, lignes_tests = identity, engine_table_tests = function(res) res$tab))
+  cc_u <- function(l_ch, l_re, z_ch = Z_U, z_re = Z_U) {
+    EU$chaine <- ch_u(l_ch, z_ch)
+    EU$controle_chaine(list(x = 1), NULL, NULL, res_u(l_re, z_re))
+  }
+  p_pert <- P_U; p_pert[["supF"]] <- 0.5 + 1e-12
+  verifier("(u) p_mc_lignes : colonne p_monte_carlo des lignes de LIG_B, NA compris, dans l'ordre des cles",
+           identical(EU$p_mc_lignes(lignes_u(P_U), names(P_U)), P_U))
+  verifier("(u) p_mc_lignes : colonne absente (nom p_mc), ligne absente ou valeur de longueur 0 : stop(), jamais un vecteur",
+           inherits(tryCatch(EU$p_mc_lignes(lignes_u(P_U, col = "p_mc"), names(P_U)), error = function(e) e), "error") &&
+             inherits(tryCatch(EU$p_mc_lignes(lignes_u(P_U)[1:2], names(P_U)), error = function(e) e), "error") &&
+             inherits(tryCatch(EU$p_mc_lignes(list(Runs = data.frame(p_monte_carlo = numeric(0))), "Runs"), error = function(e) e), "error"))
+  verifier("(u) controle_chaine : p_mc identiques des deux cotes (NA compris) : identique",
+           identical(cc_u(lignes_u(P_U), lignes_u(P_U)), "identique"))
+  verifier("(u) controle_chaine : une p perturbee (supF + 1e-12), z_boot identiques, V1 : ECHEC qui cite supF, jamais identique",
+           { r <- cc_u(lignes_u(p_pert), lignes_u(P_U)); startsWith(r, "ECHEC : p_mc differentes") && grepl("supF", r, fixed = TRUE) })
+  verifier("(u) ancienne ecriture ($p_mc) sur les memes lignes perturbees : NULL des deux cotes, 'identique' a tort (temoin du defaut)",
+           { a <- lignes_u(p_pert); b <- lignes_u(P_U)
+             all(vapply(names(P_U), function(k) identical(a[[k]]$p_mc, b[[k]]$p_mc), logical(1))) && is.null(a$supF$p_mc) })
+  verifier("(u) controle_chaine : colonne p_monte_carlo absente des deux cotes : ECHEC, jamais identique",
+           startsWith(cc_u(lignes_u(P_U, col = "p_mc"), lignes_u(P_U, col = "p_mc")), "ECHEC"))
+  verifier("(u) controle_chaine : p perturbee et z_boot differents par leurs seuls attributs : ECHEC, jamais exclusion (boucle)",
+           { z2 <- Z_U; dimnames(z2) <- list(NULL, c("a", "b")); startsWith(cc_u(lignes_u(p_pert), lignes_u(P_U), z_re = z2), "ECHEC") })
+  verifier("(u) controle_chaine : p perturbee, ligne 2 de z_boot finie cote chaine et entierement NA cote moteur : exclusion (boucle)",
+           { z2 <- Z_U; z2[2, ] <- NA_real_; identical(cc_u(lignes_u(p_pert), lignes_u(P_U), z_re = z2), "exclusion (boucle)") })
+  # ($p_mc_regime, liste du moteur et de la chaine, reste lu : motif borne au nom p_mc)
+  verifier("(u) puissance_t8.R : plus aucun acces $p_mc a une ligne de engine_table_tests() dans controle_chaine()",
+           { b <- paste(deparse(EU$controle_chaine), collapse = "\n"); !grepl("\\$p_mc([^_[:alnum:]]|$)", b) && grepl("p_mc_lignes(", b, fixed = TRUE) })
 
 }, finally = nettoyer_tmp())
 
