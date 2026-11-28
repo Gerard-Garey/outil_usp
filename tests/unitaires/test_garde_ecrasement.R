@@ -25,8 +25,9 @@
 #  scripts qui ont --ecrire (mesure_calendaire_t8.R excepte) evalue ses
 #  gardes (arbre propre, ecrasement, dossier cible) avant le premier appel
 #  couteux (calcul, ou lecture des tranches de --combiner) ; execution sur un depot git temporaire : refus
-#  avant tout calcul des quinze scripts de CAS_A (seize cas : deux pour
-#  mesure_b_dossier_t8.R, avec et sans --grubbs-interieur ; tous sauf
+#  avant tout calcul des quinze scripts de CAS_A (dix-huit cas : deux pour
+#  mesure_b_dossier_t8.R, avec et sans --grubbs-interieur, deux pour
+#  puissance_t8.R et pour puissance_mw_t8.R, avec et sans --familles ; tous sauf
 #  mesure_precision_residus_mw.R, qui exige Rmpfr avant ses gardes, #258, et
 #  mesure_calendaire_t8.R, hors de CAS_A pour sa forme, #355 (#365 : il ne
 #  s'arrete plus avant ses gardes) ;
@@ -52,6 +53,9 @@
 #  mesure_b_dossier_t8.R --grubbs-interieur --ecrire (#367) : second cas de
 #  CAS_A pour ce script (l'option remplace le plan par defaut et ecrit un
 #  autre tableau ; memes gardes, evaluees avant le bloc de l'option).
+#  puissance_t8.R --familles --ecrire et puissance_mw_t8.R --familles
+#  --ecrire (#379) : second cas de CAS_A pour chacun (gardes du mode, dans sa
+#  section, avant la boucle des replications).
 #  #421 (Q-78-4 (a)) : mesure_lb1_dw_t8.R et mesure_dw_rho_negatif_t8.R
 #  chargent tests/outils_mesure_dw.R avant leurs gardes ; le depot git
 #  temporaire des gardes anticipees le porte donc avec tests/outils_tests.R.
@@ -676,9 +680,11 @@ if (GIT_OK) {
   # Un nom par script (cle unique d'une liste nommee) ; la valeur est le
   # vecteur d'arguments du cas, ou une liste de tels vecteurs quand le script
   # a plusieurs cas (mesure_b_dossier_t8.R : plan par defaut et option
-  # --grubbs-interieur de #367, qui ecrit un autre tableau). CAS_A_LISTE en
-  # deroule les cas, un element list(sc, args) par execution.
-  CAS_A <- list(puissance_t8.R = c("--ecrire", "--volet", "A", "--R", "20"),
+  # --grubbs-interieur de #367, qui ecrit un autre tableau ; puissance_t8.R
+  # et puissance_mw_t8.R : mode --familles de #379, gardes propres a ses
+  # fichiers, dans sa section). CAS_A_LISTE en deroule les cas, un element
+  # list(sc, args) par execution.
+  CAS_A <- list(puissance_t8.R = list(c("--ecrire", "--volet", "A", "--R", "20"), c("--familles", "--ecrire")),
                 calibration_mc_t8.R = c("--combiner", "tranche-absente.txt", "--ecrire"),
                 taux_franchissement_reperes.R = c("--ecrire", "--issue", "999", "--R", "1"),
                 conservatisme_interieur_t8.R = c("--combiner", "tranche-absente.txt", "--ecrire"),
@@ -691,8 +697,9 @@ if (GIT_OK) {
                 enumeration_spearman_ex_aequo.R = "--ecrire",
                 mesure_b_dossier_t8.R = list("--ecrire", c("--grubbs-interieur", "--ecrire")),
                 mesure_lb1_dw_t8.R = "--ecrire",
-                puissance_mw_t8.R = c("--combiner", "tranche-absente.txt", "--ecrire", "--brut",
-                                      shQuote(file.path(tempdir(), "mw309-brut-absent.tsv")), "--journal", "journal-absent.md"),
+                puissance_mw_t8.R = list(c("--combiner", "tranche-absente.txt", "--ecrire", "--brut",
+                                           shQuote(file.path(tempdir(), "mw309-brut-absent.tsv")), "--journal", "journal-absent.md"),
+                                         c("--familles", "--ecrire")),
                 couverture_ic_sigma_t8.R = c("--R", "2", "--ecrire"),
                 mesure_dw_rho_negatif_t8.R = c("--ecrire", "--issue", "164"),
                 mesure_correlation_cvm_ad_t8.R = "--ecrire")

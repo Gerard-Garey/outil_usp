@@ -27,17 +27,25 @@ if (!exists("RACINE", inherits = TRUE) || !exists(".dw_valeurs_propres", mode = 
 
 OUTILS_MESURE_DW <- "tests/outils_mesure_dw.R"
 
-# Empreintes du code execute : md5 du script (chemin relatif a la racine,
-# "hors depot" si le script execute n'est pas celui du depot), de
-# tests/outils_tests.R et de ce fichier.
-empreintes_code <- function(script, racine = RACINE) {
+# Empreintes du code execute : md5 du script, de tests/outils_tests.R et de
+# ce fichier, chacun lu la ou il est effectivement charge (script : --file= ;
+# outils : dossier du script, DOSSIER_SCRIPT, d'ou les deux scripts les
+# chargent par source()), "(hors depot)" apres celui qui n'est pas le
+# fichier du depot (comme empreintes_code() de tests/puissance_t8.R) ;
+# depuis le depot, sortie inchangee. dossier : DOSSIER_SCRIPT du script
+# appelant, a defaut tests/ de la racine.
+empreintes_code <- function(script, racine = RACINE,
+                            dossier = if (exists("DOSSIER_SCRIPT", inherits = TRUE)) DOSSIER_SCRIPT
+                                      else file.path(racine, "tests")) {
   f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
-  md5 <- function(x) if (!length(x) || !file.exists(x)) "absent" else unname(tools::md5sum(x))
-  dans <- length(f) == 1L && identical(normalizePath(f, winslash = "/", mustWork = FALSE),
-                                       normalizePath(file.path(racine, script), winslash = "/", mustWork = FALSE))
-  sprintf("%s %s%s ; tests/outils_tests.R %s ; %s %s", script, md5(f), if (dans) "" else " (hors d\u00e9p\u00f4t)",
-          md5(file.path(racine, "tests", "outils_tests.R")), OUTILS_MESURE_DW,
-          md5(file.path(racine, OUTILS_MESURE_DW)))
+  md5 <- function(x) if (length(x) != 1L || !file.exists(x)) "absent" else unname(tools::md5sum(x))
+  dans <- function(x, ref) length(x) == 1L && identical(normalizePath(x, winslash = "/", mustWork = FALSE),
+                                                        normalizePath(file.path(racine, ref), winslash = "/", mustWork = FALSE))
+  hors <- function(x, ref) if (dans(x, ref)) "" else " (hors d\u00e9p\u00f4t)"
+  outils <- file.path(dossier, "outils_tests.R")
+  aides <- file.path(dossier, basename(OUTILS_MESURE_DW))
+  sprintf("%s %s%s ; tests/outils_tests.R %s%s ; %s %s%s", script, md5(f), hors(f, script),
+          md5(outils), hors(outils, "tests/outils_tests.R"), OUTILS_MESURE_DW, md5(aides), hors(aides, OUTILS_MESURE_DW))
 }
 
 # Plateforme de calcul : R, systeme, machine, BLAS, LAPACK.

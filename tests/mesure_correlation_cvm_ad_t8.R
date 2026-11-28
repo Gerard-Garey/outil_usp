@@ -62,8 +62,10 @@
 #       Sans ex aequo sur une statistique, ses p laisser-un-de-cote sont une
 #       permutation de {1/n, ..., n/n} : son taux de rejet marginal vaut
 #       exactement (ceiling(n alpha) - 1) / n, par construction (affiche sans
-#       ET, avis Q4 : l'ET jackknife n'y refleterait que les tailles 499 ou
-#       500 des sous-echantillons) ; sans ex aequo sur les deux, les deux
+#       ET, avis Q4 : l'ET jackknife n'y refleterait que l'inegalite des
+#       tailles des groupes, n_g = 499 ou 500 lignes, d'ou des
+#       sous-echantillons jackknife de n - 499 ou n - 500 lignes) ; sans ex
+#       aequo sur les deux, les deux
 #       conditionnelles sont egales par construction, sur l'echantillon entier
 #       comme dans chaque sous-echantillon jackknife (une seule ligne en T3,
 #       avis Q2). L'ET du taux conjoint, lui, est garde.
