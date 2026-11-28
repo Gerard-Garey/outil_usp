@@ -769,8 +769,17 @@ tryCatch({
              all(vapply(names(P_U), function(k) identical(a[[k]]$p_mc, b[[k]]$p_mc), logical(1))) && is.null(a$supF$p_mc) })
   verifier("(u) controle_chaine : colonne p_monte_carlo absente des deux cotes : ECHEC, jamais identique",
            startsWith(cc_u(lignes_u(P_U, col = "p_mc"), lignes_u(P_U, col = "p_mc")), "ECHEC"))
-  verifier("(u) controle_chaine : p perturbee et z_boot differents par leurs seuls attributs : ECHEC, jamais exclusion (boucle)",
-           { z2 <- Z_U; dimnames(z2) <- list(NULL, c("a", "b")); startsWith(cc_u(lignes_u(p_pert), lignes_u(P_U), z_re = z2), "ECHEC") })
+  # (rownames seuls ou attribut ajoute : zm[i, ] et za[i, ] restent identiques, aucune ligne
+  # differente ; des noms de colonnes feraient differer toutes les lignes et ne passeraient
+  # pas par la garde "sans ligne differente" de controle_chaine())
+  MSG_U_ATTR <- "ECHEC : z_boot differents sans ligne differente"
+  verifier("(u) controle_chaine : p perturbee et z_boot differents par leurs seuls rownames : ECHEC de la garde 'sans ligne differente', jamais exclusion (boucle)",
+           { z2 <- Z_U; rownames(z2) <- c("r1", "r2")
+             !identical(Z_U, z2) && identical(which(vapply(1:2, function(i) !identical(Z_U[i, ], z2[i, ]), logical(1))), integer(0)) &&
+               startsWith(cc_u(lignes_u(p_pert), lignes_u(P_U), z_re = z2), MSG_U_ATTR) })
+  verifier("(u) controle_chaine : p perturbee et z_boot differents par un attribut ajoute : ECHEC de la garde 'sans ligne differente', jamais exclusion (boucle)",
+           { z2 <- Z_U; attr(z2, "etiquette") <- "x"
+             !identical(Z_U, z2) && startsWith(cc_u(lignes_u(p_pert), lignes_u(P_U), z_re = z2), MSG_U_ATTR) })
   verifier("(u) controle_chaine : p perturbee, ligne 2 de z_boot finie cote chaine et entierement NA cote moteur : exclusion (boucle)",
            { z2 <- Z_U; z2[2, ] <- NA_real_; identical(cc_u(lignes_u(p_pert), lignes_u(P_U), z_re = z2), "exclusion (boucle)") })
   # ($p_mc_regime, liste du moteur et de la chaine, reste lu : motif borne au nom p_mc)
