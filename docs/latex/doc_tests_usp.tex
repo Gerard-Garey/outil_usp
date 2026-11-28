@@ -45,8 +45,8 @@
 \newcommand{\annee}{2026}
 % Date d'établissement du document, figée au jour où la version est établie
 % (seule la page de garde s'y ancre) ; ne se recalcule pas.
-\newcommand{\datedoc}{26~novembre 2026}
-\newcommand{\versiondoc}{4.8}
+\newcommand{\datedoc}{28~novembre 2026}
+\newcommand{\versiondoc}{4.9}
 % Date de la dernière consultation consignée des sources dont le document
 % constate l'état (introduction de la partie III, sec:biblio), distincte de
 % \datedoc ; ne se recalcule pas.
@@ -1327,19 +1327,41 @@ finie disponible), puis erreur explicite si un point reste sans valeur finie \\
 validité}~: côté négatif, la garde $1 - |\rho| \ge 10^{-6}$, uniforme en $T$, lève
 l'erreur « rho doit verifier -1 + 1e-6 <= rho <= 1 - 1e-10 (domaine de precision
 numerique) »~; précision mesurée au voisinage de $\rho = -1$ pour $T = 4$ à $10$, $12$, $15$,
-$20$, $30$, $50$, $100$ ($\alpha = 0{,}10$) et $T = 5$, $8$, $12$, $20$, $30$ ($\alpha = 0{,}05$)
-(mesure non versionnée~; son versionnement est un travail postérieur à la remise), et sur la
+$20$, $30$, $50$, $100$ ($\alpha = 0{,}10$) et $T = 5$, $8$, $12$, $20$, $30$ ($\alpha = 0{,}05$),
+les deux seuils étant mesurés pour chacun de ces $T$ (\code{tests/mesure\_dw\_rho\_negatif\_t8.R},
+sortie \code{docs/tableaux/}\allowbreak\code{20261127-issue421-}\allowbreak\code{dw-rho-negatif.md}), et sur la
 grille de 88 points de \code{tests/puissance\_t8.R}
 ($T \in \{5, 8, 12, 20\}$, $\rho$ de $-0{,}99$ à $0{,}99$)~; hors de ces $T$, non mesurée. Dans
 le domaine gardé, à $T = 8$, le déficit (un moins la puissance) est proportionnel à
 $(1-|\rho|)^{1/2}$ de $10^{-4}$ à $10^{-6}$ (constat numérique sur les points $10^{-4}$, $10^{-5}$ et $10^{-6}$ de la grille), de coefficient $1{,}219$ ($\alpha = 0{,}10$) et
 $1{,}815$ ($0{,}05$), soit $1{,}2\cdot 10^{-3}$ à la garde pour $\alpha = 0{,}10$ (déficit~: quantité
-exacte évaluée par quadrature numérique, intégrale d'Imhof~;
-\code{tests/mesure\_dw\_rho\_negatif\_t8.R}, tableau~1~bis de sa sortie)~; au-delà de
-la garde, le comportement du calcul n'est pas évalué par une mesure versionnée. À $T = 4$ ($\alpha = 0{,}10$) et $T = 5$ ($\alpha = 0{,}05$), la puissance
-tend vers 0 quand $\rho \to -1$, sans signature de défaillance (hypothèse non vérifiée~:
-vecteur alterné centré de longueur courte~; établir la puissance limite est un travail
-postérieur à la remise) \\
+exacte évaluée par quadrature numérique, intégrale d'Imhof~; tableau~1~bis de la sortie)~;
+rapportée à l'écart à la limite $|\mathrm{puissance} - L_-|$ (le déficit quand $L_- = 1$), cette loi,
+non démontrée, est stable sur 19 des 26 couples $(T, \alpha)$ mesurés, n'est pas
+atteinte dans le domaine gardé à $T = 5$ (deux seuils) et à $T = 6$ ($\alpha = 0{,}05$), et n'est
+pas lisible à $T = 50$ et $100$ (déficit inférieur à $10^{-6}$). Au-delà de
+la garde, le comportement du calcul n'est pas évalué par une mesure versionnée~; la limite
+$\rho \to 1$ est obtenue sans la franchir~: $L_+ = \mathbb{P}(\mathrm{DW}(u) \notin [d_{\mathrm{bas}},
+d_{\mathrm{haut}}])$, $u \sim \mathcal{N}(0, MKM)$, $K = (-|i-j|)_{i,j}$, $d_{\mathrm{bas}}$ et
+$d_{\mathrm{haut}}$ points critiques de la loi nulle, quantité exacte évaluée par l'intégrale
+d'Imhof ($0{,}5899175$ à $T = 8$, $\alpha = 0{,}10$), à moins de $1{,}2\cdot 10^{-6}$ de la valeur
+de la fonction en $\rho = 1 - 10^{-10}$ pour tous ces $T$ \\
+\code{dw\_puissance\_ar1()} (suite) & idem & \emph{Limite quand $\rho \to -1$} (résultat exact,
+argument élémentaire de convergence dominée, sans référence)~: la série AR(1) centrée tend,
+à un facteur aléatoire non nul près, vers le vecteur alterné centré~; $\mathrm{DW}$ tend presque
+sûrement vers $\mathrm{DW}(v_T)$, $v_T = ((-1)^t)_{t = 1, \dots, T}$, qui vaut $4(T-1)/T$ si $T$
+est pair et $4T/(T+1)$ s'il est impair, et la puissance vers $L_- = \mathds{1}\{p_v < \alpha\}$,
+$p_v$ p-value de \code{dw\_p\_exacte()} en $v_T$, dès que $p_v \ne \alpha$. $L_- = 0$ pour
+$(T~;~\alpha) = (4~;~0{,}10)$, $(4~;~0{,}05)$ et $(5~;~0{,}05)$~; $L_- = 1$ pour $(5~;~0{,}10)$ et,
+aux deux seuils, pour tout $T \ge 6$ mesuré. La valeur de $L_-$ dépend du signe de la marge
+$p_v - \alpha$, évaluée par quadrature (intégrale d'Imhof), au plus serré $6{,}04\cdot 10^{-4}$ en
+$(5~;~0{,}05)$. À $T = 4$, le test est biaisé contre un AR(1) fortement négatif~: au seuil
+$0{,}10$, la puissance est inférieure à $\alpha$ sur les six points de la grille de $\rho = -0{,}98$
+à la garde ($0{,}0006$ à la garde). À $T = 5$, $\alpha = 0{,}05$, la puissance n'est pas monotone
+sur la grille~: $0{,}402$ à $\rho = -0{,}999$, puis $0{,}106$ à la garde, valeur recoupée par
+simulation~; la convergence vers $L_- = 0$ n'est pas atteinte dans le domaine gardé (constats sur
+la grille). Test unitaire de la limite à $T = 4$, $5$ et $8$~:
+\code{tests/unitaires/}\allowbreak\code{test\_dw\_limite\_rho.R} \\
 \code{dw\_puissance\_ar1()} (suite) & idem & N'est pas appelée par \code{run\_engine()}~: outil de mesure de la puissance citée
 dans la fiche~\ref{fiche:durbin-watson}, appelé par \code{tests/puissance\_t8.R}, et
 de la puissance de Durbin--Watson citée au motif du retrait de Ljung--Box au retard~1
@@ -1349,8 +1371,9 @@ $T = 8$, $\rho = \pm 0{,}3$ et $\pm 0{,}6$, valeurs recoupées par simulation, $
 séries AR(1)~; cette sortie ne porte pas la mesure de précision au voisinage de $\rho = -1$
 ci-dessus), et de la puissance à $\rho$ négatif citée dans la fiche~\ref{fiche:durbin-watson},
 appelé par \code{tests/mesure\_dw\_rho\_negatif\_t8.R} (sortie
-\code{docs/tableaux/}\allowbreak\code{20261031-issue164-}\allowbreak\code{dw-rho-negatif.md}, $T = 8$, $\rho$ de
-$-1 + 10^{-6}$ à $0$, recoupement par simulation à $\rho = 0$, $-0{,}9$ et $-0{,}99$) \\
+\code{docs/tableaux/}\allowbreak\code{20261127-issue421-}\allowbreak\code{dw-rho-negatif.md}, $T$ de
+l'alinéa « Domaine de validité », $\rho$ de $-1 + 10^{-6}$ à $0$, limites $L_-$ et $L_+$,
+recoupement par simulation à $\rho = 0$, $-0{,}9$, $-0{,}99$, $-0{,}9999$ et $-1 + 10^{-6}$) \\
 \code{runs\_p\_min()},\newline \code{cox\_stuart\_p\_min()},\newline
 \code{smirnov\_p\_min()},\newline \code{mk\_p\_min()} & effectifs $(n_1, n_2)$~; $m$~;
 $(n_1, n_2)$~; $T$ & plus petite p-value atteignable de la loi de référence discrète aux effectifs
@@ -8027,7 +8050,18 @@ $\alpha = 0{,}10$ et deux à $\alpha/2$~: Grubbs sur \code{premium\_interieur} (
 \code{ALERTE}, fiche~\ref{mw:m1}) sur \code{reserve2}~; sur \code{reserve2\_trapeze}, nullité de
 l'ordonnée à l'origine ($0{,}083$, $0{,}0087$, \code{ALERTE}) au seuil $0{,}10$, pente
 intra-colonne relative ($0{,}058$, $0{,}0106$) et homogénéité de $f_j$ ($0{,}065$, $0{,}0078$),
-toutes deux \code{ALERTE}, au seuil $\alpha/2$. Les diagnostics par décision ne la portent
+toutes deux \code{ALERTE}, au seuil $\alpha/2$. Pour Grubbs sur \code{premium\_interieur}
+(fiche~\ref{fiche:grubbs}), une mesure à $B = 9\,999$ sous quatre graines distinctes de celle des
+références (\code{tests/mesure\_b\_dossier\_t8.R}, option \code{-{}-grubbs-interieur},
+\code{docs/tableaux/}\allowbreak\code{20261127-}\allowbreak\code{issue367-grubbs-interieur.md}) donne
+deux \code{OK} et deux \code{ALERTE}~; la p-value à $B$ infini, estimée à $0{,}1005$ sur $39\,996$
+tirages retenus, a pour intervalle de Clopper--Pearson à 99~\% $[0{,}0967~;~0{,}1044]$, qui contient
+$\alpha$~: le verdict à $B$ infini est indécidable entre \code{ALERTE} et \code{OK}, et \code{ECHEC}
+est exclu. Si elle valait $0{,}1005$, la situer par rapport à $\alpha$ à 99~\% demanderait de
+l'ordre de $2{,}4\cdot 10^{6}$ tirages retenus (approximation normale). C'est une estimation de
+Monte-Carlo d'une quantité définie par les données, les flux des graines étant tenus pour
+indépendants~; elle réduit l'erreur de Monte-Carlo, non l'erreur d'approximation du bootstrap à
+$T = 8$, et ne dit ni que le verdict \code{OK} des références est faux, ni qu'il est confirmé. Les diagnostics par décision ne la portent
 pas, la phrase étant exclue des diagnostics~: Breusch--Pagan original ($p = 0{,}090$,
 \code{err\_mc} $= 0{,}0091$) et homogénéité des dispersions par la médiane ($0{,}104$, $0{,}0097$),
 sur chacun des cas \code{premium}, \code{premium\_ii6}, \code{premium\_net} et \code{reserve1},
@@ -8289,7 +8323,9 @@ de l'ordre de la granularité.
   n'est connue ni employée, et la p-value de Monte-Carlo, calculée et restituée, n'est pas retenue par décision
   (section~\ref{sec:nature}, diagnostics par décision). Leur niveau à $T = 8$ n'est établi par aucun résultat publié~; mesuré sous quatre
   plans, il est compatible avec la référence ou en écart mineur du côté conservateur~; leur
-  puissance n'est pas mesurée (travail postérieur à la remise).
+  puissance, mesurée sous plans pour une partie des familles et des alternatives, est le plus
+  souvent faible, les familles ne sont pas spécifiques, et celle de D., M2, C., G. et M4 n'est pas
+  mesurée (tête de la section~\ref{sec:lecture-conjointe}).
   \item \textbf{Ce qu'aucune méthode ne restitue.} Ni le bootstrap ni les lois
   exactes n'augmentent la \emph{puissance}. À $T = 8$, l'ensemble du dispositif
   reste très peu puissant~: une p-value élevée n'est pas une validation
@@ -8796,7 +8832,8 @@ membres & Non & Non & Oui (mêmes réplications, rangs symétriques) & \textbf{D
 p-value retenue (p de Monte-Carlo plug-in restituée) & Sans objet : aucune loi limite employée &
 Lire comme aide à la lecture conjointe d'une famille~: contrôle au sens faible, sous le modèle
 ajusté~; niveau compatible ou en écart mineur conservateur sous les quatre plans mesurés~; une p
-élevée n'atteste pas l'adéquation, puissance non mesurée (travail postérieur à la remise~; fiche~\ref{fiche:p-famille}) \\
+élevée n'atteste pas l'adéquation~; puissance mesurée sous plans pour une partie des familles, le
+plus souvent faible, familles non spécifiques (fiche~\ref{fiche:p-famille}) \\
 
 p globale (minP, lecture conjointe de la batterie) & Les deux & $m_{\mathrm{obs}}$ de la
 batterie & Non & Non & Oui (idem) & \textbf{Diagnostic}, aucune p-value retenue & Sans objet :
@@ -9883,26 +9920,36 @@ fonction \code{dw\_puissance\_ar1()} du moteur, que le script appelle~: les matr
 (\code{tests/unitaires/test\_lois\_exactes.R}) contrôlent que $\rho = 0$ rend $\alpha$, les cinq
 valeurs à $10^{-6}$ près et à l'arrondi publié, et l'accord, à $0{,}01$ près, avec un taux de rejet
 simulé indépendamment de cette construction et de l'intégrale d'Imhof ($\rho = -0{,}5$~; $0{,}5$~; $0{,}9$). \emph{Puissance de Durbin--Watson à $\rho$ négatif} (script
-\code{tests/mesure\_dw\_rho\_negatif\_t8.R}, hors CI, sortie \code{docs/tableaux/}\allowbreak\code{20261031-issue164-dw-rho-negatif.md})~:
-même calcul par \code{dw\_puissance\_ar1()}, $T = 8$, $\alpha = 0{,}10$ et $0{,}05$, sur la grille
+\code{tests/mesure\_dw\_rho\_negatif\_t8.R}, hors CI, sortie \code{docs/tableaux/}\allowbreak\code{20261127-issue421-dw-rho-negatif.md})~:
+même calcul par \code{dw\_puissance\_ar1()}, $\alpha = 0{,}10$ et $0{,}05$, pour $T = 4$ à $10$, $12$,
+$15$, $20$, $30$, $50$ et $100$, sur la grille
 $\rho \in \{-1 + 10^{-6}$~; $-0{,}99999$~; $-0{,}9999$~; $-0{,}999$~; $-0{,}99$~; $-0{,}98$~;
 $-0{,}95$~; $-0{,}9$~; $-0{,}8$~; $-0{,}7$~; $-0{,}5$~; $-0{,}3$~; $0\}$,
 le premier point étant la garde de \code{dw\_puissance\_ar1()},
 $\rho = 0$ servant de contrôle de niveau (écart à $\alpha$ inférieur à $10^{-8}$)~; grille sans
-aléa. Recoupement par simulation à $\rho = 0$, $-0{,}9$ et $-0{,}99$~: $400\,000$ séries AR(1)
-stationnaires de longueur~8 par valeur de $\rho$, innovations communes à tous les $\rho$, graine
-20261031 sous \code{engine\_sous\_graine()}, statistique sur la série centrée (contrôlée contre
+aléa. Recoupement par simulation à $\rho = 0$, $-0{,}9$, $-0{,}99$, $-0{,}9999$ et $-1 + 10^{-6}$,
+pour chaque $T$~: $400\,000$ séries AR(1) stationnaires par valeur de $\rho$ et par $T$, innovations
+communes à tous les $\rho$ d'un même $T$, une graine par $T$ sous \code{engine\_sous\_graine()}
+(20261031 à $T = 8$, $421\,000\,000 + T$ sinon), statistique sur la série centrée (contrôlée contre
 \code{stat\_dw()}) et points critiques de la loi nulle exacte (région critique contrôlée contre
 \code{dw\_p\_exacte()})~: le recoupement est indépendant de l'intégrale d'Imhof sous l'alternative,
-non de la loi nulle~; écarts de $-0{,}8$ à $-1{,}7$ erreur-type, pour une tolérance de 3. Les six
-écarts simulé moins Imhof sont tous négatifs~; ce signe commun est compatible avec le tirage
-partagé (innovations communes à tous les $\rho$, mêmes séries pour les deux seuils, fréquences
-de rejet corrélées) et ne se lit pas comme six indications indépendantes d'un écart d'Imhof
-(explication non testée par le script). Les valeurs à $\rho \le -0{,}999$ ne sont pas recoupées.
-Déficit de puissance (un moins la puissance) rapporté à $(1 - |\rho|)^{1/2}$ sur la grille
-(tableau~1~bis de la sortie)~: à $1 - |\rho| = 10^{-4}$ et à la garde $10^{-6}$, les deux
-coefficients diffèrent de moins de $10^{-3}$ en relatif ($1{,}218795$ contre $1{,}218566$ à
-$\alpha = 0{,}10$, $1{,}815254$ contre $1{,}814512$ à $0{,}05$). 21 contrôles, aucun en échec.
+non de la loi nulle. Règle de lecture fixée avant l'exécution~: p-value binomiale exacte
+bilatérale de la fréquence simulée sous la valeur d'Imhof, écart signalé sous $2{,}7\cdot 10^{-3}$
+et désaccord sous $6{,}3\cdot 10^{-5}$ (trois et quatre erreurs-types en loi normale)~; aucune des
+130 comparaisons n'est signalée, et à $T = 8$ les écarts vont de $-1{,}73$ à $+0{,}34$ erreur-type.
+67 des 130 écarts simulé moins Imhof sont négatifs~; les comparaisons d'un même $T$ sont
+corrélées (innovations communes, mêmes séries pour les deux seuils) et ne se lisent pas comme
+des indications indépendantes. Dans la zone $\rho \le -0{,}999$, les valeurs à $-0{,}999$ et
+$-0{,}99999$ ne sont pas recoupées. Déficit de puissance (un moins la puissance) rapporté à $(1 - |\rho|)^{1/2}$ sur la
+grille (tableau~1~bis de la sortie)~: à $T = 8$, à $1 - |\rho| = 10^{-4}$ et à la garde $10^{-6}$,
+les deux coefficients diffèrent de moins de $10^{-3}$ en relatif ($1{,}218795$ contre $1{,}218566$
+à $\alpha = 0{,}10$, $1{,}815254$ contre $1{,}814512$ à $0{,}05$)~; sur les 26 couples $(T, \alpha)$,
+l'écart à la limite $|\mathrm{puissance} - L_-|$ rapporté de même (le déficit quand $L_- = 1$, la
+puissance quand $L_- = 0$), 19 tiennent ce critère, 3 n'atteignent pas ce régime dans le domaine gardé et 4 sont sans objet
+(déficit inférieur à $10^{-6}$). Limites $L_-$ ($\rho \to -1$) et $L_+$ ($\rho \to 1$) et constats
+de forme de la grille~: inventaire des fonctions (section~\ref{sec:inventaire},
+\code{dw\_puissance\_ar1()}). 115 contrôles,
+aucun en échec.
 Variante à départ nul non calculée. \emph{Statut}~: les puissances et les niveaux
 des volets~A et~B sont des \emph{constats de simulation sous des alternatives choisies, hors modèle
 réglementaire} (le critère de B(6) et C(6) suppose des années indépendantes, lecture de l'outil, section~\ref{sec:h4})~; le niveau du volet~A sous le
@@ -9911,7 +9958,10 @@ une quantité exacte évaluée par quadrature numérique (intégrale d'Imhof), e
 numérique au sens du tableau des quatre statuts (formule d'ajustement), à distinguer des
 constats de simulation~: elle ne dépend d'aucun tirage, mais de la précision de la
 quadrature et de la recherche des points critiques (\code{stats::uniroot()}), erreur numérique
-contrôlée par les recoupements ci-dessus. «~Rejet~» signifie $p < \alpha$ (verdict \code{ALERTE} ou \code{ECHEC}). Les
+contrôlée par les recoupements ci-dessus~; la limite $L_-$ est un résultat exact dont la valeur,
+pour un $T$ donné, dépend du signe d'une marge évaluée par quadrature, $L_+$ une quantité exacte
+évaluée par quadrature, et la loi du déficit en $(1 - |\rho|)^{1/2}$ un constat numérique, non
+démontré. «~Rejet~» signifie $p < \alpha$ (verdict \code{ALERTE} ou \code{ECHEC}). Les
 intervalles de Clopper--Pearson à 95~\% des fichiers (demi-largeur au plus $0{,}007$ au volet~A,
 $0{,}045$ au volet~B) mesurent l'incertitude de simulation, fonction du nombre de réplications, et
 rien de l'erreur d'approximation en $T$. \emph{Non étudié par ce protocole}~: toute autre ligne de \code{usp\_tests()}~; la puissance de
@@ -9965,7 +10015,7 @@ Lilliefors (\ref{fiche:lilliefors}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (
 Jarque--Bera (\ref{fiche:jarque-bera}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & $p_{\mathrm{mc}}$ marginale (V1), $\alpha = 0{,}10$, tous jeux~; $\hat\delta^{*}$ intérieur~: $\lambda = 3$ $0{,}303$~; $0{,}084$, $\lambda = 4$ $0{,}530$~; $0{,}148$, $\nu = 4$ $0{,}215$~; $0{,}050$, $\nu = 2$ $0{,}370$~; $0{,}161$~; niveau de la $p_{\mathrm{mc}}$ sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}090$~; $0{,}0465$, J2 $0{,}085$~; $0{,}0405$, écart mineur conservateur sur J2 à $0{,}10$, conservateur à $\hat\delta^{*}$ intérieur~; p-value restreinte au régime (variante non implémentée)~: $0{,}103$ sur J2 intérieur~; V3h, p-value retenue ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}1020$~; $0{,}0490$~; puissance V3h, tous jeux~; $\hat\delta^{*}$ intérieur~: $\lambda = 3$ $0{,}311$~; $0{,}140$, $\lambda = 4$ $0{,}537$~; $0{,}213$, $\nu = 4$ $0{,}250$~; $0{,}211$, $\nu = 2$ $0{,}396$~; $0{,}301$ & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_t8.R},\newline \code{tests/}\newline \code{conservatisme\_interieur\_t8.R},\newline \code{tests/}\newline \code{p\_conditionnelle\_regime\_t8.R} & \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261009-issue175-conservatisme\allowbreak-interieur.md} ,\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-puissance.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md} \\
 D'Agostino (asymétrie) (\ref{fiche:dagostino-asymetrie}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & C4, i.i.d., $\alpha = 0{,}10$, p-value normale approchée~: niveau $10{,}6~\%$ à $T = 8$ (légèrement libéral)~; exponentielle $39{,}5~\%$ à $T = 8$, $80{,}8~\%$ à $T = 20$~; niveau de la $p_{\mathrm{mc}}$ sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}0895$~; $0{,}0435$, J2 $0{,}0815$~; $0{,}040$, écart mineur conservateur sur J2, conservateur à $\hat\delta^{*}$ intérieur~; p-value restreinte au régime (variante non implémentée)~: $0{,}095$ sur J2 intérieur~; $p_{\mathrm{mc}}$ marginale (V1), $\alpha = 0{,}10$, tous jeux~; $\hat\delta^{*}$ intérieur~: $\lambda = 3$ $0{,}302$~; $0{,}077$, $\lambda = 4$ $0{,}527$~; $0{,}148$, $\nu = 4$ $0{,}211$~; $0{,}037$, $\nu = 2$ $0{,}354$~; $0{,}113$~; V3h, p-value retenue ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}0985$~; $0{,}0510$~; puissance V3h, tous jeux~; $\hat\delta^{*}$ intérieur~: $\lambda = 3$ $0{,}322$~; $0{,}217$, $\lambda = 4$ $0{,}546$~; $0{,}324$, $\nu = 4$ $0{,}239$~; $0{,}165$, $\nu = 2$ $0{,}380$~; $0{,}253$ & \code{engine\_p\_mc()}, \code{test\_dagostino\_skew()},\newline \code{tests/constats\_puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R},\newline \code{tests/}\newline \code{conservatisme\_interieur\_t8.R},\newline \code{tests/}\newline \code{p\_conditionnelle\_regime\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue118-normalite.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261009-issue175-conservatisme\allowbreak-interieur.md} ,\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-puissance.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md} \\
 Anscombe--Glynn (\ref{fiche:anscombe-glynn-aplatissement}) & Sans objet ($T < 20$) & Non applicable à $T = 8$, à $\hat\pi_t$ variable, et à $T \ge 20$ si $b_2$ ou $Z$ n'est pas défini & \code{usp\_tests()} & --- \\
-Durbin--Watson (\ref{fiche:durbin-watson}) & Sans objet ($\hat\pi_t$ constant)~; plancher Monte-Carlo $0{,}002$ (bilatéral) sinon & AR(1), par Imhof ($\alpha = 0{,}10$)~: $0{,}2624$~; $0{,}5326$ ($\rho = 0{,}5$~; $0{,}9$), confirmé par le volet~A et par C1~; AR(1) à $\rho$ négatif, par Imhof ($\alpha = 0{,}10$~; $0{,}05$)~: $0{,}6590$~; $0{,}5496$ ($\rho = -0{,}9$), $0{,}8803$~; $0{,}8253$ ($-0{,}99$), recoupé par simulation à $\rho = 0$, $-0{,}9$ et $-0{,}99$, $0{,}9615$~; $0{,}9428$ ($-0{,}999$) à $0{,}9988$~; $0{,}9982$ (garde $-1 + 10^{-6}$), $\rho \le -0{,}999$ non recoupés, déficit proportionnel à $(1 - |\rho|)^{1/2}$ de $10^{-4}$ à $10^{-6}$~; volet~A, tendance, rupture de 2 écarts-types~: $0{,}266$~; $0{,}369$~; volet~B (p-value retenue, J1 et J2) dans les fichiers~; niveau de la p-value retenue sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}109$~; $0{,}0475$, J2 $0{,}1055$~; $0{,}049$, compatible~; $p_{\mathrm{mc}}$ V3h, p-value retenue ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}1110$~; $0{,}0535$ & \code{dw\_puissance\_ar1()}, \code{dw\_p\_exacte()}, \code{.imhof\_p\_sup0()}, \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/constats\_puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R},\newline \code{tests/}\newline \code{mesure\_dw\_rho\_negatif\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue116-exact-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20260927-issue114-constats-puissance.md}\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md},\newline \code{docs/tableaux/}\newline \code{20261031-issue164-dw-rho-negatif.md} \\
+Durbin--Watson (\ref{fiche:durbin-watson}) & Sans objet ($\hat\pi_t$ constant)~; plancher Monte-Carlo $0{,}002$ (bilatéral) sinon & AR(1), par Imhof ($\alpha = 0{,}10$)~: $0{,}2624$~; $0{,}5326$ ($\rho = 0{,}5$~; $0{,}9$), confirmé par le volet~A et par C1~; AR(1) à $\rho$ négatif, par Imhof ($\alpha = 0{,}10$~; $0{,}05$)~: $0{,}6590$~; $0{,}5496$ ($\rho = -0{,}9$), $0{,}8803$~; $0{,}8253$ ($-0{,}99$), $0{,}9615$~; $0{,}9428$ ($-0{,}999$) à $0{,}9988$~; $0{,}9982$ (garde $-1 + 10^{-6}$), recoupé par simulation à $\rho = 0$, $-0{,}9$, $-0{,}99$, $-0{,}9999$ et à la garde, $-0{,}999$ et $-0{,}99999$ non recoupés, déficit proportionnel à $(1 - |\rho|)^{1/2}$ de $10^{-4}$ à $10^{-6}$, limite~1 quand $\rho \to -1$ (résultat exact)~; volet~A, tendance, rupture de 2 écarts-types~: $0{,}266$~; $0{,}369$~; volet~B (p-value retenue, J1 et J2) dans les fichiers~; niveau de la p-value retenue sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}109$~; $0{,}0475$, J2 $0{,}1055$~; $0{,}049$, compatible~; $p_{\mathrm{mc}}$ V3h, p-value retenue ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}1110$~; $0{,}0535$ & \code{dw\_puissance\_ar1()}, \code{dw\_p\_exacte()}, \code{.imhof\_p\_sup0()}, \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/constats\_puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R},\newline \code{tests/}\newline \code{mesure\_dw\_rho\_negatif\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue116-exact-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20260927-issue114-constats-puissance.md}\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md},\newline \code{docs/tableaux/}\newline \code{20261127-issue421-dw-rho-negatif.md} \\
 Ljung--Box au retard~2 (\ref{fiche:ljung-box}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}1005$~; $0{,}047$, J2 $0{,}1065$~; $0{,}053$, compatible~; V3h, p-value retenue ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}1010$~; $0{,}0505$ & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_t8.R},\newline \code{tests/mesure\_lb1\_dw\_t8.R} & \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md},\newline \code{docs/tableaux/}\newline \code{20261020-mesure-lb1-dw-t8.md} (motif du retrait de Ljung--Box au retard~1, rubrique~6, sur $z_t$, hors modèle réglementaire) \\
 Suites (Wald--Wolfowitz) (\ref{fiche:suites-wald-wolfowitz}) & $4/70 = 0{,}0571$~; plancher Monte-Carlo $0{,}002$ (bilatéral) & Volet~A ($\alpha = 0{,}10$, rejet \code{ALERTE})~: niveau $0{,}058$~; AR(1) $\rho = 0{,}5$~; $0{,}9$~: $0{,}116$~; $0{,}249$~; tendance, rupture de 2 écarts-types~: $0{,}164$~; $0{,}494$~; \code{ECHEC} inatteignable à $\hat\pi_t$ constant~; volet~B (p-value retenue, J1 et J2) dans les fichiers~; niveau de la p-value retenue sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}0625$~; $0{,}0035$, J2 $0{,}0635$~; $0{,}0055$, compatible~; $p_{\mathrm{mc}}$ V3h, p-value retenue ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}0635$~; $0{,}0065$ & \code{runs\_p\_min()}, \code{runs\_p\_exacte()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/constats\_puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue116-exact-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20260927-issue114-constats-puissance.md}\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md} \\
 sup-F (\ref{fiche:sup-f}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Volet~A (J1, référence idéalisée~: $\delta = 1$ imposé, loi nulle sans réajustement, $B$ infini~; $\alpha = 0{,}10$)~: rupture de 2 écarts-types après l'année~4~; 6~: $0{,}623$~; $0{,}470$~; tendance de 1,75 écart-type~: $0{,}349$~; contamination à 5 écarts-types~: $0{,}052$~; effet de $B = 999$ au plus $0{,}0054$~; volet~B (p-value retenue de Monte-Carlo, V1 au bord, V3b à $\hat\delta^*$ intérieur, J1~/ J2, $\alpha = 0{,}10$, aucun inopérant)~: niveau $0{,}120$~/ $0{,}106$ (contrôle de compatibilité), rupture de 2 écarts-types après l'année~4~: $0{,}620$~/ $0{,}610$~; niveau de la $p_{\mathrm{mc}}$ sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}1045$~; $0{,}050$, J2 $0{,}0935$~; $0{,}0515$, compatible~; V3h, p-value retenue ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}0950$~; $0{,}0530$ & \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20261017-issue313-stabilite-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md} \\
@@ -9988,7 +10038,7 @@ M2, hétéroscédasticité (\ref{mw:m2bp}) & Plancher Monte-Carlo $1/(B+1) = 0{,
 M2, exposant de variance (\ref{mw:m2b}) & $p_{\min} = 1{,}53\cdot 10^{-9}$ (loi de référence échangeable)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Puissance (plan du triangle de contrôle P1 sauf mention, loi N, $\alpha = 0{,}10$~; $0{,}05$) contre un exposant~0 ou~2, à $0{,}10$~: $0{,}092$ et $0{,}098$ (P1), $0{,}080$ et $0{,}091$ (P2), pour un niveau de $0{,}091$ et $0{,}089$~: aucune puissance décelable~; non spécifique sous P1, à $0{,}10$ (choc de $10~\%$ sur la dernière diagonale~: $0{,}160$~; cellule multipliée par~4~: $0{,}142$~; autres écarts de l'espérance~: de $0{,}044$ à $0{,}080$)~; contre une ordonnée à l'origine, au plus au niveau ($\delta = 0{,}20$~: $0{,}046$, $0{,}001$, $0{,}000$ sous P1, P2, P3~; $\delta = 0{,}10$~: $0{,}076$, $0{,}014$ sous P1, P2)~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0955$~; $0{,}046$, E $0{,}095$~; $0{,}0495$, A $0{,}098$~; $0{,}048$, compatible sous les trois lois et aux deux seuils & \code{.mw\_fisher\_rangs\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
 M3, effets calendaires (\ref{mw:m3cal}) & $p_{\min} = 2^{-18} = 3{,}81\cdot 10^{-6}$ (loi binomiale indépendante de Mack)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (queue basse) & Puissance sous le plan du triangle de contrôle (loi N, $\alpha = 0{,}10$) contre six effets calendaires (choc de $5$ ou $10~\%$ sur le dernier exercice ou sur l'exercice médian, dérive de $3$ ou $5~\%$)~: de $0{,}162$ à $0{,}401$ en queue basse~; compensation alternée (côté haut, non testé)~: $0{,}017$~; retrouvée par la mesure de puissance Merz--Wüthrich (choc de $10~\%$, 500 triangles~: $0{,}380$ et $0{,}344$ à $0{,}10$, compatibles)~; niveau de la $p_{\mathrm{mc}}$ en queue basse ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0835$~; $0{,}0305$, E $0{,}091$~; $0{,}0365$, A $0{,}084$~; $0{,}037$, compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$~; les niveaux du fichier \code{docs/tableaux/}\newline \code{20261011-issue206\allowbreak-calibration-mw.md} portent sur la forme bilatérale~; ceux de la queue basse viennent de \code{docs/tableaux/}\newline \code{20261016-issue276\allowbreak-calendaire.md} & \code{.mw\_calendrier\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/mesure\_calendaire\_t8.R},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261016-issue276-calendaire.md},\newline \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
 M3, homogénéité entre années (\ref{mw:m3acc}) & $p_{\min} = 8{,}29\cdot 10^{-15}$ (loi de référence échangeable)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Puissance (plan du triangle de contrôle P1 sauf mention, loi N, $\alpha = 0{,}10$~; $0{,}05$) contre une année de survenance atypique~: $0{,}590$~; $0{,}436$~; dérive de $f_j$ avec l'année~: $0{,}166$, $0{,}124$, $0{,}170$ à $0{,}10$ (P1, P2, P3)~; non spécifique (dérive calendaire~: $0{,}350$~; ordonnée à l'origine $\delta = 0{,}20$~: $0{,}124$, $0{,}999$, $1{,}000$ à $0{,}10$ sous P1, P2, P3)~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}096$~; $0{,}0505$, E $0{,}1005$~; $0{,}049$, A $0{,}080$~; $0{,}036$, compatible, sauf un écart mineur du côté conservateur sous A à $0{,}10$ & \code{.mw\_kruskal\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
-M3, corrélation entre colonnes (\ref{mw:m3cor}) & $p_{\min} = 1{,}61\cdot 10^{-7}$ (loi de référence échangeable)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée (taux du fichier de puissance sous des alternatives d'une autre famille, non repris)~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0965$~; $0{,}0515$, E $0{,}0995$~; $0{,}052$, A $0{,}088$~; $0{,}044$, compatible sous les trois lois et aux deux seuils & \code{.mw\_corr\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
+M3, corrélation entre colonnes (\ref{mw:m3cor}) & $p_{\min} = 1{,}61\cdot 10^{-7}$ (loi de référence échangeable)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Puissance contre une persistance AR(1) des erreurs des facteurs d'une même année de survenance (loi N, 500 triangles par cellule, $\alpha = 0{,}10$~; $0{,}05$)~: $\rho = 0{,}3$, $0{,}238$~; $0{,}146$ (P1)~; $\rho = 0{,}5$, $0{,}474$~; $0{,}334$ (P1) et $0{,}432$~; $0{,}346$ (P2), pour $0{,}088$~; $0{,}050$ (P1) et $0{,}114$~; $0{,}044$ (P2) sous $H_0$~; Durbin--Watson sur les mêmes triangles distingué du niveau dans une cellule sur six~; taux sous des alternatives d'une autre famille au fichier \code{docs/tableaux/}\newline \code{20261021-issue309\allowbreak-puissance-mw.md}, non repris~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0965$~; $0{,}0515$, E $0{,}0995$~; $0{,}052$, A $0{,}088$~; $0{,}044$, compatible sous les trois lois et aux deux seuils & \code{.mw\_corr\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261127-issue379-issue494\allowbreak-puissance-mw.md} \\
 M3, Durbin--Watson (\ref{mw:m3dw}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Puissance (loi N, $\alpha = 0{,}10$)~: dérive calendaire de $5~\%$ par exercice, $0{,}204$~; choc de $10~\%$ sur le dernier exercice ou l'exercice médian, $0{,}068$~; $0{,}122$ (plan P1)~; taux sous $H_0$ $0{,}112$ (P1)~; taux sous des alternatives d'une autre famille (proportionnalité, M1) au même fichier, non repris~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0855$~; $0{,}0455$, E $0{,}101$~; $0{,}053$, A $0{,}087$~; $0{,}032$, compatible, sauf un écart mineur du côté conservateur sous A à $0{,}05$ & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
 M4, cellule aberrante (\ref{mw:m4gr}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral, queue basse) & Puissance (plan du triangle de contrôle, loi N, $\alpha = 0{,}10$~; $0{,}05$) contre une cellule déplacée de 4 et 6 écarts-types de bruit~: $0{,}183$~; $0{,}084$ et $0{,}426$~; $0{,}225$~; cellule multipliée par~4~: $1{,}000$~; année atypique~: $0{,}836$~; $0{,}642$~; désignation de la cellule visée~: $0{,}864$~; niveau de la $p_{\mathrm{mc}}$ sur les triangles et graines de la calibration Merz--Wüthrich ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}071$~; $0{,}029$, E $0{,}0785$~; $0{,}0395$, A $0{,}118$~; $0{,}047$, écart mineur du côté conservateur sous N aux deux seuils et sous E à $0{,}10$, compatible sous E à $0{,}05$ et sous A (mesure propre à cette statistique, le fichier de calibration portant celle qui l'a précédée)~; trois limites (niveau conservateur sous erreurs gaussiennes, $0{,}065$ sur 3\,000 triangles~; $0{,}183$ contre $0{,}211$ pour Grubbs à 4 écarts-types~; 3 cellules non couvertes, puissance non mesurée) & \code{mw\_test\_cellule\_}\allowbreak\code{aberrante()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
 \end{longtable}
@@ -10523,9 +10573,9 @@ la pente par permutation (exacte sous l'échangeabilité seule), Fisher en diagn
 \textcolor{financeblue}{\textbf{Complément méthodologique}} \\
 \rowcolor{tableheader}
 \multicolumn{3}{@{}l@{}}{\textcolor{financeblue}{\textbf{Méthode Merz--Wüthrich}}} \\
-Corrélation entre années de développement & Cinq à six paires de colonnes
-seulement comptent au moins trois observations à $T = 8$ &
-Aucune loi analytique n'existe~; bootstrap seul recours~; puissance non étudiée à $T = 8$ contre les écarts que vise la ligne (travail postérieur à la remise, fiche~\ref{mw:m3cor}) \\
+Corrélation entre années de développement & Quatre paires de colonnes au plus
+comptent au moins trois facteurs sur le triangle $8 \times 8$ &
+Aucune loi analytique n'existe~; bootstrap seul recours~; puissance faible à intermédiaire contre une persistance AR(1) dans l'année de survenance, mesurée sous un seul modèle simulé (fiche~\ref{mw:m3cor}) \\
 Cellule aberrante (résidus studentisés externes) & Puissance faible contre une cellule
 modérément aberrante, niveau conservateur sous erreurs gaussiennes, 3 cellules de la colonne de
 trois facteurs non couvertes & Lecture conjointe du graphique d'influence~; aucune exclusion de
@@ -12497,8 +12547,18 @@ retenue : la ligne "Anderson-Darling" fait foi.}~». La relation qu'énonce ce l
 par définition~: $A^2$ est $W^2$ pondérée par $[F_0(1-F_0)]^{-1}$ (formes intégrales, rubrique~3
 des deux fiches, que \code{stat\_ad()} et \code{stat\_cvm()} reproduisent, vérifié par quadrature
 numérique). La dépendance entre les deux statistiques, que suppose «~presque deux fois la même
-information~», n'est chiffrée par aucun script versionné ni ici~; la chiffrer est un travail
-postérieur à la remise. Les p-values ne sont pas
+information~», est chiffrée sous la loi bootstrap qui définit leurs p-values de Monte-Carlo, où
+$H_0$ est vraie (\code{tests/mesure\_correlation\_cvm\_ad\_t8.R}, $B = 9\,999$,
+\code{docs/tableaux/}\allowbreak\code{20261127-issue420-}\allowbreak\code{correlation-cvm-ad.md})~:
+corrélation de Spearman $0{,}978 \pm 0{,}0006$ sur J1 et $0{,}976 \pm 0{,}0004$ sur J2, et, au
+seuil $0{,}10$, $0{,}900 \pm 0{,}007$ et $0{,}881 \pm 0{,}009$ des rejets d'Anderson--Darling sont
+aussi des rejets de Cramér--von Mises (estimation $\pm$ erreur de Monte-Carlo par jackknife)~; le critère de
+quasi-redondance fixé avant l'exécution (corrélation moins deux erreurs-types au moins $0{,}90$,
+proportion moins deux erreurs-types au moins $0{,}75$, seuils conventionnels sans fondement
+théorique) est tenu sur les deux jeux. Ces valeurs approchent par Monte-Carlo une fonctionnelle
+de la loi bootstrap, conditionnelle aux paramètres ajustés de J1 et J2, à $T = 8$~: elles ne
+disent rien sous les alternatives, où la pondération des queues de $A^2$ distingue les deux
+statistiques, ni qu'un seul verdict suffise en puissance. Les p-values ne sont pas
 écartées pour leur qualité~: la p-value de Monte-Carlo, restituée, a un niveau compatible avec le
 seuil sous le modèle ajusté ($R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc}~: J1, $0{,}0955$ à
 $\alpha = 0{,}10$ et $0{,}0445$ à $0{,}05$~; J2, $0{,}097$ et $0{,}0465$~; compatible aux deux seuils
@@ -13005,9 +13065,9 @@ Membre, quand elle est de type test, de la p de famille de H4 (famille E.) et de
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. \emph{Puissance contre un AR(1) stationnaire gaussien, par la méthode d'Imhof} (calcul par \code{dw\_puissance\_ar1()}~; protocole au tableau~\ref{tab:tracabilite-puissance})~: à $\hat\pi_t$ constant, sans réajustement, test bilatéral à $\alpha = 0{,}10$, $0{,}2778$~; $0{,}1593$~; $0{,}2624$~; $0{,}3980$~; $0{,}5326$ pour $\rho = -0{,}5$~; $0{,}3$~; $0{,}5$~; $0{,}7$~; $0{,}9$, et $0{,}1000$ à $\rho = 0$. \emph{Puissance à $\rho$ négatif} (même calcul, \code{tests/mesure\_dw\_rho\_negatif\_t8.R}, \code{docs/tableaux/}\allowbreak\code{20261031-}\allowbreak\code{issue164-dw-rho-negatif.md}), à $\alpha = 0{,}10$~: $0{,}9988$ à $\rho = -1 + 10^{-6}$, garde de la fonction~; $0{,}8803$ à $-0{,}99$~; $0{,}6590$ à $-0{,}9$~; $0{,}2778$ à $-0{,}5$~; recoupées à $\rho = 0$, $-0{,}9$ et $-0{,}99$, aux deux seuils, par une simulation indépendante ($400\,000$ séries par valeur, erreur-type au plus $8\cdot 10^{-4}$), à moins de $1{,}8$ erreur-type, les valeurs à $\rho \le -0{,}999$ n'étant pas recoupées~; près de la garde, le déficit est proportionnel à $(1 - |\rho|)^{1/2}$ de $1 - |\rho| = 10^{-4}$ à $10^{-6}$, de coefficient $1{,}219$ ($\alpha = 0{,}10$) et $1{,}815$ ($0{,}05$) (constat numérique sur les points $10^{-4}$, $10^{-5}$ et $10^{-6}$ de la grille, loi non démontrée). Le volet~A (J1, 20\,000 séries par point) et le constat~C1 (\code{docs/tableaux/}\allowbreak\code{20260927-}\allowbreak\code{issue114-constats-puissance.md}) sont compatibles avec ces valeurs, chaque valeur d'Imhof étant dans l'intervalle de Clopper--Pearson à 95~\% de la valeur simulée du volet~A. \emph{Autres alternatives} (volet~A, J1, $\hat\pi_t$ constant, $\alpha = 0{,}10$~; protocole et fichier au tableau~\ref{tab:tracabilite-puissance})~: niveau $0{,}102$~; tendance de 2 écarts-types, $0{,}266$~; rupture de 2 écarts-types après l'année~4, $0{,}369$. \emph{P-value retenue après réajustement} (volet~B, J1~/ J2, 500 réplications par point, $B = 999$, \code{docs/tableaux/}\allowbreak\code{20261018-}\allowbreak\code{issue116-chaine-J1.md} et \code{-J2.md}, à l'état du moteur consigné en tête du fichier~; taux des verdicts \code{ALERTE} ou \code{ECHEC}, aucun test inopérant, 0 sur 500 par point, $[0~;~0{,}007]$)~: niveau $0{,}116$~/ $0{,}128$ (sur les deux jeux réunis, 122 rejets sur 1\,000, de borne inférieure unilatérale à 99,9~\% $0{,}092$, sous $\alpha$)~; AR(1) à $\rho = 0{,}5$, $0{,}286$~/ $0{,}262$~; à $0{,}9$, $0{,}554$~/ $0{,}534$~; tendance de 2 écarts-types, $0{,}264$~/ $0{,}204$~; rupture de 2 écarts-types après l'année~4, $0{,}378$~/ $0{,}330$. Mesures hors modèle réglementaire. Niveau de la p-value retenue sous le modèle ajusté ($R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc}), exacte où $\hat\pi^{*}_t$ est constant et de Monte-Carlo ailleurs~: J1, $0{,}109$ à $0{,}10$ et $0{,}0475$ à $0{,}05$~; J2, $0{,}1055$ et $0{,}049$~; compatible, de même que la p-value de Monte-Carlo seule. Niveau de la p-value conditionnelle au régime de $\hat\delta$ (V3h, tableau~T1 de \code{docs/tableaux/}\allowbreak\code{20261010-}\allowbreak\code{issue229-p-conditionnelle-regime.md}~; conditions du tableau et cas de J1 à la section~\ref{sec:calibration-mc})~: J2, $0{,}1110$ $[0{,}0976~;~0{,}1256]$ et $0{,}0535$ $[0{,}0440~;~0{,}0643]$, compatible.
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. \emph{Puissance contre un AR(1) stationnaire gaussien, par la méthode d'Imhof} (calcul par \code{dw\_puissance\_ar1()}~; protocole au tableau~\ref{tab:tracabilite-puissance})~: à $\hat\pi_t$ constant, sans réajustement, test bilatéral à $\alpha = 0{,}10$, $0{,}2778$~; $0{,}1593$~; $0{,}2624$~; $0{,}3980$~; $0{,}5326$ pour $\rho = -0{,}5$~; $0{,}3$~; $0{,}5$~; $0{,}7$~; $0{,}9$, et $0{,}1000$ à $\rho = 0$. \emph{Puissance à $\rho$ négatif} (même calcul, \code{tests/mesure\_dw\_rho\_negatif\_t8.R}, \code{docs/tableaux/}\allowbreak\code{20261127-}\allowbreak\code{issue421-dw-rho-negatif.md}), à $\alpha = 0{,}10$~: $0{,}9988$ à $\rho = -1 + 10^{-6}$, garde de la fonction~; $0{,}8803$ à $-0{,}99$~; $0{,}6590$ à $-0{,}9$~; $0{,}2778$ à $-0{,}5$~; limite~1 quand $\rho \to -1$, aux deux seuils (résultat exact, section~\ref{sec:inventaire})~; recoupées à $\rho = 0$, $-0{,}9$, $-0{,}99$, $-0{,}9999$ et à la garde, aux deux seuils, par une simulation indépendante ($400\,000$ séries par valeur, erreur-type au plus $8\cdot 10^{-4}$), à moins de $1{,}8$ erreur-type, les valeurs à $-0{,}999$ et $-0{,}99999$ n'étant pas recoupées~; près de la garde, le déficit est proportionnel à $(1 - |\rho|)^{1/2}$ de $1 - |\rho| = 10^{-4}$ à $10^{-6}$, de coefficient $1{,}219$ ($\alpha = 0{,}10$) et $1{,}815$ ($0{,}05$) (constat numérique sur les points $10^{-4}$, $10^{-5}$ et $10^{-6}$ de la grille, loi non démontrée). Le volet~A (J1, 20\,000 séries par point) et le constat~C1 (\code{docs/tableaux/}\allowbreak\code{20260927-}\allowbreak\code{issue114-constats-puissance.md}) sont compatibles avec ces valeurs, chaque valeur d'Imhof étant dans l'intervalle de Clopper--Pearson à 95~\% de la valeur simulée du volet~A. \emph{Autres alternatives} (volet~A, J1, $\hat\pi_t$ constant, $\alpha = 0{,}10$~; protocole et fichier au tableau~\ref{tab:tracabilite-puissance})~: niveau $0{,}102$~; tendance de 2 écarts-types, $0{,}266$~; rupture de 2 écarts-types après l'année~4, $0{,}369$. \emph{P-value retenue après réajustement} (volet~B, J1~/ J2, 500 réplications par point, $B = 999$, \code{docs/tableaux/}\allowbreak\code{20261018-}\allowbreak\code{issue116-chaine-J1.md} et \code{-J2.md}, à l'état du moteur consigné en tête du fichier~; taux des verdicts \code{ALERTE} ou \code{ECHEC}, aucun test inopérant, 0 sur 500 par point, $[0~;~0{,}007]$)~: niveau $0{,}116$~/ $0{,}128$ (sur les deux jeux réunis, 122 rejets sur 1\,000, de borne inférieure unilatérale à 99,9~\% $0{,}092$, sous $\alpha$)~; AR(1) à $\rho = 0{,}5$, $0{,}286$~/ $0{,}262$~; à $0{,}9$, $0{,}554$~/ $0{,}534$~; tendance de 2 écarts-types, $0{,}264$~/ $0{,}204$~; rupture de 2 écarts-types après l'année~4, $0{,}378$~/ $0{,}330$. Mesures hors modèle réglementaire. Niveau de la p-value retenue sous le modèle ajusté ($R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc}), exacte où $\hat\pi^{*}_t$ est constant et de Monte-Carlo ailleurs~: J1, $0{,}109$ à $0{,}10$ et $0{,}0475$ à $0{,}05$~; J2, $0{,}1055$ et $0{,}049$~; compatible, de même que la p-value de Monte-Carlo seule. Niveau de la p-value conditionnelle au régime de $\hat\delta$ (V3h, tableau~T1 de \code{docs/tableaux/}\allowbreak\code{20261010-}\allowbreak\code{issue229-p-conditionnelle-regime.md}~; conditions du tableau et cas de J1 à la section~\ref{sec:calibration-mc})~: J2, $0{,}1110$ $[0{,}0976~;~0{,}1256]$ et $0{,}0535$ $[0{,}0440~;~0{,}0643]$, compatible.
 
-\textbf{Statut des valeurs.} Puissances par Imhof~: quantités exactes évaluées par quadrature numérique et recherche des points critiques, sans tirage, et non approximations numériques au sens des quatre statuts (section~\ref{sec:nature})~; leur recoupement à $\rho$ négatif~: constat de simulation, qui ne porte pas sur $\rho \le -0{,}999$. Volets~A et~B, constat~C1~: constats de simulation hors modèle réglementaire, muets sur l'erreur en $T$~; C1 reproduit sa première mesure, sous l'hypothèse d'initialisation stationnaire, à l'erreur de simulation près ($|z| \le 1{,}96$). Plancher de Monte-Carlo~: exact, fonction de $B$. Niveau sous le modèle ajusté~: constat de simulation.
+\textbf{Statut des valeurs.} Puissances par Imhof~: quantités exactes évaluées par quadrature numérique et recherche des points critiques, sans tirage, et non approximations numériques au sens des quatre statuts (section~\ref{sec:nature})~; leur recoupement à $\rho$ négatif~: constat de simulation, qui ne porte pas sur $\rho = -0{,}999$ ni $-0{,}99999$. Limite quand $\rho \to -1$~: exacte, de valeur fixée par le signe d'une marge évaluée par quadrature. Volets~A et~B, constat~C1~: constats de simulation hors modèle réglementaire, muets sur l'erreur en $T$~; C1 reproduit sa première mesure, sous l'hypothèse d'initialisation stationnaire, à l'erreur de simulation près ($|z| \le 1{,}96$). Plancher de Monte-Carlo~: exact, fonction de $B$. Niveau sous le modèle ajusté~: constat de simulation.
 \end{fiche}
 
 \begin{fiche}{Test portemanteau de Ljung--Box (retard 2)}
@@ -18527,7 +18587,7 @@ $0{,}170$, \code{OK}.
 \Usage
 Un rejet signale une corrélation entre facteurs successifs d'une même année (positive~: cadence de liquidation persistante, une année qui se développe vite sur une colonne continuant de le faire sur la suivante). C'est un indice contre l'espérance conditionnelle de Mack sur tout le passé de l'année, dont l'absence de corrélation est une conséquence et sur laquelle repose le modèle de la MSEP (rubrique~2 et encadré qu'elle cite)~; la ligne n'en chiffre pas l'effet sur la MSEP. Limite~: sur
 un triangle $8\times8$, seules quatre paires de colonnes comptent au moins
-trois facteurs (rubrique~7), ce qui rend le test très peu puissant.
+trois facteurs (rubrique~7), ce qui limite sa puissance (mesurée en rubrique~7).
 
 Membre, quand elle est de type test, de la p de famille de M3 et de la p globale
 (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; verdict
@@ -18537,9 +18597,9 @@ inchangé.
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min}^{\mathrm{MC}} = 0{,}002$ sur \code{reserve2}). Test inopérant au seuil $\alpha = 0{,}10$ sur le sous-triangle $5 \times 5$ du triangle de contrôle (une paire de trois facteurs, $p_{\min} = 1/3$, $p_{\min}^{\mathrm{MC}} = 0{,}33$ par \code{run\_engine()}, $B = 999$)~: ligne restituée en diagnostic, sans verdict (règle~R1 sur le plancher Monte-Carlo, même section). Puissance non étudiée à $T = 8$ contre les écarts que vise la ligne~; des taux de rejet sous des alternatives d'une autre famille figurent au fichier \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md}, sans être repris ici (mesure de puissance dont aucun scénario ne vise la dépendance que teste la ligne~; cette mesure est un travail postérieur à la remise). Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, \code{docs/tableaux/}\allowbreak\code{20261011-}\allowbreak\code{issue206-calibration-mw.md}, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0965$ (N), $0{,}0995$ (E), $0{,}088$ (A), pour $\rho = 0{,}098$~; à $0{,}05$, $0{,}0515$, $0{,}052$, $0{,}044$ ($\rho = 0{,}048$)~; compatible sous les trois lois et aux deux seuils.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min}^{\mathrm{MC}} = 0{,}002$ sur \code{reserve2}). Test inopérant au seuil $\alpha = 0{,}10$ sur le sous-triangle $5 \times 5$ du triangle de contrôle (une paire de trois facteurs, $p_{\min} = 1/3$, $p_{\min}^{\mathrm{MC}} = 0{,}33$ par \code{run\_engine()}, $B = 999$)~: ligne restituée en diagnostic, sans verdict (règle~R1 sur le plancher Monte-Carlo, même section). \emph{Puissance contre une persistance dans l'année de survenance} (erreurs standardisées des transitions successives d'une même année en AR(1) de variance marginale~1, 500 triangles par cellule, $B = 999$~; \code{tests/puissance\_mw\_t8.R}, mode \code{-{}-familles}, \code{docs/tableaux/}\allowbreak\code{20261127-}\allowbreak\code{issue379-issue494-}\allowbreak\code{puissance-mw.md})~: à $\alpha = 0{,}10$, $0{,}238$ $[0{,}201~;~0{,}278]$ à $\rho = 0{,}3$ et $0{,}474$ $[0{,}429~;~0{,}519]$ à $\rho = 0{,}5$ sous P1, $0{,}432$ $[0{,}388~;~0{,}477]$ à $\rho = 0{,}5$ sous P2, pour $0{,}088$ et $0{,}114$ sur les mêmes triangles sous $H_0$~: puissance faible, intermédiaire sous P1 à $\rho = 0{,}5$ (seuil conventionnel $0{,}5$ des classes, section~\ref{sec:lecture-conjointe}). Durbin--Watson sur résidus de Mack, sur les mêmes triangles, n'est distingué du niveau que dans une cellule sur six~: il ne corrobore pas la ligne contre cette alternative (mécanisme non établi). Taux sous des alternatives d'une autre famille~: \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md}, non repris. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, \code{docs/tableaux/}\allowbreak\code{20261011-}\allowbreak\code{issue206-calibration-mw.md}, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0965$ (N), $0{,}0995$ (E), $0{,}088$ (A), pour $\rho = 0{,}098$~; à $0{,}05$, $0{,}0515$, $0{,}052$, $0{,}044$ ($\rho = 0{,}048$)~; compatible sous les trois lois et aux deux seuils.
 
-\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable, non sous le modèle de Mack~; plancher~: exact, fonction de $B$. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable, non sous le modèle de Mack~; plancher~: exact, fonction de $B$. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$. Puissance contre l'AR(1)~: constat de simulation sous un seul modèle simulé (Mack gaussien, triangle de contrôle, première colonne fixée) et une seule forme de dépendance, P3 non mesuré.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -19447,7 +19507,9 @@ moins} \code{une hypothese de la} \code{batterie est mise en} \code{cause sous l
 tests et de} \code{leur dependance (p} \code{plug-in non exacte,} \code{sur les p Monte-Carlo} \code{et non les p retenues).} \code{Une
 p elevee} \code{n'atteste pas} \code{l'adequation} \code{du modele} \code{(puissance non}
 \code{mesuree), voir} \code{les lignes} \code{"p de famille (minP,} \code{lecture conjointe)".}~», où [k] est le
-nombre de membres.
+nombre de membres. «~Puissance non mesurée~» s'entend des données traitées~: les mesures sous plan
+de la puissance (plus bas) ne s'y transposent pas, et celle de D., M2, C., G. et M4 n'est mesurée
+sous aucun plan.
 Texte T-3a (\code{PHRASE\_FAMILLE\_B\_EFF\_REDUIT}), joint à T-1 ou T-2 quand le $B$ effectif
 de famille est inférieur au $B$ effectif d'au moins un membre~: «~\code{Calculee sur} \code{les seules}
 \code{replications ou les} \code{statistiques de} \code{tous les} \code{tests de la} \code{famille sont finies,}
@@ -19498,6 +19560,53 @@ méthode Merz--Wüthrich~; la section~\ref{sec:calib-mc-mw} l'explique~: constat
 restant des diagnostics. \emph{Statut}~: constats de simulation sous ces quatre plans~;
 l'incertitude de Clopper--Pearson (fonction de $R$) et l'erreur de Monte-Carlo de chaque p
 (fonction de $n$) sont distinctes de l'erreur d'approximation en $T$, que la mesure ne borne pas.
+
+\emph{Puissance mesurée des lignes de lecture conjointe à $T = 8$} (fiches~\ref{fiche:p-famille}
+et~\ref{fiche:p-globale}~; classes et critères fixés avant toute exécution). Constat de simulation
+sous plan, jamais un résultat général~: taux de $p < \alpha$ de la ligne que restitue le moteur,
+procédure complète à $B = 999$, dont l'erreur de Monte-Carlo de chaque p fait partie~; la puissance
+à $B$ infini n'est pas mesurée. Le taux est rapporté aux jeux ou triangles où la ligne est
+présente, comme au tableau T-F1 de la mesure du niveau. Méthode lognormale~: \code{run\_engine()}
+complet, 300 réplications par point, sous les modèles ajustés à J1 et J2 et les alternatives du
+volet~B (tableau~\ref{tab:tracabilite-puissance}), AR(1) à $\rho = 0{,}5$ (A), tendance de 2
+écarts-types (T), rupture de 2 écarts-types après l'année~4 (R), en nombres aléatoires communs avec
+le point nul (\code{tests/puissance\_t8.R}, mode \code{-{}-familles},
+\code{docs/tableaux/}\allowbreak\code{20261127-}\allowbreak\code{issue379-familles-ln.md}). Méthode
+Merz--Wüthrich~: modèle de Mack gaussien ajusté au triangle de contrôle, géométrie $8 \times 8$,
+première colonne fixée, plans P1 et P2 de la mesure de puissance de la section~\ref{sec:calib-mc-mw},
+300 ou 500 triangles par cellule, ordonnée à l'origine ($\delta = 0{,}20$), dérive calendaire de
+$5~\%$ par exercice et persistance AR(1) des erreurs des facteurs d'une même année de survenance
+($\rho = 0{,}3$ et $0{,}5$) (\code{tests/puissance\_mw\_t8.R}, mode \code{-{}-familles},
+\code{docs/tableaux/}\allowbreak\code{20261127-}\allowbreak\code{issue379-issue494-}\allowbreak\code{puissance-mw.md}).
+Classes~: \emph{non distinguée} du niveau si le test exact de McNemar apparié contre le point nul
+(test exact de Fisher bilatéral pour l'ordonnée à l'origine et la dérive calendaire, tirées sous
+des graines distinctes de la cellule nulle) n'est pas significatif à $0{,}05$~; sinon \emph{faible} (borne haute de l'intervalle de
+Clopper--Pearson à 95~\% sous $0{,}5$), \emph{substantielle} (borne basse au moins $0{,}5$) ou
+\emph{intermédiaire}~; le seuil $0{,}5$ est une convention déclarée. \emph{Résultat} (seuil
+$0{,}10$, J1~/ J2 en lognormal)~: famille que vise l'alternative, E. sous A, $0{,}227$
+$[0{,}181~;~0{,}278]$~/ $0{,}180$, et B. sous T, $0{,}377$ $[0{,}322~;~0{,}434]$~/ $0{,}177$,
+faibles~; F. sous R, $0{,}520$ $[0{,}462~;~0{,}578]$~/ $0{,}500$ $[0{,}442~;~0{,}558]$,
+intermédiaire~; ligne globale de $0{,}130$ (T sur J2, non distinguée du niveau) à $0{,}397$ (R sur
+J1). En Merz--Wüthrich, sous P1, M1 sous l'ordonnée à l'origine, $0{,}757$ $[0{,}704~;~0{,}804]$,
+et sous la dérive calendaire, $0{,}560$, substantielles, de même que la ligne globale sous
+l'ordonnée à l'origine, $0{,}583$~; M3 sous la dérive calendaire, $0{,}267$, et sous la persistance
+AR(1), de $0{,}200$ ($\rho = 0{,}3$) à $0{,}432$ ($\rho = 0{,}5$~; $0{,}418$ sous P2), faibles. Dans
+toutes les autres cellules mesurées à ce seuil, le taux est inférieur à $0{,}5$, la seule autre classe
+intermédiaire étant B. sous R sur J1 ($0{,}503$)~: hors de ces six cellules, une p de famille ou une
+p globale élevée n'atteste pas l'adéquation, et elle ne l'établit dans aucune. \emph{Les familles
+ne sont pas spécifiques}~: sous A sur J1, B. ($0{,}337$) réagit plus que E., famille visée~; sous R
+sur J1, B. presque autant que F.~; sous la dérive calendaire, M1 plus que M3~: une p de famille
+faible ne désigne pas l'hypothèse en défaut. Le contrôle de l'erreur a un prix en puissance~: lu en
+excès sur le niveau, le gain de la ligne approche ou dépasse celui de l'événement «~au moins un
+membre a une p-value de Monte-Carlo sous $\alpha$~» sous une alternative forte (M1 sous l'ordonnée
+à l'origine, $+0{,}667$ contre $+0{,}632$) et reste en deçà ailleurs (F. sous R sur J1, $+0{,}393$
+contre $+0{,}520$). \emph{Non mesurées}~: la puissance de D. et de M2 contre les écarts qu'elles
+visent (aucun scénario de non-normalité ni d'hétéroscédasticité dans ces plans~; M2 n'est
+distinguée du niveau dans aucune cellule de P1), et celle de C., G. et M4, sans ligne (au plus un
+membre). \emph{Statut}~: constats de simulation sous ces plans, sans transposition à un autre
+jeu, triangle, géométrie ou alternative~; p de famille plug-in, non exactes~; les intervalles de
+Clopper--Pearson (fonction de $R$) sont distincts de l'erreur de Monte-Carlo (fonction de $B$) et
+de l'erreur d'approximation en $T$, non bornée.
 
 \begin{fiche}{p de famille (minP, lecture conjointe)}
 \label{fiche:p-famille}%
@@ -19612,14 +19721,14 @@ l'affiche comme valeur non retenue, sans p retenue ni nature, la granularité de
 $1/(n+1)$. \emph{Pourquoi aucun verdict.} Donner un verdict à la ligne ferait coexister
 deux niveaux de décision sur les mêmes hypothèses~: une famille \code{OK} pourrait contenir une
 ligne en \code{ECHEC}, et le dossier deviendrait ambigu sur ce qui fait foi. La mesure du niveau
-est nécessaire mais non suffisante pour en faire un test~: la puissance n'en est pas mesurée.
+est nécessaire mais non suffisante pour en faire un test~: la puissance n'en est mesurée qu'en partie.
 
 \emph{Niveau à $T = 8$} (mesure en tête de section)~: pour les lignes de famille et la ligne
 globale mesurées sous quatre plans, tous les taux sont compatibles ou en écart
 mineur, aux deux seuils, et \emph{tous} les écarts mineurs sont du côté conservateur~; une p de
 famille se lit avec son \code{erreur\_MC} (environ $0{,}0095$ à $p = 0{,}10$ et $n = 999$), et la
 ligne ne porte pas la phrase du verdict proche d'un seuil qui le rappelle sur les lignes de type
-test. \emph{Puissance}~: non mesurée à $T = 8$ (travail postérieur à la remise)~; \textbf{une p de famille élevée n'atteste pas
+test. \emph{Puissance}~: en tête de section, partielle, le plus souvent faible~; \textbf{une p de famille élevée n'atteste pas
 l'adéquation des hypothèses de la famille}. \emph{Statut}~: constats de simulation sous ces quatre
 plans, qui ne se transposent ni à un autre jeu, ni à une autre géométrie de triangle, ni à une
 autre profondeur~; aucun théorème ne couvre la p de famille à $T = 8$, et la littérature citée ne
@@ -19680,7 +19789,7 @@ faible que celle de Breusch--Pagan studentisé ($0{,}018$, seul \code{ECHEC} du 
 environ 13~\% des jeux simulés sous le modèle ajusté, compte tenu des dix-sept membres et de leur
 dépendance. Elle ne dit pas que cet \code{ECHEC} est une fausse alerte~: le verdict reste celui de
 la ligne (famille C. d'un seul test, sans ligne de famille), et une p globale élevée n'atteste pas
-l'adéquation (puissance non mesurée).
+l'adéquation (puissance le plus souvent faible sous les plans mesurés).
 Mêmes limites que la fiche précédente~: contrôle au sens faible, sous le modèle
 ajusté~; aucune p-value ajustée par ligne~; aucun verdict de ligne modifié~; affichage «~p globale
 (Monte-Carlo) = \dots{} --- diagnostic, aucune p retenue~» dans la vue Synthèse~; mêmes raisons
@@ -19694,8 +19803,9 @@ $0{,}0990$, $0{,}0715$ et $0{,}0860$~: sous ces plans, la part des jeux conforme
 au moins un membre a une p-value de Monte-Carlo sous $0{,}10$, de 55 à 64~\%, se compare à celle
 dont la p globale est sous $0{,}10$, de 7 à 11~\%. Le détail des verdicts sous le
 modèle, sur tous les tests et sur les seuls tests de sens «~ne pas rejeter~», est aux
-sections~\ref{sec:calibration-mc} et~\ref{sec:calib-mc-mw}. \emph{Puissance}~: non mesurée à
-$T = 8$ (travail postérieur à la remise)~; une p globale élevée n'atteste pas l'adéquation du modèle. \emph{Statut}~:
+sections~\ref{sec:calibration-mc} et~\ref{sec:calib-mc-mw}. \emph{Puissance} à
+$T = 8$ (tête de section), au seuil $0{,}10$~: de $0{,}130$ à $0{,}397$ sous les alternatives lognormales, de $0{,}164$ à
+$0{,}583$ en Merz--Wüthrich~; une p globale élevée n'atteste pas l'adéquation du modèle. \emph{Statut}~:
 constats de simulation sous les plans J1, J2, N et E ($R = 2\,000$, $B = 999$, fichiers de la
 tête de section)~; aucun résultat général.
 \end{fiche}
@@ -20987,6 +21097,27 @@ bootstrap à $T = 8$. Les intervalles de Clopper--Pearson à 95~\% mesurent l'in
 taux, fonction du nombre de triangles, distincte de l'erreur de Monte-Carlo de chaque p-value
 (fonction de $B$) et de l'erreur de $\rho$ (fonction de $N_0$). Lecture ligne par ligne dans la
 rubrique~7 de chaque fiche.
+
+\emph{Persistance dans l'année de survenance.} Une mesure complémentaire, aux classes fixées avant
+toute exécution (\code{tests/puissance\_mw\_t8.R}, mode \code{-{}-familles}, sortie
+\code{docs/tableaux/}\allowbreak\code{20261127-}\allowbreak\code{issue379-issue494-}\allowbreak\code{puissance-mw.md}),
+donne les taux de rejet de la corrélation entre années de développement adjacentes
+(fiche~\ref{mw:m3cor}), de Durbin--Watson sur résidus de Mack, de la famille M3 et de la ligne
+globale sous une persistance des facteurs d'une même année de survenance~: triangles simulés sous
+$H_0$ par le modèle de la mesure ci-dessus, l'erreur standardisée de la transition $j \to j + 1$ de
+l'année $i$ suivant un AR(1) le long de $j$, $\varepsilon(i, 0) = \eta(i, 0)$, $\varepsilon(i, j) =
+\rho\,\varepsilon(i, j-1) + \sqrt{1 - \rho^2}\,\eta(i, j)$, $\eta$ i.i.d. $\mathcal{N}(0, 1)$,
+variance marginale~1~; $\rho = 0{,}3$ et $0{,}5$ sous P1, $0{,}5$ sous P2, P3 non mesuré~; 500
+triangles par cellule, sous les graines de la cellule $H_0$ du plan (nombres aléatoires communs~; à
+$\rho = 0$, triangles de $H_0$ au bit près)~; $B = 999$, rejet si $p_{\mathrm{mc}} < \alpha$~;
+classes de la section~\ref{sec:lecture-conjointe} (McNemar exact apparié contre la cellule $H_0$,
+seuil conventionnel $0{,}5$). Résultats~: rubrique~7 de la fiche~\ref{mw:m3cor} et tête de la
+section~\ref{sec:lecture-conjointe}. Sous $H_0$, la statistique et la p-value de Monte-Carlo de la
+ligne sont identiques, triangle par triangle, à celles de la mesure de puissance ci-dessus (mêmes
+graines, 500 premiers triangles de P1 et de P2)~: cette identité mécanique atteste que la chaîne de calcul de la
+ligne (statistique, simulation, règle de comptage d'\code{engine\_p\_mc()}) est inchangée~; elle
+n'est pas une mesure nouvelle de son niveau. \emph{Statut}~: constat de simulation sous un seul
+modèle simulé et une seule forme de dépendance, sans transposition.
 
 \emph{Niveau conditionnel à l'admission du triangle.} Les treize p-values de Monte-Carlo sont
 calculées sur toutes les réplications à statistiques calculées, y compris celles dont la réserve
@@ -22440,8 +22571,9 @@ modèle de Mack ajusté au triangle de contrôle (option \code{--seulement mw} d
         p de famille et la p globale situent la plus petite p-value de Monte-Carlo d'une famille,
         ou de la batterie, dans sa loi sous le modèle ajusté, compte tenu du nombre de tests et de
         leur dépendance. Elles ne modifient aucun verdict, se lisent avec leur erreur de
-        Monte-Carlo, et une valeur élevée n'atteste pas l'adéquation (puissance non mesurée~; sa
-        mesure est un travail postérieur à la remise).
+        Monte-Carlo, et une valeur élevée n'atteste pas l'adéquation (puissance mesurée sous plans,
+        le plus souvent faible~; familles non spécifiques~: une p de famille faible ne désigne pas
+        l'hypothèse en défaut~; section~\ref{sec:lecture-conjointe}).
 \end{enumerate}
 
 \subsection*{Tests structurellement inopérants à faible $T$}

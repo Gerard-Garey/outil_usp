@@ -118,3 +118,12 @@ Le principe 2 de l'ADR 0010 vise les **workflows d'agents** de `.claude/workflow
 **Accepté** par le mainteneur le 25/11/2026, tel que proposé, sans amendement (**Q-75-7 (a)**, `docs/feuille-de-route.md`, § 4, E-25/11 (Q-75, suite) ; consigné par l'agent architect (IA), routine, étape 1 du créneau A3, sur `claude/creneau-a3`). Le statut `accepted` est porté par un commit `docs:` d'A3, hors du circuit de #620. L'étape d'étiquette du jalon court éventuel après A3 et celle de JS3 suivent les § 1 et 2.
 
 **Q-75-8 (a)** : la ligne de `CLAUDE.md` proposée sous « Conséquences » est décidée, sous « Git et GitHub » ; posée par la session principale par le commit `claude:` `9fd81f5` d'A3.
+
+## Annotation du 27/11/2026 — une seule étiquette, à la fin de la phase ; `v3.1.1` abandonnée
+
+> *Rédigée par l'agent architect (IA), sur décision du mainteneur du 27/11/2026 (`docs/feuille-de-route.md`, § 4, E-27/11 (étiquettes)) ; texte proposé par l'agent et accepté tel quel par le mainteneur le 27/11 ; écrite sur la branche de travail `claude/mesures-t8` (PR brouillon #629), tête `56670bf`.*
+
+1. Plus d'étiquette intermédiaire. La seule étiquette à venir est celle de JS3, posée une fois toutes les issues traitées, selon les § 1 et 2. Au § 7, la mention « tout jalon court (Q-75-5 (a)) » ne s'applique plus.
+2. `v3.1.1` : la PR #628 est fusionnée (`9f9efc2`), mais l'exécution 45975575165 échoue. Le push de l'étiquette est refusé (workflow `ci.yml`, permission `workflows` absente ; cause à établir par #630). L'étiquette est abandonnée et n'a jamais été posée.
+3. Dérogation au § 1, point 5 : le fichier d'une étiquette jamais posée puis abandonnée est retiré (`7180bd5`), faute de quoi le workflow la retenterait. Son message reste lisible à `ac205aa`. Une étiquette posée garde son fichier, inchangé.
+4. La procédure de l'étiquette finale, et toute vérification préalable sur `.github/workflows/`, sera écrite par une annotation faite avec #630 (S11, cinquième numéro, Q-S9-4 (a)).

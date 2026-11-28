@@ -10,6 +10,10 @@
 #  R/engine.R ni tests/reference/ : il n'appelle que des fonctions du moteur
 #  inchangees (.imhof_p_sup0(), .dw_valeurs_propres(), dw_p_exacte(),
 #  dw_puissance_ar1(), usp_puissance_enveloppe_h2(), engine_sous_graine()).
+#  Il charge tests/outils_tests.R puis tests/outils_mesure_dw.R (#421,
+#  Q-78-4 (a)), qui porte la definition unique, partagee avec
+#  tests/mesure_dw_rho_negatif_t8.R, de empreintes_code(), plateforme_calcul(),
+#  dw_mat(), ar1_mat() et points_critiques_dw().
 #  Sortie en markdown sur la console (UTF-8) ; un fichier n'est ecrit que
 #  sur --ecrire. Tous les libelles non ASCII sont ecrits en echappements \u
 #  (fichier source ASCII).
@@ -129,9 +133,10 @@
 #  Usage (depuis la racine du depot ; LC_ALL=C.UTF-8 sous Linux, #113) :
 #      Rscript tests/mesure_lb1_dw_t8.R [--ecrire]
 #  --ecrire : ecrit en plus, si tous les controles tiennent,
-#  docs/tableaux/20261020-mesure-lb1-dw-t8.md (plateforme, generateur,
-#  graine, SHA de HEAD, md5 du moteur, empreintes du script et de
-#  tests/outils_tests.R) ; sans cette option, rien n'est ecrit. Gardes
+#  docs/tableaux/<AAAAMMJJ>-mesure-lb1-dw-t8.md, date du jour (premier
+#  tableau : 20261020-mesure-lb1-dw-t8.md ; plateforme, generateur, graine,
+#  SHA de HEAD, md5 du moteur, empreintes du script, de tests/outils_tests.R
+#  et de tests/outils_mesure_dw.R) ; sans cette option, rien n'est ecrit. Gardes
 #  anticipees (avant tout calcul) puis finales (avant d'ecrire), comme les
 #  autres scripts (#205, #173) : docs/tableaux/ doit exister ; refus (code
 #  1, rien d'ecrit) si le commit lu par commit_depot() n'est pas un SHA nu
@@ -163,26 +168,20 @@ DOSSIER_SCRIPT <- local({
   if (length(f) == 1L) dirname(f) else if (file.exists("tests/outils_tests.R")) "tests" else "."
 })
 source(file.path(DOSSIER_SCRIPT, "outils_tests.R"))
+# empreintes_code(), plateforme_calcul(), dw_mat(), ar1_mat(),
+# points_critiques_dw() : definition unique (#421, Q-78-4 (a)).
+source(file.path(DOSSIER_SCRIPT, "outils_mesure_dw.R"))
 
-NOM_FICHIER <- "20261020-mesure-lb1-dw-t8.md"
+# Nom date du jour : un nouveau tableau ne remplace jamais le precedent
+# (20261020-mesure-lb1-dw-t8.md reste ; #421, Q-78-4 (a)).
+NOM_FICHIER <- sprintf("%s-mesure-lb1-dw-t8.md", format(Sys.Date(), "%Y%m%d"))
 CHEMIN_ECRIT <- file.path(RACINE, "docs", "tableaux", NOM_FICHIER)
-# Empreintes du code execute : md5 de ce script et de tests/outils_tests.R ;
-# "hors depot" si le script execute n'est pas celui du depot (copie declaree
-# de empreintes_code() de tests/mesure_b_dossier_t8.R).
-empreintes_code <- function() {
-  f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
-  md5 <- function(x) if (!length(x) || !file.exists(x)) "absent" else unname(tools::md5sum(x))
-  dans <- length(f) == 1L && identical(normalizePath(f, winslash = "/", mustWork = FALSE),
-                                       normalizePath(file.path(RACINE, SCRIPT), winslash = "/", mustWork = FALSE))
-  sprintf("%s %s%s ; tests/outils_tests.R %s", SCRIPT, md5(f), if (dans) "" else " (hors d\u00e9p\u00f4t)",
-          md5(file.path(RACINE, "tests", "outils_tests.R")))
-}
 # Gardes de --ecrire (#205, #173), anticipees (avant tout calcul) puis
 # finales (avant d'ecrire) : dossier cible, arbre propre et script suivi,
 # fichier cible non suivi par git (ce script n'a pas d'option --remplacer).
 gardes_ecrire <- function(quand) {
   if (!dir.exists(file.path(RACINE, "docs", "tableaux"))) stop("dossier de sortie introuvable : docs/tableaux")
-  nv <- motifs_non_versionnable(commit_depot(SCRIPT), empreintes_code(), quand)
+  nv <- motifs_non_versionnable(commit_depot(SCRIPT), empreintes_code(SCRIPT), quand)
   if (length(nv)) {
     message("--ecrire refuse (tableau versionne dans docs/tableaux/) : ", paste(nv, collapse = " ; "),
             " -- aucun fichier ecrit")
@@ -201,15 +200,6 @@ if (OPT_ECRIRE) gardes_ecrire("de l'ex\u00e9cution")
 COMMIT <- commit_depot(SCRIPT)
 MD5_MOTEUR <- unname(tools::md5sum(file.path(RACINE, "R", "engine.R")))
 
-# Plateforme de calcul (copie declaree de plateforme_calcul() de
-# tests/constats_puissance_t8.R).
-plateforme_calcul <- function() {
-  txt <- function(v) if (is.null(v) || !length(v) || is.na(v[1]) || !nzchar(v[1])) "non renseign\u00e9" else unname(v[1])
-  si <- Sys.info()
-  sprintf("%s ; %s ; %s, %s ; BLAS : %s ; LAPACK : %s (version %s)",
-          R.version.string, txt(utils::sessionInfo()$running), txt(si[["sysname"]]), txt(si[["machine"]]),
-          txt(extSoftVersion()["BLAS"]), txt(La_library()), txt(La_version()))
-}
 ecrire_console <- function(x) writeLines(enc2utf8(x), useBytes = TRUE)
 
 # --- Mise en forme -------------------------------------------------------------
@@ -279,23 +269,11 @@ p_rho_inf <- function(c, S = NULL) p_sup_forme(-BM - c * Id1, S)
 S_ar1 <- function(rho) racine_sym(crossprod(H, outer(seq_len(T_), seq_len(T_), function(i, j) rho^abs(i - j)) %*% H))
 
 # --- Statistiques sur des series simulees (lignes) --------------------------------
+# DW (dw_mat()), AR(1) (ar1_mat()) et points critiques de DW
+# (points_critiques_dw(), copie declaree du calcul de dw_puissance_ar1()) :
+# tests/outils_mesure_dw.R.
 centrer <- function(Z) Z - rowMeans(Z)
 stat_rho1_mat <- function(Z) { zc <- centrer(Z); rowSums(zc[, -1L, drop = FALSE] * zc[, -T_, drop = FALSE]) / rowSums(zc^2) }
-stat_dw_mat <- function(Z) { zc <- centrer(Z); rowSums((zc[, -1L, drop = FALSE] - zc[, -T_, drop = FALSE])^2) / rowSums(zc^2) }
-ar1_mat <- function(E, rho) {
-  Z <- E; s <- sqrt(1 - rho^2)
-  for (t in 2:T_) Z[, t] <- rho * Z[, t - 1L] + s * E[, t]
-  Z
-}
-
-# --- Points critiques de DW (copie declaree du calcul de dw_puissance_ar1()) --------
-LAM_DW <- .dw_valeurs_propres(T_)
-points_critiques_dw <- function(alpha) {
-  p0_sup <- function(d) .imhof_p_sup0(LAM_DW - d)
-  lo <- min(LAM_DW) + 1e-9; hi <- max(LAM_DW) - 1e-9
-  c(bas  = stats::uniroot(function(d) (1 - p0_sup(d)) - alpha / 2, c(lo, hi), tol = 1e-12)$root,
-    haut = stats::uniroot(function(d) p0_sup(d) - alpha / 2, c(lo, hi), tol = 1e-12)$root)
-}
 
 sortie <- character(0)
 ajouter <- function(...) sortie <<- c(sortie, ...)
@@ -314,13 +292,13 @@ ecart_q <- max(vapply(1:100, function(i) {
   abs(q - unname(stats::Box.test(z, lag = 1L, type = "Ljung-Box")$statistic))
 }, 0))
 ctrl("I1", "Q = T(T+2) rho_1^2/(T-1) contre stats::Box.test(lag = 1, Ljung-Box), 100 s\u00e9ries (\u00e9cart max)", ecart_q, 0, 1e-10)
-# (b) stat_dw_mat contre stat_dw() du moteur.
-ecart_dw <- max(vapply(1:100, function(i) abs(stat_dw_mat(matrix(E0[i, ], 1L)) - stat_dw(E0[i, ])), 0))
+# (b) dw_mat() contre stat_dw() du moteur.
+ecart_dw <- max(vapply(1:100, function(i) abs(dw_mat(matrix(E0[i, ], 1L)) - stat_dw(E0[i, ])), 0))
 ctrl("I2", "DW matriciel contre stat_dw() du moteur, 100 s\u00e9ries (\u00e9cart max)", ecart_dw, 0, 1e-12)
 # (c) Rejet de DW par intervalle critique = p < alpha de dw_p_exacte().
 desacc <- 0L
 for (a in ALPHAS) {
-  d <- points_critiques_dw(a)
+  d <- points_critiques_dw(a, T_)
   for (i in 1:300) {
     z <- E0[i, ]; ds <- stat_dw(z)
     rej_int <- ds <= d[["bas"]] || ds >= d[["haut"]]
@@ -391,13 +369,13 @@ ajouter("### 2. LB1 calibr\u00e9 exactement : rejet si |\u03c1\u0302\u2081| > c"
 # 3. Puissances de LB1 (Imhof) et de DW (dw_puissance_ar1()) sous AR(1)
 ###############################################################################
 pw_lb1 <- function(rho, a) { S <- S_ar1(rho); c_a <- CAL[[format(a)]]$c; p_rho_sup(c_a, S) + p_rho_inf(c_a, S) }
-PTS <- lapply(ALPHAS, points_critiques_dw); names(PTS) <- vapply(ALPHAS, format, "")
+PTS <- lapply(ALPHAS, points_critiques_dw, T = T_); names(PTS) <- vapply(ALPHAS, format, "")
 ligs <- character(0)
 for (a in ALPHAS) {
   for (i in seq_along(RHOS)) {
     rho <- RHOS[i]
     Z <- ar1_mat(E0, rho)
-    r1 <- stat_rho1_mat(Z); dw <- stat_dw_mat(Z)
+    r1 <- stat_rho1_mat(Z); dw <- dw_mat(Z)
     p_lb <- pw_lb1(rho, a); p_dw <- dw_puissance_ar1(T_, rho, a)
     s_lb <- mean(abs(r1) > CAL[[format(a)]]$c); s_dw <- mean(dw <= PTS[[format(a)]][["bas"]] | dw >= PTS[[format(a)]][["haut"]])
     id <- sprintf("M3-a%s-r%s", num(a, 2), num(rho, 1))
@@ -428,7 +406,7 @@ ajouter("### 3. Puissances sous AR(1) : Durbin-Watson bilat\u00e9ral exact et LB
 ligs <- character(0)
 for (a in ALPHAS) {
   d <- PTS[[format(a)]]; c_a <- CAL[[format(a)]]$c
-  dw0 <- stat_dw_mat(E0)
+  dw0 <- dw_mat(E0)
   rej_dw <- dw0 <= d[["bas"]] | dw0 >= d[["haut"]]
   rej_lb <- abs(r1_h0) > c_a
   p_u <- mean(rej_dw | rej_lb); se_u <- se_bin(p_u, R_SIM)
@@ -544,7 +522,7 @@ T0 <- c("### T0", "",
         ligne_md("R, section 5 (tirages par matrice, deux matrices)", format(R_PI, scientific = FALSE)),
         ligne_md("Commit (HEAD)", COMMIT),
         ligne_md("md5 de R/engine.R", MD5_MOTEUR),
-        ligne_md("Empreintes du code (script ex\u00e9cut\u00e9, outils charg\u00e9s)", empreintes_code()),
+        ligne_md("Empreintes du code (script ex\u00e9cut\u00e9, outils charg\u00e9s)", empreintes_code(SCRIPT)),
         ligne_md("Script", sprintf("%s%s (hors CI ; protocole dans l'en-t\u00eate)", SCRIPT, if (OPT_ECRIRE) " --ecrire" else "")), "")
 
 duree <- as.numeric(difftime(Sys.time(), t_debut, units = "secs"))
